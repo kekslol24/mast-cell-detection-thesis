@@ -13,9 +13,9 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 # KONFIGURATION
 # ==============================================================================
 N_SPLITS = 5
-MODEL_SIZE = "yolo11n.pt" # Wieder auf Nano geändert für paralleles Training!
+MODEL_SIZE = "yolo11l.pt"
 EPOCHS_PER_FOLD = 20
-BATCH_SIZE = 32           
+BATCH_SIZE = 16           
 BASE_DATA_PATH = "/cfs/earth/scratch/vollmflo/BA/data" 
 TEMP_DIR = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR = os.path.abspath("./processed_data")
@@ -117,18 +117,19 @@ def train_fold(fold_params):
             'nc': NC, 'names': CLASS_NAMES
         }, f)
 
+    gpu_id = fold_idx % 2
     # 4. TRAINING (workers=0 ist Pflicht!)
     model = YOLO(MODEL_SIZE)
     model.train(
         data=yaml_path, epochs=EPOCHS_PER_FOLD, batch=BATCH_SIZE,
-        device=0, project=PROJECT_DIR, name=f"fold_{fold_idx + 1}",
+        device=gpu_id, project=PROJECT_DIR, name=f"fold_{fold_idx + 1}",
         workers=0, cache=False, exist_ok=True, verbose=False
     )
     
     # 5. EVALUATION (workers=0 fixiert den Daemon-Fehler)
     best_weights = os.path.join(PROJECT_DIR, f"fold_{fold_idx + 1}", 'weights', 'best.pt')
     val_model = YOLO(best_weights)
-    metrics = val_model.val(data=yaml_path, split='test', verbose=False, workers=0)
+    metrics = val_model.val(data=yaml_path, split='test', verbose=False, workers=0, device=gpu_id)
     
     return {
         'Fold': fold_idx + 1,
@@ -149,7 +150,7 @@ if __name__ == "__main__":
     raw_labels = [0] * len(pos_images) + [1] * len(neg_images)
 
     print(f"Starte Preprocessing für {len(all_raw_images)} Bilder...")
-    with mp.Pool(processes=mp.cpu_count()) as p:
+    with mp.Pool(processes=2) as p:
         processed_results = p.map(preprocess_image, all_raw_images)
 
     # Synchrones Filtern von X und y
