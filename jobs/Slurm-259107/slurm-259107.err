@@ -1,0 +1,58 @@
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+                    ~~~~^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/multiprocessing/pool.py", line 48, in mapstar
+    return list(map(*args))
+  File "/cfs/earth/scratch/vollmflo/BA/ba_testrun.py", line 117, in train_fold
+    metrics = val_model.val(data=yaml_path, split='test', verbose=False)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/engine/model.py", line 611, in val
+    validator(model=self.model)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/engine/validator.py", line 186, in __call__
+    self.dataloader = self.dataloader or self.get_dataloader(self.data.get(self.args.split), self.args.batch)
+                                         ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/models/yolo/detect/val.py", line 314, in get_dataloader
+    return build_dataloader(
+        dataset,
+    ...<5 lines>...
+        pin_memory=self.training,
+    )
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/data/build.py", line 326, in build_dataloader
+    return InfiniteDataLoader(
+        dataset=dataset,
+    ...<9 lines>...
+        drop_last=drop_last and len(dataset) % batch != 0,
+    )
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/data/build.py", line 67, in __init__
+    self.iterator = super().__iter__()
+                    ~~~~~~~~~~~~~~~~^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 494, in __iter__
+    return self._get_iterator()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 427, in _get_iterator
+    return _MultiProcessingDataLoaderIter(self)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 1170, in __init__
+    w.start()
+    ~~~~~~~^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/multiprocessing/process.py", line 118, in start
+    assert not _current_process._config.get('daemon'), \
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: daemonic processes are not allowed to have children
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/cfs/earth/scratch/vollmflo/BA/ba_testrun.py", line 173, in <module>
+    final_results = pool.map(train_fold, fold_tasks)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/multiprocessing/pool.py", line 367, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/multiprocessing/pool.py", line 774, in get
+    raise self._value
+AssertionError: daemonic processes are not allowed to have children

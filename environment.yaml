@@ -1,0 +1,10 @@
+name: ultralytics
+channels:
+  - conda-forge 
+  - nodefaults
+dependencies:
+  - python>=3.9, <3.14
+  - pip
+  - pip: 
+    - ultralytics
+    - numpy<2
