@@ -14,7 +14,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 # ==============================================================================
 N_SPLITS = 5
 MODEL_SIZE = "yolo11l.pt"
-EPOCHS_PER_FOLD = 20
+EPOCHS_PER_FOLD = 200
 BATCH_SIZE = 16           
 BASE_DATA_PATH = "/cfs/earth/scratch/vollmflo/BA/data" 
 TEMP_DIR = os.path.abspath("./cv_temp_isolated/")

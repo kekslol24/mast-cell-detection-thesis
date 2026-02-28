@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ultralytics-test
 #SBATCH --mail-type=fail,end
-#SBATCH --time=00-02:00:00
+#SBATCH --time=00-05:00:00
 #SBATCH --partition=earth-4
 #SBATCH --constraint=rhel8
 #SBATCH --nodes=1
@@ -24,4 +24,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python ba_testrun.py
+python ba_testrun_augment.py
