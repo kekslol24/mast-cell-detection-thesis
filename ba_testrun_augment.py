@@ -55,7 +55,7 @@ def preprocess_image(img_path):
     img = apply_smart_filter(img)
     
     # 2. Labels laden
-    lbl_path = img_path.replace(os.sep + "images" + os.sep, os.sep + "labels" + os.sep).replace(".jpg", ".txt")
+    label_path = img_path.replace(os.sep + "images" + os.sep, os.sep + "labels" + os.sep).replace(".jpg", ".txt")
     bboxes = []
     class_labels = []
     
