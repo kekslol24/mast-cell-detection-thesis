@@ -15,9 +15,11 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 # KONFIGURATION
 # ==============================================================================
 N_SPLITS = 5
-MODEL_SIZE = "yolo11l.pt"
-EPOCHS_PER_FOLD = 200
-BATCH_SIZE = 16 # Reduziert für Large Modell
+MODEL_SIZE = "yolo11n.pt"
+EPOCHS_PER_FOLD = 5000
+PATIENCE = 50
+BATCH_SIZE = 32 # Reduziert für Large Modell
+IMGSZ = 512
 BASE_DATA_PATH = "/cfs/earth/scratch/vollmflo/BA/data" 
 TEMP_DIR = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR = os.path.abspath("./processed_data")
@@ -28,9 +30,10 @@ NC = len(CLASS_NAMES)
 # --- AUGMENTATION PIPELINE ---
 augmenter = A.Compose([
     A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5), ## evtl. noch Vertical Flip reinnehmen!
     A.RandomBrightnessContrast(p=0.2),
     A.ShiftScaleRotate(rotate_limit=15, p=0.3, border_mode=cv.BORDER_CONSTANT, value=0),
-    A.GaussNoise(p=0.2),
+    # A.GaussNoise(p=0.2), Evtl. auskommentieren
 ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
 
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -52,7 +55,7 @@ def preprocess_image(img_path):
     if img is None: return None
     
     # 1. Filter
-    img = apply_smart_filter(img)
+    # img = apply_smart_filter(img)         möchten wir im training haben
     
     # 2. Labels laden
     label_path = img_path.replace(os.sep + "images" + os.sep, os.sep + "labels" + os.sep).replace(".jpg", ".txt")
@@ -68,14 +71,13 @@ def preprocess_image(img_path):
                     bboxes.append([float(x) for x in parts[1:]])
 
     # 3. Augmentierung anwenden (Synchronisiert mit BBoxes)
-    if bboxes:
-        try:
-            transformed = augmenter(image=img, bboxes=bboxes, class_labels=class_labels)
-            img = transformed['image']
-            bboxes = transformed['bboxes']
-            class_labels = transformed['class_labels']
-        except Exception:
-            pass # Falls Augmentation fehlschlägt, Originalbild nutzen
+    try:
+        transformed = augmenter(image=img, bboxes=bboxes, class_labels=class_labels)
+        img = transformed['image']
+        bboxes = transformed['bboxes']
+        class_labels = transformed['class_labels']
+    except Exception:
+        pass # Falls Augmentation fehlschlägt, Originalbild nutzen
 
     # 4. Speichern
     base_name = os.path.basename(img_path)
@@ -148,11 +150,21 @@ def train_fold(fold_params):
     
     # --- TRAINING ---
     model = YOLO(MODEL_SIZE)
-    model.train(
-        data=yaml_path, epochs=EPOCHS_PER_FOLD, batch=BATCH_SIZE,
-        device=gpu_id, project=PROJECT_DIR, name=f"fold_{fold_idx + 1}",
-        workers=0, cache=False, exist_ok=True, verbose=False,
-        augment=False # Wir haben bereits Albumentations genutzt
+    model.train(data=yaml_path, 
+                epochs=EPOCHS_PER_FOLD, 
+                patience=PATIENCE, 
+                batch=BATCH_SIZE,
+                device=gpu_id, 
+                project=PROJECT_DIR,
+                imgsz=IMGSZ,
+                name=f"fold_{fold_idx + 1}",
+                workers=0, 
+                cache=False, 
+                exist_ok=True, 
+                verbose=False,
+                augment=False,# Wir haben bereits Albumentations genutzt
+                cos_lr=True # Benutzt eine Cosinus learning rate, für eine bessere Konvergenz
+                
     )
     
     # Speicher freigeben vor Validierung (Wichtig für Large Modell)
@@ -187,10 +199,11 @@ if __name__ == "__main__":
     raw_labels = [0] * len(pos_images) + [1] * len(neg_images)
 
     print(f"Starte Preprocessing & Augmentation für {len(all_raw_images)} Bilder...")
+    
     # Preprocessing ist CPU-lastig, processes=2 oder höher je nach Node
     with mp.Pool(processes=8) as p:
         processed_results = p.map(preprocess_image, all_raw_images)
-
+    print(f"Endanzahl Bilder: {len(processed_results)}")
     X_all, y_all = [], []
     for img_p, lbl in zip(processed_results, raw_labels):
         if img_p is not None:
