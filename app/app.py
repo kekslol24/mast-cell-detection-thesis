@@ -9,7 +9,7 @@ custom_css = """
 
 # 1. Modell laden (ersetze 'yolo11n.pt' durch deinen Pfad zu den Weights)
 # model = YOLO(r'BA\jobs\Slurm-264235 (large 3rd 200epoch + aug)\yolo_runs_hpc_final\fold_1\weights\best.pt')
-model = YOLO(r"..\jobs\Slurm-264235 (large 3rd 200epoch + aug)\yolo_runs_hpc_final\fold_1\weights\best.pt")
+model = YOLO(r"..\hpc\jobs\Slurm-264235 (large 3rd 200epoch + aug)\yolo_runs_hpc_final\fold_1\weights\best.pt")
 
 def process_batch(files):
     if not files:
