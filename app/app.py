@@ -43,7 +43,7 @@ def process_batch(files):
     processed_images = []
     stats = {"high": 0, "medium": 0, "attention": 0}
     
-    results = model.predict(source=files, conf=0.25, iou=0.3)
+    results = model.predict(source=files, conf=0.25, iou=0.3) # evtl. anpassen
 
     for res in results:
         res_plotted = res.plot()
@@ -83,7 +83,7 @@ def evaluate_model(image_files, txt_files, iou_threshold=0.5):
     txt_dict = {os.path.splitext(os.path.basename(f.name))[0]: f.name for f in txt_files}
     
     stitched_images = []
-    tp, fp, fn = 0, 0, 0
+    tp, fp, fn, tn = 0, 0, 0, 0
 
     for base_name, img_path in img_dict.items():
         if base_name not in txt_dict:
@@ -117,7 +117,7 @@ def evaluate_model(image_files, txt_files, iou_threshold=0.5):
                     draw_gt.text((x1, y1-10), "GT", fill="lime")
 
         # 2. Prediction verarbeiten (Rechtes Bild)
-        result = model.predict(source=img_path, conf=0.25)[0]
+        result = model.predict(source=img_path, conf=0.25, iou=0.3)[0]
         res_plotted = result.plot()
         img_pred = Image.fromarray(res_plotted[:, :, ::-1])
         
@@ -146,7 +146,11 @@ def evaluate_model(image_files, txt_files, iou_threshold=0.5):
                 matched_pred.add(p_idx)
             else:
                 fp += 1
-                
+
+        if len(gt_boxes) == 0 and len(pred_boxes) == 0:
+            tn += 1
+            continue
+
         fn += len(gt_boxes) - len(matched_gt)
 
         # 4. Bilder zusammenfügen (GT links, Pred rechts)
@@ -161,6 +165,7 @@ def evaluate_model(image_files, txt_files, iou_threshold=0.5):
     report = f"""
 ### Gesamtauswertung (Threshold IoU: {iou_threshold})
 * **True Positives (Korrekt):** {tp}
+* **True Negatives (Korrekt Negativ):** {tn}
 * **False Positives (Falscher Alarm):** {fp}
 * **False Negatives (Verpasst):** {fn}
 * **Precision:** {precision:.3f}
@@ -170,7 +175,7 @@ def evaluate_model(image_files, txt_files, iou_threshold=0.5):
     # 5. Konfusionsmatrix zeichnen
     fig, ax = plt.subplots(figsize=(5, 4))
     cm = np.array([[tp, fn], [fp, 0]]) 
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, 
+    sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", ax=ax, 
                 xticklabels=['Mastcell', 'Background'], 
                 yticklabels=['Mastcell', 'Background'])
     ax.set_xlabel('Predicted')
