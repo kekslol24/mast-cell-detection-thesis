@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=hyperpara_tune
 #SBATCH --mail-type=fail,end
-#SBATCH --time=00-012:00:00
+#SBATCH --time=00-08:00:00
 #SBATCH --partition=earth-4
 #SBATCH --constraint=rhel8
 #SBATCH --nodes=1

@@ -3,8 +3,10 @@ import os
 
 if __name__ == "__main__":
 
+
+    model = YOLO("yolo11n.pt")
     current_dir = os.getcwd()
-    data_path = os.path.normpath(os.path.join(current_dir, "..", "Data", "Pos_neg 12241515", "data.yaml"))
+    data_path = os.path.normpath(os.path.join(current_dir, "..", "Tuning_Dataset", "data.yaml"))
 
     # search_space = {
     #     "lr0": (1e-5, 1e-1),
@@ -12,14 +14,14 @@ if __name__ == "__main__":
     # }
 
     model.tune(
-        data=path+"../Data/Pos_neg 12241515/data.yaml",
+        data=data_path,
         epochs=30,
         iterations=50,
         optimizer="AdamW",
         plots=True,
         save=True,
         val=True,
+        verbose=True
     )
-
 
 
