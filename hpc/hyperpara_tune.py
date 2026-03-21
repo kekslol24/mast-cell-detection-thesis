@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     model.tune(
         data=data_path,
-        epochs=30,
+        epochs=300,
         iterations=50,
         optimizer="AdamW",
         plots=True,

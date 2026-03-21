@@ -16,7 +16,7 @@ custom_css = """
 """
 
 # Modell laden
-model = YOLO(r"..\hpc\jobs\Slurm-264235 (large 3rd 200epoch + aug)\yolo_runs_hpc_final\fold_1\weights\best.pt")
+model = YOLO("../hpc/jobs/Slurm-264235 (large 3rd 200epoch + aug)/yolo_runs_hpc_final/fold_1/weights/best.pt")
 
 # --- HILFSFUNKTIONEN ---
 def calculate_iou(box1, box2):
@@ -43,7 +43,7 @@ def process_batch(files):
     processed_images = []
     stats = {"high": 0, "medium": 0, "attention": 0}
     
-    results = model.predict(source=files, conf=0.25, iou=0.3) # evtl. anpassen
+    results = model.predict(source=files, conf=0.58, iou=0.3, batch=16, stream=True) # evtl. anpassen
 
     for res in results:
         res_plotted = res.plot()
@@ -298,4 +298,4 @@ with gr.Blocks(title="Mastcell Detector", css=custom_css) as demo:
             stop_btn_research.click(fn=None, inputs=None, outputs=None, cancels=[run_event_research])
 
 if __name__ == "__main__":
-    demo.launch(css=custom_css, share=True)
+    demo.launch(css=custom_css, server_name="0.0.0.0", server_port=7860)
