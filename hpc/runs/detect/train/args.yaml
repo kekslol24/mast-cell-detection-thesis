@@ -16,7 +16,7 @@ project: null
 name: train
 exist_ok: false
 pretrained: true
-optimizer: AdamW
+optimizer: auto
 verbose: true
 seed: 0
 deterministic: true

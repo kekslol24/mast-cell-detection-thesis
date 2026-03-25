@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train_run
 #SBATCH --mail-type=fail,end
-#SBATCH --time=00-08:00:00
+#SBATCH --time=02-00:00:00
 #SBATCH --partition=earth-4
 #SBATCH --constraint=rhel8
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=64GB
-#SBATCH --gres=gpu:l40s:2
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=16GB
+#SBATCH --gres=gpu:l40s:1
 
 
 # Zeige aktuelles Verzeichnis vor dem Wechsel
@@ -24,4 +24,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python ba_testrun_augment.py
+python hyperpara_tune.py
