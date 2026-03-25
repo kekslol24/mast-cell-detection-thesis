@@ -31,10 +31,9 @@ NC = len(CLASS_NAMES)
 # --- AUGMENTATION PIPELINE ---
 augmenter = A.Compose([
     A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5), ## evtl. noch Vertical Flip reinnehmen!
+    A.VerticalFlip(p=0.5), 
     A.RandomBrightnessContrast(p=0.2),
     A.ShiftScaleRotate(rotate_limit=15, p=0.3, border_mode=cv.BORDER_CONSTANT, value=0),
-    # A.GaussNoise(p=0.2), Evtl. auskommentieren
 ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
 
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -53,12 +52,12 @@ def apply_smart_filter(img):
 
 def preprocess_image(img_path):
     img = cv.imread(img_path)
+
+    # img = apply_smart_filter(img) ## ohne schwärzen
+
+
     if img is None: return None
     
-    # 1. Filter
-    # img = apply_smart_filter(img)         möchten wir im training haben
-    
-    # 2. Labels laden
     label_path = img_path.replace(os.sep + "images" + os.sep, os.sep + "labels" + os.sep).replace(".jpg", ".txt")
     bboxes = []
     class_labels = []
@@ -71,21 +70,18 @@ def preprocess_image(img_path):
                     class_labels.append(int(parts[0]))
                     bboxes.append([float(x) for x in parts[1:]])
 
-    # 3. Augmentierung anwenden (Synchronisiert mit BBoxes)
     try:
         transformed = augmenter(image=img, bboxes=bboxes, class_labels=class_labels)
         img = transformed['image']
         bboxes = transformed['bboxes']
         class_labels = transformed['class_labels']
     except Exception:
-        pass # Falls Augmentation fehlschlägt, Originalbild nutzen
+        pass 
 
-    # 4. Speichern
     base_name = os.path.basename(img_path)
     new_img_path = os.path.join(PROCESSED_DIR, base_name)
     cv.imwrite(new_img_path, img)
     
-    # 5. Labels im neuen Ordner speichern
     new_label_path = new_img_path.replace(".jpg", ".txt")
     with open(new_label_path, 'w') as f:
         for cls, box in zip(class_labels, bboxes):
@@ -164,30 +160,40 @@ def train_fold(fold_params):
                 cache=False, 
                 exist_ok=True, 
                 verbose=False,
-                augment=False,# Wir haben bereits Albumentations genutzt
-                cos_lr=True # Benutzt eine Cosinus learning rate, für eine bessere Konvergenz
-                
+                augment=False,
+                cos_lr=True 
     )
     
-    # Speicher freigeben vor Validierung (Wichtig für Large Modell)
     del model
     torch.cuda.empty_cache()
     import gc
     gc.collect()
 
-    # --- EVALUATION ---
+    # --- EVALUATION AUF ALLEN 3 SPLITS ---
     best_weights = os.path.join(PROJECT_DIR, f"fold_{fold_idx + 1}", 'weights', 'best.pt')
     val_model = YOLO(best_weights)
-    metrics = val_model.val(
-        data=yaml_path, split='test', verbose=False, 
-        workers=0, device=gpu_id, batch=BATCH_SIZE
-    )
     
+    # 1. Test Metriken
+    metrics_test = val_model.val(data=yaml_path, split='test', verbose=False, workers=0, device=gpu_id, batch=BATCH_SIZE)
+    
+    # 2. Validierungs Metriken
+    metrics_val = val_model.val(data=yaml_path, split='val', verbose=False, workers=0, device=gpu_id, batch=BATCH_SIZE)
+    
+    # 3. Training Metriken
+    metrics_train = val_model.val(data=yaml_path, split='train', verbose=False, workers=0, device=gpu_id, batch=BATCH_SIZE)
+    
+    # Alle Daten kompakt zurückgeben
     return {
         'Fold': fold_idx + 1,
-        'mAP50-95': metrics.box.map,
-        'Precision': metrics.box.mp,
-        'Recall': metrics.box.mr
+        'Train_mAP50-95': metrics_train.box.map,
+        'Train_Precision': metrics_train.box.mp,
+        'Train_Recall': metrics_train.box.mr,
+        'Val_mAP50-95': metrics_val.box.map,
+        'Val_Precision': metrics_val.box.mp,
+        'Val_Recall': metrics_val.box.mr,
+        'Test_mAP50-95': metrics_test.box.map,
+        'Test_Precision': metrics_test.box.mp,
+        'Test_Recall': metrics_test.box.mr
     }
 
 # ==============================================================================
@@ -202,7 +208,6 @@ if __name__ == "__main__":
 
     print(f"Starte Preprocessing & Augmentation für {len(all_raw_images)} Bilder...")
     
-    # Preprocessing ist CPU-lastig, processes=2 oder höher je nach Node
     with mp.Pool(processes=8) as p:
         processed_results = p.map(preprocess_image, all_raw_images)
     print(f"Endanzahl Bilder: {len(processed_results)}")
@@ -227,13 +232,33 @@ if __name__ == "__main__":
 
     mp.set_start_method('spawn', force=True)
     
-    # HINWEIS: Bei 2 GPUs und Large Modell maximal processes=2
-    with mp.Pool(processes=2) as pool:
+    with mp.Pool(processes=8) as pool:
         final_results = pool.map(train_fold, fold_tasks)
 
+    # DataFrame erstellen und aufsplitten für sauberen Print
     results_df = pd.DataFrame(final_results)
+    
+    df_train = results_df[['Fold', 'Train_mAP50-95', 'Train_Precision', 'Train_Recall']].copy()
+    df_train.columns = ['Fold', 'mAP50-95', 'Precision', 'Recall']
+    
+    df_val = results_df[['Fold', 'Val_mAP50-95', 'Val_Precision', 'Val_Recall']].copy()
+    df_val.columns = ['Fold', 'mAP50-95', 'Precision', 'Recall']
+    
+    df_test = results_df[['Fold', 'Test_mAP50-95', 'Test_Precision', 'Test_Recall']].copy()
+    df_test.columns = ['Fold', 'mAP50-95', 'Precision', 'Recall']
+
     print("\n" + "="*50)
-    print("STRATIFIED CV ERGEBNISSE (WITH ALBUMENTATIONS)")
+    print("STRATIFIED CV ERGEBNISSE - TRAINING")
     print("="*50)
-    print(results_df.to_string(index=False))
-    print(f"\nØ mAP50-95: {results_df['mAP50-95'].mean():.4f}")
+    print(df_train.to_string(index=False))
+
+    print("\n" + "="*50)
+    print("STRATIFIED CV ERGEBNISSE - VALIDIERUNG")
+    print("="*50)
+    print(df_val.to_string(index=False))
+
+    print("\n" + "="*50)
+    print("STRATIFIED CV ERGEBNISSE - TEST (FINAL CV)")
+    print("="*50)
+    print(df_test.to_string(index=False))
+    print(f"\nØ Test mAP50-95: {df_test['mAP50-95'].mean():.4f}")
