@@ -1,0 +1,6 @@
+path: /cfs/earth/scratch/vollmflo/BA/Tuning_Dataset
+train: images/train
+val: images/val
+
+nc: 2
+names: ['Atypisch', 'Normal']

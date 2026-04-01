@@ -18,9 +18,10 @@ N_SPLITS = 5
 MODEL_SIZE = "yolo11n.pt"
 EPOCHS_PER_FOLD = 5000
 PATIENCE = 50
-BATCH_SIZE = 32 # Reduziert für Large Modell
+BATCH_SIZE = 32
 IMGSZ = 512
 BASE_DATA_PATH = "/cfs/earth/scratch/vollmflo/BA/data" 
+CFG_PATH = "../hpc/jobs/Slurm-269569 (tune 300x100)/runs/detect/tune"
 TEMP_DIR = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR = os.path.abspath("./processed_data")
 PROJECT_DIR = "./yolo_runs_hpc_final"
@@ -150,7 +151,8 @@ def train_fold(fold_params):
     
     # --- TRAINING ---
     model = YOLO(MODEL_SIZE)
-    model.train(data=yaml_path, 
+    model.train(data=yaml_path,
+                cfg=CFG_PATH+"/best_hyperparameters.yaml", 
                 epochs=EPOCHS_PER_FOLD, 
                 patience=PATIENCE, 
                 batch=BATCH_SIZE,
