@@ -6,7 +6,7 @@ keywords: "Deep Learning, Object Detectors, Evaluation Metrics, Digital Lab and 
 lang: en
 confidential: false
 cover-image:
-  src: Cover-image.jpg
+  src: cover.png
   max-width: 100%
   max-height: 7cm
 thesis-type: "Bachelor Thesis"
@@ -76,6 +76,11 @@ I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up
 # Introduction
 
 ## Context and Motivation
+Systemic mastocytosis (SM) is a rare clonal hematopoietic neoplasm defined by the pathological expansion and accumulation of neoplastic mast cells (MC) in extracutaneous organs, mostly seen in the bone marrow, but also the spleen, liver, and gastrointestinal tract. The major diagnostic criterion for SM is the presence of multifocal MC clusters in the bone marrow and/or extracutaneous organs, while minor criteria include an elevated serum tryptase level, MC expression of CD25, CD2, or CD30, and the presence of activating KIT mutations @Valent2021. Despite these structured criteria, SM is frequently underdiagnosed in routine clinical practice. One of the central reasons for this is that mast cells, although morphologically distinct, occur only in very small numbers within a given bone marrow aspirate sample, making their manual identification and quantification an exhausting, subjective, and time-consuming task for hematopathologists.
+
+The morphological assessment of mast cells carries direct diagnostic weight. The abnormal morphology of mast cells, defined as atypical spindle-shaped cells with hypogranulated cytoplasm and an oval nucleus, represents the first minor SM criterion. At least 25% of all MC must exhibit these morphological features in bone marrow smears or sections for this criterion to be fulfilled @Valent2021. This quantitative threshold requires a reliable and reproducible count of both typical and atypical mast cells within a sample, a task that is very error-prone when performed manually and at scale.
+
+In clinical practice, the integration of clinical signs and symptoms together with bone marrow morphological, immunophenotypic, and molecular results is required to diagnose SM variants @10.1182/bloodadvances.2024012612. However, the morphological step remains the entry point into this diagnostic chain. Standardizing and automating this step through computational means therefore has direct implications for diagnostic accuracy and clinical throughput. The University Hospital Zurich (USZ), which operates as the clinical partner for this thesis, has a concrete need for such a tool that could be embedded in its existing cell classification infrastructure.
 
 ## Research Questions
 
@@ -84,21 +89,26 @@ I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up
 ## State of the Art
 
 # Methodology
-## Data Acquisition & Annotation
 
-## Data Preprocessing
+## Biology
 
-## Model Selection & Architecture
+## Technical
 
-## Model Training & Finetuning Strategy
+### Data Acquisition & Annotation
 
-## Model Testing
+### Data Preprocessing
 
-## Evaluation Metrics
+### Model Selection & Architecture
 
-## UI-Creation
+### Model Training & Finetuning Strategy
 
-## Implementation in USZ Infrastructure
+### Model Testing
+
+### Evaluation Metrics
+
+### UI-Creation
+
+### Implementation in USZ Infrastructure
 
 # Results
 
