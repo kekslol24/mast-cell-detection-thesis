@@ -1,3 +1,5 @@
 *.jpg
+*.jpeg
 *.txt
+*.zip
 .gradio/

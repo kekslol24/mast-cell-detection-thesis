@@ -27,4 +27,4 @@ mosaic: 0.91639
 mixup: 0.0
 cutmix: 0.0
 copy_paste: 0.0
-close_mosaic: 8.0
+close_mosaic: 8
