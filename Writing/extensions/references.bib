@@ -29,3 +29,16 @@
     eprint = {https://ashpublications.org/bloodadvances/article-pdf/9/9/2048/2370218/blooda_adv-2024-012612-c-main.pdf},
 }
 
+@article{GLUGE2024107924,
+title = {Evaluation of deep learning training strategies for the classification of bone marrow cell images},
+journal = {Computer Methods and Programs in Biomedicine},
+volume = {243},
+pages = {107924},
+year = {2024},
+issn = {0169-2607},
+doi = {https://doi.org/10.1016/j.cmpb.2023.107924},
+url = {https://www.sciencedirect.com/science/article/pii/S0169260723005904},
+author = {Stefan Glüge and Stefan Balabanov and Viktor Hendrik Koelzer and Thomas Ott},
+keywords = {Hematopoiesis, In-domain pre-training, Deep learning, Hematopathology},
+abstract = {Background and Objective: The classification of bone marrow (BM) cells by light microscopy is an important cornerstone of hematological diagnosis, performed thousands of times a day by highly trained specialists in laboratories worldwide. As the manual evaluation of blood or BM smears is very time-consuming and prone to inter-observer variation, new reliable automated systems are needed. Methods: We aim to improve the automatic classification performance of hematological cell types. Therefore, we evaluate four state-of-the-art Convolutional Neural Network (CNN) architectures on a dataset of 171,374 microscopic cytological single-cell images obtained from BM smears from 945 patients diagnosed with a variety of hematological diseases. We further evaluate the effect of an in-domain vs. out-of-domain pre-training, and assess whether class activation maps provide human-interpretable explanations for the models' predictions. Results: The best performing pre-trained model (Regnet_y_32gf) yields a mean precision, recall, and F1 scores of 0.787±0.060, 0.755±0.061, and 0.762±0.050, respectively. This is a 53.5% improvement in precision and 7.3% improvement in recall over previous results with CNNs (ResNeXt-50) that were trained from scratch. The out-of-domain pre-training apparently yields general feature extractors/filters that apply very well to the BM cell classification use case. The class activation maps on cell types with characteristic morphological features were found to be consistent with the explanations of a human domain expert. For example, the Auer rods in the cytoplasm were the predictive cellular feature for correctly classified images of faggot cells. Conclusions: Our study provides data that can help hematology laboratories to choose the optimal training strategy for blood cell classification deep learning models to improve computer-assisted blood and bone marrow cell identification. It also highlights the need for more specific training data, i.e. images of difficult-to-classify classes, including cells labeled with disease information.}
+}

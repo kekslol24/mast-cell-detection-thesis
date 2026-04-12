@@ -28,7 +28,19 @@ $if(it.name.literal)$
       email: [$it.email$] ),
 $endif$
 $endfor$
+  ), // Hier wird die authors-Liste korrekt geschlossen
+$endif$
+
+$if(cross-corrector)$
+  cross-corrector: (
+$for(cross-corrector)$
+    (
+      name: [$it.name$],
+      title: [$it.title$],
+      affiliation: [$it.affiliation$],
     ),
+$endfor$
+  ),
 $endif$
 $if(date)$
   date: [$date$],
