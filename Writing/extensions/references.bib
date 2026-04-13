@@ -42,3 +42,103 @@ author = {Stefan Glüge and Stefan Balabanov and Viktor Hendrik Koelzer and Thom
 keywords = {Hematopoiesis, In-domain pre-training, Deep learning, Hematopathology},
 abstract = {Background and Objective: The classification of bone marrow (BM) cells by light microscopy is an important cornerstone of hematological diagnosis, performed thousands of times a day by highly trained specialists in laboratories worldwide. As the manual evaluation of blood or BM smears is very time-consuming and prone to inter-observer variation, new reliable automated systems are needed. Methods: We aim to improve the automatic classification performance of hematological cell types. Therefore, we evaluate four state-of-the-art Convolutional Neural Network (CNN) architectures on a dataset of 171,374 microscopic cytological single-cell images obtained from BM smears from 945 patients diagnosed with a variety of hematological diseases. We further evaluate the effect of an in-domain vs. out-of-domain pre-training, and assess whether class activation maps provide human-interpretable explanations for the models' predictions. Results: The best performing pre-trained model (Regnet_y_32gf) yields a mean precision, recall, and F1 scores of 0.787±0.060, 0.755±0.061, and 0.762±0.050, respectively. This is a 53.5% improvement in precision and 7.3% improvement in recall over previous results with CNNs (ResNeXt-50) that were trained from scratch. The out-of-domain pre-training apparently yields general feature extractors/filters that apply very well to the BM cell classification use case. The class activation maps on cell types with characteristic morphological features were found to be consistent with the explanations of a human domain expert. For example, the Auer rods in the cytoplasm were the predictive cellular feature for correctly classified images of faggot cells. Conclusions: Our study provides data that can help hematology laboratories to choose the optimal training strategy for blood cell classification deep learning models to improve computer-assisted blood and bone marrow cell identification. It also highlights the need for more specific training data, i.e. images of difficult-to-classify classes, including cells labeled with disease information.}
 }
+
+@article{Choudhary2025,
+  author    = {Choudhary, S. and Kumar, S. and Siddhaarth, P. and others},
+  title     = {Advancing blood cell detection and classification: performance evaluation of modern deep learning models},
+  journal   = {BMC Medical Informatics and Decision Making},
+  year      = {2025},
+  volume    = {25},
+  number    = {207},
+  doi       = {10.1186/s12911-025-03027-2},
+  url       = {https://doi.org/10.1186/s12911-025-03027-2}
+}
+
+@Article{diagnostics15010022,
+AUTHOR = {Sazak, Halenur and Kotan, Muhammed},
+TITLE = {Automated Blood Cell Detection and Classification in Microscopic Images Using YOLOv11 and Optimized Weights},
+JOURNAL = {Diagnostics},
+VOLUME = {15},
+YEAR = {2025},
+NUMBER = {1},
+ARTICLE-NUMBER = {22},
+URL = {https://www.mdpi.com/2075-4418/15/1/22},
+PubMedID = {39795550},
+ISSN = {2075-4418},
+ABSTRACT = {Background/Objectives: Accurate detection and classification of blood cell types in microscopic images are crucial for diagnosing various hematological conditions. This study aims to develop and evaluate advanced architectures for automating blood cell detection and classification using the newly proposed YOLOv10 and YOLOv11 models, with a specific focus on identifying red blood cells (RBCs), white blood cells (WBCs), and platelets in microscopic images as a preliminary step of the complete blood count (CBC). Methods: The Blood Cell Count Detection (BCCD) dataset was enriched using data augmentation techniques to improve model robustness and diversity. Extensive experiments were performed, including complete weight initialization, advanced optimization strategies, and meticulous hyperparameter tuning for the YOLOv11 architecture. Results: The YOLOv11-l model achieved an overall mean Average Precision (mAP) of 93.8%, reflecting its robust accuracy across multiple blood cell types. Conclusions: The findings underscore the efficacy of the YOLOv11 architecture in automating blood cell classification with high precision, demonstrating its potential to enhance hematological analyses and support clinical diagnosis.},
+DOI = {10.3390/diagnostics15010022}
+}
+
+@article{Margret2025,
+  author    = {Margret, I. N. and Rajakumar, K.},
+  title     = {Deep learning techniques for analyzing peripheral blood smears: a meta-analysis},
+  journal   = {Neural Computing and Applications},
+  year      = {2025},
+  volume    = {37},
+  pages     = {18039--18065},
+  doi       = {10.1007/s00521-025-11401-4},
+  url       = {https://doi.org/10.1007/s00521-025-11401-4}
+}
+
+
+@article{https://doi.org/10.1002/hem3.70048,
+author = {Ghete, Tabita and Kock, Farina and Pontones, Martina and Pfrang, David and Westphal, Max and Höfener, Henning and Metzler, Markus},
+title = {Models for the marrow: A comprehensive review of AI-based cell classification methods and malignancy detection in bone marrow aspirate smears},
+journal = {HemaSphere},
+volume = {8},
+number = {12},
+pages = {e70048},
+doi = {https://doi.org/10.1002/hem3.70048},
+url = {https://onlinelibrary.wiley.com/doi/abs/10.1002/hem3.70048},
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1002/hem3.70048},
+abstract = {Abstract Given the high prevalence of artificial intelligence (AI) research in medicine, the development of deep learning (DL) algorithms based on image recognition, such as the analysis of bone marrow aspirate (BMA) smears, is rapidly increasing in the field of hematology and oncology. The models are trained to identify the optimal regions of the BMA smear for differential cell count and subsequently detect and classify a number of cell types, which can ultimately be utilized for diagnostic purposes. Moreover, AI is capable of identifying genetic mutations phenotypically. This pipeline has the potential to offer an accurate and rapid preliminary analysis of the bone marrow in the clinical routine. However, the intrinsic complexity of hematological diseases presents several challenges for the automatic morphological assessment. To ensure general applicability across multiple medical centers and to deliver high accuracy on prospective clinical data, AI models would require highly heterogeneous training datasets. This review presents a systematic analysis of models for cell classification and detection of hematological malignancies published in the last 5 years (2019–2024). It provides insight into the challenges and opportunities of these DL-assisted tasks.},
+year = {2024}
+}
+
+@article{DIAZ20256123,
+title = {Machine learning–based detection model for leukemia cells in peripheral blood smears using YOLOv11-large},
+journal = {Blood},
+volume = {146},
+pages = {6123},
+year = {2025},
+note = {67th ASH Annual Meeting Abstracts},
+issn = {0006-4971},
+doi = {https://doi.org/10.1182/blood-2025-6123},
+url = {https://www.sciencedirect.com/science/article/pii/S0006497125088706},
+author = {Johan Diaz and Arunima Deb and Alexandra Lyubimova and Leily Santos-Carrion and Carla Romagnoli and Jacqueline Barrientos},
+abstract = {Background: Identification of blood cell types is crucial for diagnosing and managing hematological diseases such as lymphoma and leukemia. Microscopic examination of blood smears remains essential for detecting morphological abnormalities (Vardiman J et al., Blood 2002). However, manual classification is labor-intensive, prone to observer variability, and challenging for large datasets (Tian Z et al., Photonics 2022). Efforts to automate blood cell analysis date back to the 1940s, when Wallace Coulter introduced a method where cells suspended in a conductive solution pass through an orifice, causing a change in electrical impedance that correlates with their volume (Coulter WH, US patent 2656508A, 1953). This principle established the foundation for automated cell counting systems used today. Despite recent advances in machine learning for cancer detection, blood cell identification remains challenging due to variations in cell size, frequency, sample preparation, and imaging conditions. Contemporary approaches, including TW-YOLO based on YOLOv8-small, have enhanced detection accuracy through attention modules and improved feature extraction (Zhang D et al., Sensors 2024). This study evaluates the efficacy of a YOLOv11-large (YOLOv11l) model with integrated spatial attention for simultaneous localization and classification of 13 white blood cell subtypes, trained on the multidomain LeukemiaAttri dataset (Rehman A et al., arXiv 2024). Methods: A total of 18,664 annotated images from the LeukemiaAttri dataset were split into training (70%), validation (15%), and testing (15%) sets. To mirror real-world variability, the training set was expanded to 65,785 images via extensive data augmentation, including horizontal/vertical flips, rotations, shearing, saturation, brightness, exposure, Gaussian blur, and noise addition. A pretrained YOLOv11l model was fine-tuned on the augmented dataset for 250 epochs at a 640x640 resolution. Training utilized an auto-selected optimizer, momentum of 0.937, weight on decay of 5 × 10⁻⁴, augmix augmentation strategy, Automatic Mixed Precision (AMP) for faster convergence, and mosaic augmentation for the first 240 epochs. The batch size was automatically determined to maximize hardware utilization. End-to-end training took approximately 23.5 hours on a single NVIDIA H200 SXM GPU. The final detector performs simultaneous subtype classification and spatial localization in a single pass. Results: Evaluated on the held-out set, the model's performance at the end of 250 epochs or training cycles resulted in a precision of 93.6% and a recall of 89.2%. Localization accuracy is measured by Intersection over Union (IoU), which quantifies the exact percentage of overlap between a predicted bounding box and the true object's bounding box. The model achieved a mean Average Precision at an IoU threshold of 0.50 (mAP50) of 93.8%. This metric evaluates both classification and localization, considering a detection correct if the IoU is 50% or higher. Similarly, the final mean Average Precision across the stricter 0.50-0.95 IoU (mAP50-95) was 77.6%. This metric provides a more comprehensive evaluation by averaging performance across a range of demanding IoU thresholds (50 to 95%). Performance peaked at epoch 244, achieving the highest mAP50-95 of 77.9% and an F1 score of 0.913. The F1 score is the harmonic mean of precision (94.1%) and recall (88.8%). In clinical practice, scores above 0.80 are generally strong, but thresholds vary with risk tolerance. Class-wise average precision was uniformly high (89.3%–98.2%), confirming reliable recognition across subtypes.Conclusions: Leveraging a YOLOv11l backbone, our detector achieved a high mAP50-95 of 77.9% during the best-performing epoch with an overall F1 of 0.913 across all subtypes in the LeukemiaAttri dataset. The results showed accurate localization and fine-grained classification even for infrequent cell subtypes. Overall, the model provided high-accuracy analysis of complex smears, identifying regions of interest and generating objective, quantitative data that could streamline microscopic review. Its reproducible training protocol, reliability, and efficient inference could provide utility as a decision-support tool. Benchmarking inferences and validating on external cohorts from diverse real-world environments are the next steps toward demonstrating generalizability and enabling seamless future integration into hematology platforms.}
+}
+
+@article{Lv2023,
+  author    = {Lv, Z. and Cao, X. and Jin, X. and others},
+  title     = {High-accuracy morphological identification of bone marrow cells using deep learning-based Morphogo system},
+  journal   = {Scientific Reports},
+  year      = {2023},
+  volume    = {13},
+  number    = {13364},
+  doi       = {10.1038/s41598-023-40424-x},
+  url       = {https://doi.org/10.1038/s41598-023-40424-x}
+}
+
+@InProceedings{10.1007/978-3-031-27524-1_4,
+author="Srilakshmi, V.
+and Chakradhar, K. S.
+and Suneetha, K.
+and Bindu, C. Shoba
+and Yamsani, Nagendar
+and Madhavi, K. Reddy",
+editor="Abraham, Ajith
+and Hanne, Thomas
+and Gandhi, Niketa
+and Manghirmalani  Mishra, Pooja
+and Bajaj, Anu
+and Siarry, Patrick",
+title="Artificial Intelligence for Detecting Prevalence of Indolent Mastocytosis",
+booktitle="Proceedings of the 14th International Conference on Soft Computing and Pattern Recognition (SoCPaR 2022)",
+year="2023",
+publisher="Springer Nature Switzerland",
+address="Cham",
+pages="33--43",
+abstract="For the detection and elucidation of indolent mastocytosis, deep learning methods like convolution neural networks, encoder-decoders, recurrent neural networks and LSTM based frameworks are available. For studying the spread and development of mast cells causing indolent mastocytosis vast number of microscopic-imagery, micro-circulations shall be studied which is possible by artificial intelligence frameworks and neural networks. Systemic mastocytosis (SM) and related clonal mast cell disorders are underestimated as they have scarce epidemiology history. Amongst most of the subjects affected by mastocytosis, 91{\%} are traced as the variant of indolent SM, 54.8{\%} are traced with characteristics of bone marrow related mastocytosis. In this study, we propose a novel framework to classify the images of mastocytosis and chart out the collected, synthesized and evaluated publications and evidences related to the detection and diagnosis of indolent mastocytosis.",
+isbn="978-3-031-27524-1"
+}
