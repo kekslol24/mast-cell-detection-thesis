@@ -69,13 +69,13 @@ $endif$
 $if(study-direction)$
   study-direction: [$study-direction$],
 $endif$
-$if(supervisors)$
-  supervisors: (
-$for(supervisors)$
+$if(supervisor)$
+  supervisor: (
+$for(supervisor)$
     (
-      title: [$supervisors.title$],
-      name: [$supervisors.name$],
-      affiliation: [$supervisors.affiliation$],
+      title: [$supervisor.title$],
+      name: [$supervisor.name$],
+      affiliation: [$supervisor.affiliation$],
     ),
 $endfor$
   ),

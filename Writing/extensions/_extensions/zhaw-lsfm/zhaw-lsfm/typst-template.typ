@@ -23,7 +23,7 @@
   study-year: none,
   submission-date: none,
   study-direction: none,
-  supervisors: none,
+  supervisor: none,
   cross-corrector: none,
   cover-image: none,
   abstract: none,
@@ -156,14 +156,14 @@
 
       #v(1fr)
       
-      #if supervisors != none {
+      #if supervisor != none {
         align(left)[
           #if lang == "en" [
-            *Supervisors:* \
+            *Supervisor:* \
           ] else [
             *Betreuer / Betreuerinnen:* \
           ]
-          #for supervisor in supervisors [
+          #for supervisor in supervisor [
             #if supervisor.title != none [#supervisor.title] #supervisor.name \
             #supervisor.affiliation \
             \
