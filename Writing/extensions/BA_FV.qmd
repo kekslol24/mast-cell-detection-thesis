@@ -160,7 +160,7 @@ The occurrence of the KIT mutation in bone marrow cell compartments other than M
 ## Technical
 
 ### General Data Information
-The data used in this report stems from BM smears from the USZ. This data is intended for the manual classification of of atypical vs normal MC. For this specific thesis the data has been handed out to be worked with while training the models.
+The dataset for this study consists of bone marrow aspirate smears provided by the USZ. Although these samples were originally curated for the manual morphological differentiation between typical and atypical MC, they have been made available for this thesis to serve as the foundation for training and validating the deep learning models.
 
 ### Data Acquisition & Annotation
 
