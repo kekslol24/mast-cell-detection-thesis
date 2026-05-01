@@ -168,12 +168,7 @@ def train_fold(fold_params):
                 cos_lr=True # Benutzt eine Cosinus learning rate, für eine bessere Konvergenz
                 
     )
-    
-    # Speicher freigeben vor Validierung (Wichtig für Large Modell)
-    del model
-    torch.cuda.empty_cache()
-    import gc
-    gc.collect()
+
 
     # --- EVALUATION ---
     best_weights = os.path.join(PROJECT_DIR, f"fold_{fold_idx + 1}", 'weights', 'best.pt')

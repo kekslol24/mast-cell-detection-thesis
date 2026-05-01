@@ -2,6 +2,8 @@ import os
 import glob
 from ultralytics import YOLO
 from zipfile import ZipFile
+import csv
+
 
 # ==========================================
 # KONFIGURATION
@@ -9,6 +11,8 @@ from zipfile import ZipFile
 MODEL_PATH = "/cfs/earth/scratch/vollmflo/BA/hpc/jobs/Slurm-267591 (train with tuneparas)/yolo_runs_hpc_final/fold_1/weights/best.pt" 
 INPUT_DIR = "/cfs/earth/scratch/vollmflo/BA/data/"
 UNZIP_PATH = "/cfs/earth/scratch/vollmflo/BA/data/"
+
+CONFIDENCE_CUT = None       #Confidence cut to get variance distribution
 
 # NEU: Pfad zu den Bildern, die ignoriert werden sollen
 IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
@@ -87,30 +91,42 @@ def main():
     count = 0
     saved_count = 0
     
-    # 5. Fliessband-Abfertigung
-    for r in results:
-        count += 1
+# NEU: CSV vorbereiten, um die Verteilung und Varianz im Nachhinein zu prüfen
+    csv_path = os.path.join(OUTPUT_PROJECT, "confidence_distribution.csv")
+    
+    with open(csv_path, "w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["image_name", "class", "confidence"]) # Header
         
-        # Prüfen: Wurden Objekte (Bounding Boxes) gefunden?
-        if len(r.boxes) > 0:
-            saved_count += 1
+        # 5. Fliessband-Abfertigung
+        for r in results:
+            count += 1
             
-            original_name = os.path.basename(r.path)
-            
-            # Bild mit Boxen speichern
-            save_path = os.path.join(OUTPUT_PROJECT, original_name)
-            r.save(filename=save_path)
-            
-            # Textdatei mit Koordinaten speichern
-            txt_name = os.path.splitext(original_name)[0] + ".txt"
-            txt_path = os.path.join(OUTPUT_PROJECT, "labels", txt_name)
-            r.save_txt(txt_file=txt_path)
+            # Prüfen: Wurden Objekte (Bounding Boxes) gefunden, die den Cut überlebt haben?
+            if len(r.boxes) > 0:
+                saved_count += 1
+                original_name = os.path.basename(r.path)
+                
+                # Jede gefundene Box ins CSV schreiben (für deine Verteilungsanalyse)
+                for box in r.boxes:
+                    cls_id = int(box.cls[0].item())
+                    conf_val = float(box.conf[0].item())
+                    csv_writer.writerow([original_name, cls_id, conf_val])
+                
+                # Bild mit Boxen speichern
+                save_path = os.path.join(OUTPUT_PROJECT, original_name)
+                r.save(filename=save_path)
+                
+                # Textdatei mit Koordinaten UND Konfidenzwerten speichern
+                txt_name = os.path.splitext(original_name)[0] + ".txt"
+                txt_path = os.path.join(OUTPUT_PROJECT, "labels", txt_name)
+                r.save_txt(txt_file=txt_path, save_conf=True) # NEU: save_conf=True
 
-        if count % 1000 == 0:
-            print(f"{count} von {len(images_to_process)} Bildern verarbeitet... Davon {saved_count} Bilder mit Mastzellen gespeichert.")
+            if count % 1000 == 0:
+                print(f"{count} von {len(images_to_process)} Bildern verarbeitet... Davon {saved_count} Bilder mit gefundenen Objekten.")
 
-    print(f"Fertig! Es wurden {saved_count} von {len(images_to_process)} analysierten Bildern als positiv erkannt und gespeichert.")
-    print(f"Die Ergebnisse liegen in: {OUTPUT_PROJECT}")
+    print(f"Fertig! Es wurden {saved_count} von {len(images_to_process)} analysierten Bildern gespeichert (Cut >= {CONFIDENCE_CUT}).")
+    print(f"Die Bilder, Labels und die CSV-Datei zur Verteilungsanalyse liegen in: {OUTPUT_PROJECT}")
 
 if __name__ == "__main__":
     main()

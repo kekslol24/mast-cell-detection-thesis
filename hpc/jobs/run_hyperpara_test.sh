@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=train_run
+#SBATCH --job-name=hyperpara_run
 #SBATCH --mail-type=fail,end
 #SBATCH --time=00-08:00:00
 #SBATCH --partition=earth-4
@@ -24,4 +24,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python inference.py
+python hyperpara_test.py

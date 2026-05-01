@@ -21,7 +21,7 @@ PATIENCE = 50
 BATCH_SIZE = 32
 IMGSZ = 512
 BASE_DATA_PATH = "/cfs/earth/scratch/vollmflo/BA/data" 
-CFG_PATH = "../hpc/runs/detect/tune3"
+CFG_PATH = "jobs/Slurm-269569 (tune 300x100)/runs/detect/tune"
 TEMP_DIR = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR = os.path.abspath("./processed_data")
 PROJECT_DIR = "./yolo_runs_hpc_final"
@@ -148,7 +148,7 @@ def train_fold(fold_params):
     # --- TRAINING ---
     model = YOLO(MODEL_SIZE)
     model.train(data=yaml_path,
-                cfg=CFG_PATH+"/best_hyperparameters.yaml", 
+                # cfg=CFG_PATH+"/best_hyperparameters.yaml", 
                 epochs=EPOCHS_PER_FOLD, 
                 patience=PATIENCE, 
                 batch=BATCH_SIZE,
@@ -235,6 +235,7 @@ if __name__ == "__main__":
     with mp.Pool(processes=8) as pool:
         final_results = pool.map(train_fold, fold_tasks)
 
+
     # DataFrame erstellen und aufsplitten für sauberen Print
     results_df = pd.DataFrame(final_results)
     
@@ -247,18 +248,29 @@ if __name__ == "__main__":
     df_test = results_df[['Fold', 'Test_mAP50-95', 'Test_Precision', 'Test_Recall']].copy()
     df_test.columns = ['Fold', 'mAP50-95', 'Precision', 'Recall']
 
+    # ---------------- TRAINING ----------------
     print("\n" + "="*50)
     print("STRATIFIED CV ERGEBNISSE - TRAINING")
     print("="*50)
     print(df_train.to_string(index=False))
+    print(f"\nØ Train mAP50-95:  {df_train['mAP50-95'].mean():.4f} ± {df_train['mAP50-95'].std():.4f}")
+    print(f"Ø Train Precision: {df_train['Precision'].mean():.4f} ± {df_train['Precision'].std():.4f}")
+    print(f"Ø Train Recall:    {df_train['Recall'].mean():.4f} ± {df_train['Recall'].std():.4f}")
 
+    # ---------------- VALIDIERUNG ----------------
     print("\n" + "="*50)
     print("STRATIFIED CV ERGEBNISSE - VALIDIERUNG")
     print("="*50)
     print(df_val.to_string(index=False))
+    print(f"\nØ Val mAP50-95:  {df_val['mAP50-95'].mean():.4f} ± {df_val['mAP50-95'].std():.4f}")
+    print(f"Ø Val Precision: {df_val['Precision'].mean():.4f} ± {df_val['Precision'].std():.4f}")
+    print(f"Ø Val Recall:    {df_val['Recall'].mean():.4f} ± {df_val['Recall'].std():.4f}")
 
+    # ---------------- TEST ----------------
     print("\n" + "="*50)
     print("STRATIFIED CV ERGEBNISSE - TEST (FINAL CV)")
     print("="*50)
     print(df_test.to_string(index=False))
-    print(f"\nØ Test mAP50-95: {df_test['mAP50-95'].mean():.4f}")
+    print(f"\nØ Test mAP50-95:  {df_test['mAP50-95'].mean():.4f} ± {df_test['mAP50-95'].std():.4f}")
+    print(f"Ø Test Precision: {df_test['Precision'].mean():.4f} ± {df_test['Precision'].std():.4f}")
+    print(f"Ø Test Recall:    {df_test['Recall'].mean():.4f} ± {df_test['Recall'].std():.4f}")

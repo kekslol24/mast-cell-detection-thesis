@@ -1,0 +1,30 @@
+# 37/100 iterations complete ✅ (3898.80s)
+# Results saved to /cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune5
+# Best fitness=0.54929 observed at iteration 1
+# Best fitness metrics are {'metrics/precision(B)': 0.48838, 'metrics/recall(B)': 0.72644, 'metrics/mAP50(B)': 0.73188, 'metrics/mAP50-95(B)': 0.54929, 'val/box_loss': 0.55575, 'val/cls_loss': 1.86367, 'val/dfl_loss': 1.13526, 'fitness': 0.54929}
+# Best fitness model is /cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/train8
+lr0: 0.0062
+lrf: 0.00798
+momentum: 0.79057
+weight_decay: 0.00052
+warmup_epochs: 3.74767
+warmup_momentum: 0.72038
+box: 5.01947
+cls: 1.25282
+dfl: 1.75702
+hsv_h: 0.01581
+hsv_s: 0.86485
+hsv_v: 0.20094
+degrees: 0.0
+translate: 0.08305
+scale: 0.75709
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.38881
+bgr: 0.0
+mosaic: 0.91639
+mixup: 0.0
+cutmix: 0.0
+copy_paste: 0.0
+close_mosaic: 8.0
