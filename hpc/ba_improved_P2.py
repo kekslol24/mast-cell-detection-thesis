@@ -15,20 +15,20 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 # CONFIGURATION
 # ==============================================================================
 N_SPLITS           = 5
-# PRETRAINED_WEIGHTS = "DL_Modell_FV.pt"
-PRETRAINED_WEIGHTS = "yolo11n.pt"
+PRETRAINED_WEIGHTS = "DL_Modell_FV.pt"
+# PRETRAINED_WEIGHTS = "yolo11n.pt"
 EPOCHS_PER_FOLD    = 5000
 PATIENCE           = 50
 BATCH_SIZE         = 32
 IMGSZ              = 512
-FP_NEG_OVERSAMPLE  = 3                  #First run with base nano yolo and no FP oversampling
+FP_NEG_OVERSAMPLE  = 3                 #First run with base nano yolo and no FP oversampling
 
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data/P2/1224151atypisch_normal"
 FP_NEG_EXCEL_PATH  = "/cfs/earth/scratch/vollmflo/BA/data/P2/Task 6_1224151_negative.xlsx"
-CFG_PATH           = "jobs/Slurm-269569 (tune 300x100)/runs/detect/tune/best_hyperparameters.yaml"
+CFG_PATH           = "/cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune6/best_hyperparameters.yaml"
 TEMP_DIR           = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR      = os.path.abspath("./processed_data")
-PROJECT_DIR        = "./yolo_runs_hpc_final"
+PROJECT_DIR        = "./yolo_runs_hpc_mod_final_dl_fv_hyperpara"
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
 
@@ -171,16 +171,15 @@ def train_fold(fold_params):
     model = YOLO(PRETRAINED_WEIGHTS)
     model.train(
         data     = yaml_path,
-        # cfg      = CFG_PATH,
+        cfg      = CFG_PATH,
         epochs   = EPOCHS_PER_FOLD,
         patience = PATIENCE,
         batch    = BATCH_SIZE,
-        device   = 0,
+        device   = gpu_id,
         project  = PROJECT_DIR,
         imgsz    = IMGSZ,
         name     = f"fold_{fold_idx + 1}",
         workers  = 0,
-        device = gpu_id,
         cache    = False,
         exist_ok = True,
         verbose  = False,

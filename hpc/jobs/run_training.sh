@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=train_run_P2_modified
+#SBATCH --job-name=train_run_P2_mod_DL_FV_hyperpara
 #SBATCH --mail-type=fail,end
 #SBATCH --time=00-08:00:00
 #SBATCH --partition=earth-4

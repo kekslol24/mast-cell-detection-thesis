@@ -1,4 +1,4 @@
-# 80/100 iterations complete ✅ (83124.24s)
+# 100/100 iterations complete ✅ (104206.02s)
 # Results saved to /cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune6
 # Best fitness=0.62762 observed at iteration 5
 # Best fitness metrics are {'metrics/precision(B)': 0.86563, 'metrics/recall(B)': 0.78007, 'metrics/mAP50(B)': 0.80033, 'metrics/mAP50-95(B)': 0.62762, 'val/box_loss': 0.47636, 'val/cls_loss': 1.85068, 'val/dfl_loss': 0.85574, 'fitness': 0.62762}
@@ -27,4 +27,4 @@ mosaic: 0.68457
 mixup: 0.0
 cutmix: 0.0
 copy_paste: 0.0
-close_mosaic: 7.0
+close_mosaic: 7
