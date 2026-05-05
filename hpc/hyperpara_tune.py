@@ -169,8 +169,8 @@ if __name__ == "__main__":
  
     print(f"\nWorkspace ready: {data_yaml_path}")
  
-    with open("jobs/Slurm-269569 (tune 300x100)/runs/detect/tune/best_hyperparameters.yaml", "r") as f:
-        best_hps = yaml.safe_load(f)
+    # with open("jobs/Slurm-269569 (tune 300x100)/runs/detect/tune/best_hyperparameters.yaml", "r") as f:
+        # best_hps = yaml.safe_load(f)
 
 
     # --------------------------------------------------------------------------
@@ -188,6 +188,5 @@ if __name__ == "__main__":
         save       = True,
         val        = True,
         verbose    = True,
-        **best_hps,
     )
  

@@ -20,15 +20,18 @@ PRETRAINED_WEIGHTS = "DL_Modell_FV.pt"
 EPOCHS_PER_FOLD    = 5000
 PATIENCE           = 50
 BATCH_SIZE         = 32
-IMGSZ              = 512
-FP_NEG_OVERSAMPLE  = 3                 #First run with base nano yolo and no FP oversampling
+IMGSZ              = 512 
+FP_NEG_OVERSAMPLE  = 1                 # First run with base nano yolo and no FP oversampling
+BG_RATIO           = 2                 # background images per annotated image (1:2 = safe range) set to 0 to disable background sampling entirely
+
 
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data/P2/1224151atypisch_normal"
 FP_NEG_EXCEL_PATH  = "/cfs/earth/scratch/vollmflo/BA/data/P2/Task 6_1224151_negative.xlsx"
+BG_IMAGE_PATH      = BASE_DATA_PATH+"/images/Train"  # same folder, unlabeled images
 CFG_PATH           = "/cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune6/best_hyperparameters.yaml"
 TEMP_DIR           = os.path.abspath("./cv_temp_isolated/")
 PROCESSED_DIR      = os.path.abspath("./processed_data")
-PROJECT_DIR        = "./yolo_runs_hpc_mod_final_dl_fv_hyperpara"
+PROJECT_DIR        = "./yolo_runs_hpc_base_final_dl_fv_bg_ratio_2"
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
 
@@ -262,8 +265,26 @@ if __name__ == "__main__":
     if fp_missing:
         print(f"Not found on disk     : {len(fp_missing)}  (first 5: {fp_missing[:5]})")
  
+
     # ------------------------------------------------------------------
-    # 3. Preprocess annotated images (augmentation, copy to PROCESSED_DIR)
+    # 3. Sample background images (unlabeled, no label file needed)
+    # ------------------------------------------------------------------
+    if BG_RATIO > 0:
+        # All images without a label file are candidates
+        bg_candidates = [p for p in all_disk if os.path.basename(p) not in
+                         {os.path.basename(v) for v in verified} and
+                         os.path.basename(p) not in {os.path.basename(f) for f in fp_neg_paths}]
+        n_bg = min(int(len(verified) * BG_RATIO), len(bg_candidates))
+        rng  = np.random.default_rng(42)
+        bg_paths = list(rng.choice(bg_candidates, size=n_bg, replace=False))
+        print(f"Background images sampled : {len(bg_paths)}  (ratio 1:{BG_RATIO}, from {len(bg_candidates)} candidates)")
+    else:
+        bg_paths = []
+        print("Background sampling disabled (BG_RATIO=0)")
+
+
+    # ------------------------------------------------------------------
+    # 4. Preprocess annotated images (augmentation, copy to PROCESSED_DIR)
     #    FP negatives are used directly from disk -- no preprocessing needed
     # ------------------------------------------------------------------
     print(f"\nPreprocessing {len(verified)} annotated images...")
@@ -280,14 +301,14 @@ if __name__ == "__main__":
     print(f"Annotated images after preprocessing: {len(X_all)}")
  
     # ------------------------------------------------------------------
-    # 4. Clear stale YOLO label cache
+    # 5. Clear stale YOLO label cache
     # ------------------------------------------------------------------
     cache = os.path.join(PROCESSED_DIR, "labels.cache")
     if os.path.exists(cache):
         os.remove(cache)
  
     # ------------------------------------------------------------------
-    # 5. Stratified K-Fold CV -- folds run in parallel across GPUs
+    # 6. Stratified K-Fold CV -- folds run in parallel across GPUs
     # ------------------------------------------------------------------
     skf        = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
     fold_tasks = [
@@ -303,7 +324,7 @@ if __name__ == "__main__":
         final_results = pool.map(train_fold, fold_tasks)
  
     # ------------------------------------------------------------------
-    # 6. Results
+    # 7. Results
     # ------------------------------------------------------------------
     results_df = pd.DataFrame(final_results)
  

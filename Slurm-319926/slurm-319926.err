@@ -1,0 +1,35 @@
+[I 2026-05-05 14:40:42.559 ServerApp] Extension package jupyter_lsp took 0.5149s to import
+[I 2026-05-05 14:40:42.755 ServerApp] Extension package jupyter_server_terminals took 0.1961s to import
+[I 2026-05-05 14:40:43.249 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2026-05-05 14:40:43.257 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2026-05-05 14:40:43.265 ServerApp] jupyterlab | extension was successfully linked.
+[I 2026-05-05 14:40:43.271 ServerApp] notebook | extension was successfully linked.
+[I 2026-05-05 14:40:48.642 ServerApp] notebook_shim | extension was successfully linked.
+[I 2026-05-05 14:40:48.953 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2026-05-05 14:40:48.955 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2026-05-05 14:40:48.957 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2026-05-05 14:40:48.970 LabApp] JupyterLab extension loaded from /cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/jupyterlab
+[I 2026-05-05 14:40:48.970 LabApp] JupyterLab application directory is /cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/share/jupyter/lab
+[I 2026-05-05 14:40:48.972 LabApp] Extension Manager is 'pypi'.
+[I 2026-05-05 14:40:49.067 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2026-05-05 14:40:49.075 ServerApp] notebook | extension was successfully loaded.
+[I 2026-05-05 14:40:49.076 ServerApp] Serving notebooks from local directory: /cfs/earth/scratch/vollmflo/BA
+[I 2026-05-05 14:40:49.077 ServerApp] Jupyter Server 2.17.0 is running at:
+[I 2026-05-05 14:40:49.077 ServerApp] http://node301:8888/tree
+[I 2026-05-05 14:40:49.078 ServerApp]     http://127.0.0.1:8888/tree
+[I 2026-05-05 14:40:49.078 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[I 2026-05-05 14:40:49.283 ServerApp] Skipped non-installed server(s): basedpyright, bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyrefly, pyright, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[W 2026-05-05 14:44:12.280 ServerApp] 404 GET /hub/api (@192.168.32.71) 166.39ms referer=None
+[I 2026-05-05 14:44:12.285 ServerApp] 302 GET / (@192.168.32.71) 0.21ms
+[I 2026-05-05 14:44:12.289 JupyterNotebookApp] 302 GET /tree? (@192.168.32.71) 0.27ms
+[I 2026-05-05 14:44:18.191 ServerApp] User ccd9f21dbe214963b5e18137ae0a35ca logged in.
+[I 2026-05-05 14:44:18.192 ServerApp] 302 POST /login? (ccd9f21dbe214963b5e18137ae0a35ca@192.168.32.71) 225.60ms
+[I 2026-05-05 14:44:27.702 ServerApp] Kernel started: 53567d0e-3d6b-4e8e-9cf4-3075b44a76f9
+[I 2026-05-05 14:44:32.813 ServerApp] Adapting from protocol version 5.3 (kernel 53567d0e-3d6b-4e8e-9cf4-3075b44a76f9) to 5.4 (client).
+[I 2026-05-05 14:44:32.815 ServerApp] Connecting to kernel 53567d0e-3d6b-4e8e-9cf4-3075b44a76f9.
+[W 2026-05-05 14:44:32.816 ServerApp] The websocket_ping_timeout (90000) cannot be longer than the websocket_ping_interval (30000).
+    Setting websocket_ping_timeout=30000
+[W 2026-05-05 14:44:33.648 ServerApp] 404 GET /nbextensions/jupyter-js-widgets/extension.js (@192.168.32.71) 1.54ms referer=None
+[W 2026-05-05 14:44:33.650 ServerApp] 404 GET /nbextensions/jupyter-js-widgets/extension.js (@192.168.32.71) 0.97ms referer=None
+[I 2026-05-05 14:49:38.301 ServerApp] Starting buffering for 53567d0e-3d6b-4e8e-9cf4-3075b44a76f9:d1a91888-a0af-47ef-9a9a-41c9b12fec9a
+slurmstepd: error: *** JOB 319926 ON node301 CANCELLED AT 2026-05-05T14:49:56 ***
