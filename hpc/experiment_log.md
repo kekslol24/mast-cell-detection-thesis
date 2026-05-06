@@ -9,16 +9,54 @@ not used for model comparison — the test split is the authoritative number.
 
 ## Infrastructure Notes
 
-### Concurrent job interference (`cv_temp_isolated/` and `processed_data/`)
+### Concurrent job interference — full analysis
 
-`ba_improved_P2.py` uses relative paths for its working directories:
+SLURM does not snapshot `ba_improved_P2.py` at submission time. Jobs execute whatever is on disk when they start. When jobs are queued back-to-back and the script is updated between submissions, later jobs pick up newer config (wrong `PROJECT_DIR`, different hyperparameters). This corrupted multiple early P2 runs.
 
+Three independent collision paths existed:
+
+**1. `cv_temp` and `processed_data` (fixed via `SLURM_JOB_ID`)**  
+Temporary fold workspaces and augmented images used a shared path. Concurrent jobs would collide on `fold_0_workspace/` names, skip creating symlinks already present (pointing to the other job's data), and overwrite augmented images mid-run. Fixed by namespacing with `$SLURM_JOB_ID`:
 ```python
-TEMP_DIR      = os.path.abspath("./cv_temp_isolated/")
-PROCESSED_DIR = os.path.abspath("./processed_data")
+_JOB_ID       = os.environ.get("SLURM_JOB_ID", "local")
+TEMP_DIR      = os.path.abspath(f".cv_temp_{_JOB_ID}")
+PROCESSED_DIR = os.path.abspath(f".processed_data_{_JOB_ID}")
 ```
 
-Both resolve relative to `hpc/` (the working directory set by the SLURM script). If two jobs run simultaneously from the same directory, they share these folders and will interfere: fold workspaces collide by name (`fold_0_workspace/`, etc.), symlinks point to the wrong data, and augmented images in `processed_data/` are overwritten mid-run. Fix: namespace by `$SLURM_JOB_ID` before submitting concurrent experiments.
+**2. `PROJECT_DIR` race condition (fixed via `SLURM_JOB_NAME`)**  
+The output directory was hardcoded in the script. Even with cv_temp isolated, if two jobs ran with the same `PROJECT_DIR`, their `fold_N/results.csv` and `best.pt` would be written by both simultaneously. Direct evidence: `yolo_runs_hpc_mod3_dl_fv_bg_ratio_3_fr_lr0/fold_3/results.csv` contains interleaved epoch rows (90–91 from one job, 327–329 from another). The final `val_model.val()` evaluated whichever `best.pt` was last written — a random mix of two training runs.
+
+Fixed by deriving `PROJECT_DIR` from `$SLURM_JOB_NAME`, which is locked at submission time:
+```python
+PROJECT_DIR = f"./{os.environ.get('SLURM_JOB_NAME', 'local_run')}"
+```
+
+**3. Corrupted runs identified**  
+- P2-A (319399) and P2-B (319400): folds 2, 3, 5 have identical results to 4 decimal places — proof both jobs trained on the same fold workspace data. Results for these runs are unreliable.
+- P2-E (319536) and P2-F (319538): submitted back-to-back, likely affected.
+- `mod3_dl_fv_bg_ratio_3` (320286+320287): confirmed corrupted fold_3.
+
+**Clean runs** (wide ID gaps, submitted in isolation): **P2-D (319416)** and **P2-G (319934)**.
+
+### BG_RATIO bug (fixed 2026-05-06)
+
+`bg_paths` was sampled in `__main__` but never passed into `fold_tasks`, so background images never reached the training workers. All runs with `BG_RATIO > 0` were effectively `BG_RATIO = 0`. The "backgrounds" YOLO reported scanning were just FP negatives × oversample (e.g. 330 × 3 = 990).
+
+This invalidates all previous BG_RATIO comparisons. The only real variable between mod1/mod2/mod3 runs (320285–320287) was `FP_NEG_OVERSAMPLE`:
+
+| Job   | FP oversample | BG_RATIO (claimed) | Actual BG | Test mAP50 | Recall |
+|-------|---------------|--------------------|-----------|------------|--------|
+| 320285 | ×1           | 0                  | 0         | 0.564      | 0.645  |
+| 320286 | ×2           | 0                  | 0         | 0.586      | 0.570  |
+| 320287 | ×3           | 3 (bug)            | 0         | 0.563      | 0.563  |
+
+Observed effect: higher `FP_NEG_OVERSAMPLE` → lower recall (model becomes more conservative). mAP50 is roughly flat. FP oversample of ×2 gives the best mAP50 so far without sacrificing too much recall.
+
+Fix: `bg_paths` now passed through `fold_tasks` and appended to `train_paths_with_fp` without additional oversampling.
+
+### Grid search infrastructure (added 2026-05-06)
+
+`BG_RATIO` and `FP_NEG_OVERSAMPLE` are now read from environment variables with fallback defaults. `submit_grid.sh` submits all 12 combinations (fp∈{1,2,3} × bgr∈{0,1,2,3}) as independent SLURM jobs in one command. `PROJECT_DIR` auto-names from the job name, so results land in `train_p2_fp1_bgr0/`, etc.
 
 ---
 
