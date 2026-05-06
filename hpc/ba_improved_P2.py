@@ -18,20 +18,25 @@ N_SPLITS           = 5
 PRETRAINED_WEIGHTS = "DL_Modell_FV.pt"
 # PRETRAINED_WEIGHTS = "yolo11n.pt"
 EPOCHS_PER_FOLD    = 5000
-PATIENCE           = 50
+PATIENCE           = 100
 BATCH_SIZE         = 32
 IMGSZ              = 512 
-FP_NEG_OVERSAMPLE  = 1                 # First run with base nano yolo and no FP oversampling
-BG_RATIO           = 2                 # background images per annotated image (1:2 = safe range) set to 0 to disable background sampling entirely
+FP_NEG_OVERSAMPLE  = 3                 # First run with base nano yolo and no FP oversampling
+BG_RATIO           = 3                 # background images per annotated image (1:2 = safe range) set to 0 to disable background sampling entirely
+
+
+PROJECT_DIR        = "./yolo_runs_hpc_mod3_dl_fv_bg_ratio_3_fr_lr0"       #ADJUST IF CHANGES WERE MADE
 
 
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data/P2/1224151atypisch_normal"
 FP_NEG_EXCEL_PATH  = "/cfs/earth/scratch/vollmflo/BA/data/P2/Task 6_1224151_negative.xlsx"
 BG_IMAGE_PATH      = BASE_DATA_PATH+"/images/Train"  # same folder, unlabeled images
 CFG_PATH           = "/cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune6/best_hyperparameters.yaml"
-TEMP_DIR           = os.path.abspath("./cv_temp_isolated/")
-PROCESSED_DIR      = os.path.abspath("./processed_data")
-PROJECT_DIR        = "./yolo_runs_hpc_base_final_dl_fv_bg_ratio_2"
+
+_JOB_ID = os.environ.get("SLURM_JOB_ID", "local")
+TEMP_DIR = os.path.abspath(f".cv_temp_{_JOB_ID}")
+PROCESSED_DIR = os.path.abspath(f".processed_data_{_JOB_ID}")
+
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
 
@@ -174,7 +179,7 @@ def train_fold(fold_params):
     model = YOLO(PRETRAINED_WEIGHTS)
     model.train(
         data     = yaml_path,
-        cfg      = CFG_PATH,
+        # cfg      = CFG_PATH,
         epochs   = EPOCHS_PER_FOLD,
         patience = PATIENCE,
         batch    = BATCH_SIZE,
@@ -188,6 +193,9 @@ def train_fold(fold_params):
         verbose  = False,
         augment  = False,
         cos_lr   = True,
+        lr0 = 0.001,
+        lrf= 0.01,
+        freeze=10
     )
 
     del model

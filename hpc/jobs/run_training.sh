@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=train_run_P2_base_DL_FV_bg_ratio_2
+#SBATCH --job-name=train_run_P2_mod3_DL_FV_bg_ratio_3_fr_lr0
 #SBATCH --mail-type=fail,end
 #SBATCH --time=00-08:00:00
 #SBATCH --partition=earth-4
