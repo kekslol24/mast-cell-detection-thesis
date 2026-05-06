@@ -96,7 +96,7 @@ def preprocess_gold_image(img_path):
 # TRAINING 
 # ==============================================================================
 def train_fold(fold_params):
-    fold_idx, train_idx, test_idx, X_gold, y_gold, fp_neg_paths = fold_params
+    fold_idx, train_idx, test_idx, X_gold, y_gold, fp_neg_paths, bg_paths = fold_params
 
     fold_workspace = os.path.join(TEMP_DIR, f"fold_{fold_idx}_workspace")
     fold_img_dir   = os.path.join(fold_workspace, "images")
@@ -151,9 +151,10 @@ def train_fold(fold_params):
     val_paths   = link_gold(X_val)
     test_paths  = link_gold(X_test)
 
-    # FP negatives: train split only, oversampled
+    # FP negatives and background tiles: train split only
     fp_linked           = link_fp_negatives(fp_neg_paths)
-    train_paths_with_fp = train_paths + fp_linked * FP_NEG_OVERSAMPLE
+    bg_linked           = link_fp_negatives(bg_paths)
+    train_paths_with_fp = train_paths + fp_linked * FP_NEG_OVERSAMPLE + bg_linked
 
     np.savetxt(os.path.join(fold_workspace, 'train.txt'), train_paths_with_fp, fmt='%s')
     np.savetxt(os.path.join(fold_workspace, 'val.txt'),   val_paths,           fmt='%s')
@@ -319,7 +320,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------
     skf        = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
     fold_tasks = [
-        (i, train_idx, test_idx, X_all, y_all, fp_neg_paths)
+        (i, train_idx, test_idx, X_all, y_all, fp_neg_paths, bg_paths)
         for i, (train_idx, test_idx) in enumerate(skf.split(X_all, y_all))
     ]
  
