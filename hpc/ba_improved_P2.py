@@ -21,11 +21,10 @@ EPOCHS_PER_FOLD    = 5000
 PATIENCE           = 100
 BATCH_SIZE         = 32
 IMGSZ              = 512 
-FP_NEG_OVERSAMPLE  = 3                 # First run with base nano yolo and no FP oversampling
-BG_RATIO           = 3                 # background images per annotated image (1:2 = safe range) set to 0 to disable background sampling entirely
+FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE", 3))
+BG_RATIO           = int(os.environ.get("BG_RATIO", 0))
 
-
-PROJECT_DIR        = "./yolo_runs_hpc_mod3_dl_fv_bg_ratio_3_fr_lr0"       #ADJUST IF CHANGES WERE MADE
+PROJECT_DIR        = f"./{os.environ.get('SLURM_JOB_NAME', 'local_run')}"
 
 
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data/P2/1224151atypisch_normal"

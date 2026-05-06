@@ -24,4 +24,7 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
+export BG_RATIO=0
+export FP_NEG_OVERSAMPLE=3
+
 python ba_improved_P2.py
