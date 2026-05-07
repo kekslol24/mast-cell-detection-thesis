@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Submits one SLURM job per (FP_NEG_OVERSAMPLE, BG_RATIO) combination.
-# Run this directly on the cluster: bash submit_grid.sh
 # Output directories are named after the job: train_p2_fp{N}_bgr{M}/
 
 for fp in 1 2 3; do
