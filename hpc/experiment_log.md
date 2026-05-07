@@ -54,6 +54,29 @@ Observed effect: higher `FP_NEG_OVERSAMPLE` → lower recall (model becomes more
 
 Fix: `bg_paths` now passed through `fold_tasks` and appended to `train_paths_with_fp` without additional oversampling.
 
+### Transfer learning mechanics: nc change from 1 → 2 (analysed 2026-05-06)
+
+`DL_Modell_FV.pt` was trained on P1 with **nc=1**. P2 training uses **nc=2** (Atypisch, Normal). Ultralytics handles this silently but it has concrete consequences.
+
+**What Ultralytics does internally:**  
+A fresh `DetectionModel` is built with nc=2, then `intersect_dicts` loads checkpoint weights only where key names AND tensor shapes match. Because the Detect head's classification branch (`cv3`) outputs `nc` channels, its final `Conv2d(c3, nc, 1)` has a different shape (1→2) — so those weights are **discarded and re-initialized randomly**. The box regression branch (`cv2`) is nc-independent and transfers cleanly.
+
+| Layer group | Transferred? |
+|---|---|
+| Backbone model.0–9 (frozen with `freeze=10`) | Yes |
+| Neck model.10–21 | Yes |
+| Detect `cv2` (bbox regression) | Yes |
+| Detect `cv3` (classification, final conv) | **No — random init** |
+| Detect `.dfl` | Always frozen |
+
+**Training implications:**  
+`cv3` starts with random weights, so classification loss is high and noisy in early epochs. This gradient propagates back through the unfrozen neck. At `lr0=0.01` (YOLO default, calibrated for scratch training) this noise is large enough to disrupt the pretrained neck feature pyramid — likely the root cause of P2-C collapsing to mAP50=0.469 despite using `DL_Modell_FV.pt`. At `lr0=0.001` the updates are small enough that the neck refines rather than gets overwritten.
+
+**What to watch for:**  
+- Early-epoch metrics (ep. 1–50) are not representative — `cv3` is essentially random; do not use them to judge run quality.  
+- Class bias: `bias_init()` sets identical initial bias for both classes regardless of actual Atypisch/Normal ratio; if one class is underrepresented the model skews toward the majority until gradient corrects it. Monitor per-class recall, not just aggregate.  
+- Fast convergence expected once `cv3` is past the noise phase — the backbone already produces mast-cell-specific features, so the classification boundary is a simpler problem than training from scratch.
+
 ### Grid search infrastructure (added 2026-05-06)
 
 `BG_RATIO` and `FP_NEG_OVERSAMPLE` are now read from environment variables with fallback defaults. `submit_grid.sh` submits all 12 combinations (fp∈{1,2,3} × bgr∈{0,1,2,3}) as independent SLURM jobs in one command. `PROJECT_DIR` auto-names from the job name, so results land in `train_p2_fp1_bgr0/`, etc.
