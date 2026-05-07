@@ -72,15 +72,15 @@ def preprocess_image(img_path):
                     class_labels.append(int(parts[0]))
                     bboxes.append([float(x) for x in parts[1:]])
 
-    # Only augment if there are bboxes — negatives stay as-is
-    if bboxes:
-        try:
-            transformed  = augmenter(image=img, bboxes=bboxes, class_labels=class_labels)
-            img          = transformed['image']
-            bboxes       = transformed['bboxes']
-            class_labels = transformed['class_labels']
-        except Exception:
-            pass
+    # # Only augment if there are bboxes — negatives stay as-is
+    # if bboxes:
+    #     try:
+    #         transformed  = augmenter(image=img, bboxes=bboxes, class_labels=class_labels)
+    #         img          = transformed['image']
+    #         bboxes       = transformed['bboxes']
+    #         class_labels = transformed['class_labels']
+    #     except Exception:
+    #         pass
 
     base_name    = os.path.basename(img_path)
     new_img_path = os.path.join(PROCESSED_DIR, base_name)
