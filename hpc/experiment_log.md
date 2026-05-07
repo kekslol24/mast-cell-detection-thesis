@@ -81,6 +81,28 @@ A fresh `DetectionModel` is built with nc=2, then `intersect_dicts` loads checkp
 
 `BG_RATIO` and `FP_NEG_OVERSAMPLE` are now read from environment variables with fallback defaults. `submit_grid.sh` submits all 12 combinations (fp∈{1,2,3} × bgr∈{0,1,2,3}) as independent SLURM jobs in one command. `PROJECT_DIR` auto-names from the job name, so results land in `train_p2_fp1_bgr0/`, etc.
 
+### Augmentation: pre-applied vs. on-the-fly (analysed 2026-05-07)
+
+**Pre-applied augmentation does not increase the dataset.** `preprocess_image()` reads each image once, applies a single random transform, and saves one output image. The PROCESSED_DIR contains the same number of images as the source directories — no duplication, no size change (all images stay at their original resolution). Every training epoch sees exactly the same augmented copies; the transforms are frozen at preprocessing time, not re-sampled.
+
+**Why this is ineffective.** Augmentation regularises by presenting a different view of each image every epoch. When the augmented images are baked to disk, that variability is exhausted after epoch 1. Training then effectively runs on an unaugmented dataset. The overhead (CPU time + disk space) is incurred, the benefit is not.
+
+**Current state of `ba_improved_P2_fixed.py`:** augmentation is fully disabled — the pre-apply block is commented out and `augment=False` is passed to `model.train()`. This is the cleanest possible ablation baseline.
+
+**Recommended test sequence:**
+
+| Config | `preprocess_image` augment | `augment` in `model.train()` | Effect |
+|--------|---------------------------|------------------------------|--------|
+| **A — baseline** | off (current) | `False` | Clean control; isolates architecture/data changes |
+| **B — on-the-fly** | off | `True` + `mosaic=0.0` | Per-epoch random transforms; real regularisation |
+| **C — both** | on | `True` | Double regularisation; rarely adds over B, increases compute |
+
+Config B is the correct way to use augmentation. Mosaic must be disabled (`mosaic=0.0`) for cell-tile data: mosaic composites four images into one, which is appropriate for scene detection but scrambles single-cell crops at 512 px.
+
+**`flipud=0.5` is sensible for this data.** Bone marrow cell images have no canonical orientation (not upright like people or vehicles), so vertical flip is a valid augmentation. YOLO's built-in augmentation includes it when `augment=True`; no explicit override needed.
+
+**Recommendation:** Run A (current scripts) as the clean baseline, then run B by setting `augment=True` and `mosaic=0.0` in `model.train()`. Compare test-set recall — if B closes the val/test gap it confirms the model was overfitting rather than learning generalisable features.
+
 ---
 
 ## Background: Phase 1 — P1 Dataset, YOLO11n Baseline
