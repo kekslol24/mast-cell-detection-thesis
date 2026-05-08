@@ -1,0 +1,5 @@
+names:
+  0: Atypisch
+  1: Normal
+path: .
+train: train.txt

@@ -24,13 +24,17 @@ IMGSZ              = 512
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data"
 
 # Per-phase paths (HPC)
-P1_POS_DIR         = os.path.join(BASE_DATA_PATH, "P1", "Pos_neg 12241515", "images", "Train")
-P1_BG_DIR          = os.path.join(BASE_DATA_PATH, "P1", "Negativ 12241515", "images", "train")
-P2_POS_DIR         = os.path.join(BASE_DATA_PATH, "P2", "1224151atypisch_normal", "images", "Train")
-P2_FP_EXCEL        = os.path.join(BASE_DATA_PATH, "P2", "Task 6_1224151_negative.xlsx")
-P2_ROOT            = os.path.join(BASE_DATA_PATH, "P2", "1224151atypisch_normal")
-P3_POS_DIR         = os.path.join(BASE_DATA_PATH, "P3", "12309915_task7_atypisch_normal", "images", "Train")
-P4_POS_DIR         = os.path.join(BASE_DATA_PATH, "P4", "12397199_Pos_normal_task8", "images", "Train")
+P1_POS_DIR         = os.path.join(BASE_DATA_PATH, "old", "P1", "Pos_neg 12241515", "images", "Train")
+P1_BG_DIR          = os.path.join(BASE_DATA_PATH, "old", "P1", "Negativ 12241515", "images", "train")
+P2_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P2", "1224151atypisch_normal", "images", "Train")
+P2_FP_EXCEL        = os.path.join(BASE_DATA_PATH, "old", "P2", "Task 6_1224151_negative.xlsx")
+P2_ROOT            = os.path.join(BASE_DATA_PATH, "new", "P2", "images", "Train")
+P3_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P3", "images", "Train")
+P4_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P4", "images", "Train")
+P5_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P5", "images", "Train")
+P6_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P6", "images", "Train")
+P7_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P7", "images", "Train")
+P8_POS_DIR         = os.path.join(BASE_DATA_PATH, "new", "P8", "images", "Train")
 
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
@@ -212,6 +216,10 @@ if __name__ == "__main__":
         ("P2", P2_POS_DIR, "*.jpeg"),
         ("P3", P3_POS_DIR, "*.jpeg"),
         ("P4", P4_POS_DIR, "*.jpeg"),
+        ("P5", P5_POS_DIR, "*.jpeg"),
+        ("P6", P6_POS_DIR, "*.jpeg"),
+        ("P7", P7_POS_DIR, "*.jpeg"),
+        ("P8", P8_POS_DIR, "*.jpeg")
     ]
 
     raw_positives = []
