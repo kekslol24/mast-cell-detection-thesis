@@ -110,6 +110,16 @@ PATIENT_IMAGE_DIRS = {
     "P8": os.path.join(BASE_DATA_PATH, "new", "P8", "images", "Train"),
 }
 
+# Per-patient label directory override.
+# Default behaviour: replace 'images' → 'labels' in the image's path. That
+# fails for P1, where the images live under `old/` but the annotations were
+# moved to `new/`. Add an entry here to point a patient's labels somewhere
+# that is NOT a sibling of its images dir. Other patients can stay unset and
+# use the default swap.
+PATIENT_LABEL_DIRS = {
+    "P1": os.path.join(BASE_DATA_PATH, "new", "P1", "labels", "Train"),
+}
+
 # Negatives belong to specific patients — important for LOPO (don't leak the
 # held-out patient's data into train via FP/BG).
 P1_BG_DIR          = os.path.join(BASE_DATA_PATH, "old", "P1", "Negativ 12241515", "images", "train")
@@ -158,15 +168,26 @@ def case_insensitive_resolve(abs_path: str) -> str:
     return current
 
 
-def image_to_label_path(img_path: str) -> str:
+def image_to_label_path(img_path: str, patient: str | None = None) -> str:
     """
-    Map .../images/<Train|train>/foo.jpeg → .../labels/<Train|train>/foo.txt.
-    Tolerant to case differences in 'images', 'labels', and the split dir.
+    Map an image path to its YOLO label path.
+
+    If `patient` is in PATIENT_LABEL_DIRS (e.g. P1, where images live in `old/`
+    but labels live in `new/`), use that override. Otherwise replace 'images'
+    → 'labels' in the image's directory and case-insensitively resolve any
+    'Train' vs 'train' difference.
     """
     label_name = os.path.splitext(os.path.basename(img_path))[0] + ".txt"
-    img_dir    = os.path.dirname(img_path)
 
-    # Swap 'images' → 'labels' in the dir path (case-insensitive on the component).
+    # Per-patient override — used when labels and images are on different roots.
+    if patient and patient in PATIENT_LABEL_DIRS:
+        override_dir = case_insensitive_resolve(PATIENT_LABEL_DIRS[patient])
+        return os.path.join(override_dir, label_name)
+
+    img_dir = os.path.dirname(img_path)
+
+    # Default: swap 'images' → 'labels' in the dir path (case-insensitive on
+    # the component name).
     parts     = img_dir.split(os.sep)
     new_parts = ["labels" if p.lower() == "images" else p for p in parts]
     naive_label_dir = os.sep.join(new_parts)
@@ -213,15 +234,21 @@ def parse_classes_in_label(label_path: str) -> set[int]:
 # with `_dupK` suffix. YOLO sees them as distinct files, so on-the-fly
 # augmentation produces a different transform per epoch per copy.
 def link_one(src_img: str, fold_img_dir: str, fold_lbl_dir: str,
-             oversample: int = 1, is_negative: bool = False) -> list[str]:
-    """Symlink one source image into the fold workspace `oversample` times."""
+             oversample: int = 1, is_negative: bool = False,
+             patient: str | None = None) -> list[str]:
+    """Symlink one source image into the fold workspace `oversample` times.
+
+    `patient` is forwarded to image_to_label_path so per-patient label
+    overrides (e.g. P1 labels living under `new/` while images live under
+    `old/`) are honoured when resolving the source label.
+    """
     linked = []
     name, ext = os.path.splitext(os.path.basename(src_img))
 
     if is_negative:
         src_lbl = None  # negatives have no annotations; we write an empty .txt
     else:
-        src_lbl = image_to_label_path(src_img)
+        src_lbl = image_to_label_path(src_img, patient=patient)
         if not os.path.exists(src_lbl):
             return linked  # missing label — skip silently (caller already filtered)
 
@@ -262,20 +289,24 @@ def train_fold(fold_params):
     for src, patient in train_pos:
         n = PATIENT_OVERSAMPLE.get(patient, 1)
         train_paths.extend(link_one(src, fold_img_dir, fold_lbl_dir,
-                                    oversample=n, is_negative=False))
+                                    oversample=n, is_negative=False,
+                                    patient=patient))
     for src, patient in train_neg:
         train_paths.extend(link_one(src, fold_img_dir, fold_lbl_dir,
-                                    oversample=FP_NEG_OVERSAMPLE, is_negative=True))
+                                    oversample=FP_NEG_OVERSAMPLE, is_negative=True,
+                                    patient=patient))
 
     # Val and test: never oversampled (must reflect true distribution).
     val_paths  = []
-    for src, _ in val_pos:
+    for src, patient in val_pos:
         val_paths.extend(link_one(src, fold_img_dir, fold_lbl_dir,
-                                  oversample=1, is_negative=False))
+                                  oversample=1, is_negative=False,
+                                  patient=patient))
     test_paths = []
-    for src, _ in test_pos:
+    for src, patient in test_pos:
         test_paths.extend(link_one(src, fold_img_dir, fold_lbl_dir,
-                                   oversample=1, is_negative=False))
+                                   oversample=1, is_negative=False,
+                                   patient=patient))
 
     np.savetxt(os.path.join(fold_workspace, 'train.txt'), train_paths, fmt='%s')
     np.savetxt(os.path.join(fold_workspace, 'val.txt'),   val_paths,   fmt='%s')
@@ -383,7 +414,7 @@ if __name__ == "__main__":
         candidates = glob_images(img_dir)
         verified, atyp_count, norm_count = [], 0, 0
         for img in candidates:
-            lbl = image_to_label_path(img)
+            lbl = image_to_label_path(img, patient=patient)
             if not os.path.exists(lbl):
                 continue
             classes = parse_classes_in_label(lbl)
