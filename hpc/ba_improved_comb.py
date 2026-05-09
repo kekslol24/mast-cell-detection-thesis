@@ -63,7 +63,7 @@ LOPO_CV            = os.environ.get("LOPO_CV", "1") == "1"
 N_SPLITS_FALLBACK  = 5   # only used when LOPO_CV=False
 
 # Pretrained weights — domain-specific FV model is the established baseline (P2-H).
-PRETRAINED_WEIGHTS = "DL_Modell_FV.pt"
+PRETRAINED_WEIGHTS = "yolo11n.pt"
 
 # Fine-tuning hyperparameters from P2-H baseline.
 EPOCHS_PER_FOLD    = 5000
@@ -78,7 +78,7 @@ FLIPUD             = 0.5      # cells have no canonical orientation
 COS_LR             = True
 
 # Negatives — DoE conclusion: BG tiles uniformly hurt, FP plateaus above ×1.
-BG_RATIO           = int(os.environ.get("BG_RATIO", "0"))
+BG_RATIO           = int(os.environ.get("BG_RATIO", "1"))
 FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE", "1"))
 
 # Per-patient oversample factors — see strategy note in experiment_log.md.
@@ -101,7 +101,7 @@ BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data"
 # 'Train' vs 'train' on disk both work.
 PATIENT_IMAGE_DIRS = {
     "P1": os.path.join(BASE_DATA_PATH, "old", "P1", "Pos_neg 12241515", "images", "Train"),
-    "P2": os.path.join(BASE_DATA_PATH, "new", "P2", "1224151atypisch_normal", "images", "Train"),
+    "P2": os.path.join(BASE_DATA_PATH, "new", "P2", "images", "Train"),
     "P3": os.path.join(BASE_DATA_PATH, "new", "P3", "images", "Train"),
     "P4": os.path.join(BASE_DATA_PATH, "new", "P4", "images", "Train"),
     "P5": os.path.join(BASE_DATA_PATH, "new", "P5", "images", "Train"),
@@ -325,7 +325,7 @@ def train_fold(fold_params):
 
     gpu_id = fold_idx % 2
 
-    # Fine-tune from DL_Modell_FV.pt with on-the-fly augmentation.
+
     # `cfg=...` is intentionally NOT used — tuner-derived hyperparameters are
     # calibrated for scratch training and overwrite pretrained features.
     model = YOLO(PRETRAINED_WEIGHTS)
