@@ -58,7 +58,7 @@ DFL                = float(os.environ.get("DFL",               "1.5"))
 HSV_V              = float(os.environ.get("HSV_V",             "0.4"))
 MIXUP              = float(os.environ.get("MIXUP",             "0.0"))
 
-BG_RATIO           = int(os.environ.get("BG_RATIO",            "0"))
+BG_RATIO           = int(os.environ.get("BG_RATIO",            "1"))
 FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE",   "1"))
 VAL_FRACTION       = float(os.environ.get("VAL_FRACTION",      "0.15"))
 PRETRAINED_WEIGHTS = os.environ.get("PRETRAINED_WEIGHTS",      "yolo11n.pt")
