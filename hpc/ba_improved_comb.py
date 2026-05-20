@@ -1,5 +1,5 @@
 """
-ba_improved_comb.py — Full P1–P8 corpus training with class-imbalance handling.
+ba_improved_comb.py — Full P1–P15 corpus training with class-imbalance handling.
 
 Strategy (see hpc/experiment_log.md, "P1–P8 Full Dataset — Class Imbalance Strategy"):
 
@@ -81,24 +81,28 @@ COS_LR             = True
 BG_RATIO           = int(os.environ.get("BG_RATIO", "1"))
 FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE", "1"))
 
-# Per-patient oversample factors — see strategy note in experiment_log.md.
-# Targets effective per-epoch class ratio of roughly 2 : 1 (Atypisch : Normal).
-PATIENT_OVERSAMPLE = {
-    "P1": 1,    # SM-dominant, already over-represented
-    "P2": 1,
-    "P3": 1,
-    "P4": 1,
-    "P5": 8,    # 3 atyp / 18 norm — Normal-rich
-    "P6": 15,   # 0 atyp /  6 norm — pure Normal, scarcest
-    "P7": 8,    # 8 atyp / 12 norm — mixed
-    "P8": 10,   # 0 atyp / 24 norm — pure Normal
+# Manually validated oversample factors for P1–P8 (see experiment_log.md).
+# P9–P15 are NOT listed here — their factors are computed automatically at
+# runtime by compute_oversample_factors() to target a ~2:1 Atypisch:Normal
+# ratio. Add a patient here to pin its factor and skip auto-computation.
+PATIENT_OVERSAMPLE_FIXED = {
+    "P1":  1,    # SM-dominant, already over-represented
+    "P2":  1,
+    "P3":  1,
+    "P4":  1,
+    "P5":  8,    # 3 atyp / 18 norm — Normal-rich
+    "P6":  15,   # 0 atyp /  6 norm — pure Normal, scarcest
+    "P7":  8,    # 8 atyp / 12 norm — mixed
+    "P8":  10,   # 0 atyp / 24 norm — pure Normal
 }
+OVERSAMPLE_TARGET_RATIO = 2.0   # global effective Atypisch:Normal goal
+OVERSAMPLE_CAP          = 25    # hard ceiling to avoid extreme duplication
 
 # Data roots
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data"
 
-# Per-phase image directories. Resolution is case-insensitive at runtime, so
-# 'Train' vs 'train' on disk both work.
+# Per-phase image directories for patients whose images live in a flat
+# directory (P1–P8). Resolution is case-insensitive at runtime.
 PATIENT_IMAGE_DIRS = {
     "P1": os.path.join(BASE_DATA_PATH, "old", "P1", "Pos_neg 12241515", "images", "Train"),
     "P2": os.path.join(BASE_DATA_PATH, "new", "P2", "images", "Train"),
@@ -108,6 +112,18 @@ PATIENT_IMAGE_DIRS = {
     "P6": os.path.join(BASE_DATA_PATH, "new", "P6", "images", "Train"),
     "P7": os.path.join(BASE_DATA_PATH, "new", "P7", "images", "Train"),
     "P8": os.path.join(BASE_DATA_PATH, "new", "P8", "images", "Train"),
+}
+
+# P9–P15 use a YOLO-style Train.txt listing absolute image paths (no flat
+# images/Train/ directory). Entries here are read line-by-line at runtime.
+PATIENT_IMAGE_TXTS = {
+    "P9":  os.path.join(BASE_DATA_PATH, "new", "P9",  "Train.txt"),
+    "P10": os.path.join(BASE_DATA_PATH, "new", "P10", "Train.txt"),
+    "P11": os.path.join(BASE_DATA_PATH, "new", "P11", "Train.txt"),
+    "P12": os.path.join(BASE_DATA_PATH, "new", "P12", "Train.txt"),
+    "P13": os.path.join(BASE_DATA_PATH, "new", "P13", "Train.txt"),
+    "P14": os.path.join(BASE_DATA_PATH, "new", "P14", "Train.txt"),
+    "P15": os.path.join(BASE_DATA_PATH, "new", "P15", "Train.txt"),
 }
 
 # Per-patient label directory override.
@@ -123,8 +139,21 @@ PATIENT_LABEL_DIRS = {
 # Negatives belong to specific patients — important for LOPO (don't leak the
 # held-out patient's data into train via FP/BG).
 P1_BG_DIR          = os.path.join(BASE_DATA_PATH, "old", "P1", "Negativ 12241515", "images", "train")
-P2_FP_EXCEL        = os.path.join(BASE_DATA_PATH, "old", "P2", "Task 6_1224151_negative.xlsx")
-P2_ROOT            = os.path.join(BASE_DATA_PATH, "new", "P2", "images", "Train")
+
+# FP-negative Excel files per patient. Each Excel contains filenames of tiles
+# that the model incorrectly detected (confirmed false positives). They are
+# resolved against the patient's image index at runtime and added to train-only
+# splits as empty-label negatives.
+PATIENT_FP_EXCELS = {
+    "P2":  os.path.join(BASE_DATA_PATH, "old",  "P2",  "Task 6_1224151_negative.xlsx"),
+    "P9":  os.path.join(BASE_DATA_PATH, "new",  "P9",  "Task39_V2.xlsx"),
+    "P10": os.path.join(BASE_DATA_PATH, "new",  "P10", "Task26_V2.xlsx"),
+    "P11": os.path.join(BASE_DATA_PATH, "new",  "P11", "Task27_V2.xlsx"),
+    "P12": os.path.join(BASE_DATA_PATH, "new",  "P12", "Task21_V2.xlsx"),
+    "P13": os.path.join(BASE_DATA_PATH, "new",  "P13", "Task24_V2.xlsx"),
+    "P14": os.path.join(BASE_DATA_PATH, "new",  "P14", "Task25_V2.xlsx"),
+    "P15": os.path.join(BASE_DATA_PATH, "new",  "P15", "Task23_V2.xlsx"),
+}
 
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
@@ -210,6 +239,94 @@ def glob_images(dir_path: str) -> list[str]:
     return sorted(set(found))
 
 
+def load_patient_images(patient: str) -> list[str]:
+    """Return all annotated image paths for a patient.
+
+    P1–P8 are resolved by globbing their images/Train directory. P9–P15 list
+    their images in a Train.txt file (absolute paths, one per line).
+    """
+    if patient in PATIENT_IMAGE_DIRS:
+        return glob_images(PATIENT_IMAGE_DIRS[patient])
+    txt = PATIENT_IMAGE_TXTS.get(patient)
+    if txt and os.path.exists(txt):
+        with open(txt) as f:
+            return [ln.strip() for ln in f if ln.strip()]
+    return []
+
+
+def build_disk_index(patient: str) -> dict[str, str]:
+    """Return {basename → abspath} for all images of a patient.
+
+    Used to resolve FP-negative filenames (from Excel) to full disk paths.
+    For dir-based patients we glob; for txt-based patients we parse Train.txt
+    (faster and avoids an additional directory walk).
+    """
+    paths = load_patient_images(patient)
+    return {os.path.basename(p): p for p in paths}
+
+
+def compute_oversample_factors(
+    summary: dict[str, dict],
+    fixed: dict[str, int],
+    target_ratio: float = OVERSAMPLE_TARGET_RATIO,
+    cap: int = OVERSAMPLE_CAP,
+) -> dict[str, int]:
+    """Compute per-patient oversample factors targeting a global Atypisch:Normal ratio.
+
+    Patients in `fixed` keep their pinned value unchanged. All others are
+    processed in descending Normal-heaviness order (most imbalanced first) so
+    each factor is solved against the already-assigned state of prior patients.
+
+    For each auto patient the closed-form solution to
+        (tot_atyp + atyp_p*k) / (tot_norm + norm_p*k) = target_ratio
+    is:
+        k = (target_ratio*tot_norm - tot_atyp) / (atyp_p - target_ratio*norm_p)
+
+    Atypisch-dominant or balanced patients (atyp >= norm) get k=1. Pure-Normal
+    patients (atyp=0) reduce purely to k = (tot_atyp/tot_norm - target_ratio) *
+    tot_norm / (target_ratio * norm_p), which is capped at `cap`.
+    """
+    factors: dict[str, int] = {}
+
+    # Seed with fixed values (contributes their known weighted counts).
+    for p, k in fixed.items():
+        if p in summary:
+            factors[p] = k
+
+    # Patients that need auto-computation, sorted most Normal-heavy first.
+    auto = [p for p in summary if p not in fixed]
+    auto.sort(
+        key=lambda p: summary[p]["normal"] / max(summary[p]["atypisch"], 1),
+        reverse=True,
+    )
+
+    for p in auto:
+        atyp_p = summary[p]["atypisch"]
+        norm_p = summary[p]["normal"]
+
+        if norm_p == 0 or atyp_p >= norm_p:
+            factors[p] = 1
+            continue
+
+        # Weighted global totals from all patients assigned so far (excl. p).
+        tot_atyp = sum(summary[q]["atypisch"] * factors.get(q, 1)
+                       for q in summary if q != p)
+        tot_norm = sum(summary[q]["normal"] * factors.get(q, 1)
+                       for q in summary if q != p)
+
+        denom = atyp_p - target_ratio * norm_p  # always negative for norm > atyp
+        numer = target_ratio * tot_norm - tot_atyp
+
+        if abs(denom) < 1e-9 or numer <= 0:
+            # Already at or below target without boosting this patient.
+            factors[p] = 1
+        else:
+            k_exact = numer / denom
+            factors[p] = min(cap, max(1, round(k_exact)))
+
+    return factors
+
+
 def parse_classes_in_label(label_path: str) -> set[int]:
     """Return set of class IDs present in a YOLO .txt label file."""
     if not label_path or not os.path.exists(label_path):
@@ -276,7 +393,8 @@ def link_one(src_img: str, fold_img_dir: str, fold_lbl_dir: str,
 def train_fold(fold_params):
     (fold_idx, fold_label,
      train_pos, val_pos, test_pos,           # each: list[(img_path, patient)]
-     train_neg) = fold_params                  # list[(img_path, patient)] — train only
+     train_neg,                               # list[(img_path, patient)] — train only
+     oversample_factors) = fold_params        # dict[patient, k] — computed in __main__
 
     fold_workspace = os.path.join(TEMP_DIR, f"fold_{fold_idx}_workspace")
     fold_img_dir   = os.path.join(fold_workspace, "images")
@@ -287,7 +405,7 @@ def train_fold(fold_params):
     # Train: positives oversampled per patient + negatives at FP_NEG_OVERSAMPLE.
     train_paths = []
     for src, patient in train_pos:
-        n = PATIENT_OVERSAMPLE.get(patient, 1)
+        n = oversample_factors.get(patient, 1)
         train_paths.extend(link_one(src, fold_img_dir, fold_lbl_dir,
                                     oversample=n, is_negative=False,
                                     patient=patient))
@@ -405,13 +523,15 @@ def train_fold(fold_params):
 # ==============================================================================
 if __name__ == "__main__":
     # ------------------------------------------------------------------
-    # 1. Load annotated positives from all 8 patients, with patient tag
+    # 1. Load annotated positives from all patients (P1–P15), with patient tag
     # ------------------------------------------------------------------
     pos_with_meta: list[tuple[str, str]] = []   # (img_path, patient)
     summary: dict[str, dict] = {}
 
-    for patient, img_dir in PATIENT_IMAGE_DIRS.items():
-        candidates = glob_images(img_dir)
+    all_patients = sorted(PATIENT_IMAGE_DIRS.keys() | PATIENT_IMAGE_TXTS.keys(),
+                          key=lambda p: int(p[1:]))
+    for patient in all_patients:
+        candidates = load_patient_images(patient)
         verified, atyp_count, norm_count = [], 0, 0
         for img in candidates:
             lbl = image_to_label_path(img, patient=patient)
@@ -426,26 +546,40 @@ if __name__ == "__main__":
             pos_with_meta.append((img, patient))
 
         summary[patient] = {
-            "files":       len(verified),
-            "atypisch":    atyp_count,
-            "normal":      norm_count,
-            "oversample":  PATIENT_OVERSAMPLE.get(patient, 1),
+            "files":    len(verified),
+            "atypisch": atyp_count,
+            "normal":   norm_count,
         }
 
+    # Compute oversample factors: P1–P8 use pinned values, P9–P15 are solved
+    # automatically to target OVERSAMPLE_TARGET_RATIO globally.
+    oversample_factors = compute_oversample_factors(summary, PATIENT_OVERSAMPLE_FIXED)
+
+    # Effective weighted counts after oversampling.
+    eff_atyp = sum(summary[p]["atypisch"] * oversample_factors[p] for p in summary)
+    eff_norm = sum(summary[p]["normal"]   * oversample_factors[p] for p in summary)
+
     print("\n=== Per-patient annotation summary ===")
-    print(f"{'Patient':<8}{'Files':>8}{'Atypisch':>10}{'Normal':>10}{'Oversample':>12}")
+    print(f"{'Patient':<8}{'Files':>8}{'Atypisch':>10}{'Normal':>10}{'Oversample':>12}"
+          f"{'EffAtyp':>10}{'EffNorm':>10}")
     total_files = total_atyp = total_norm = 0
-    for p, s in summary.items():
-        print(f"{p:<8}{s['files']:>8}{s['atypisch']:>10}{s['normal']:>10}{s['oversample']:>12}")
-        total_files += s['files']
-        total_atyp  += s['atypisch']
-        total_norm  += s['normal']
+    for p in sorted(summary, key=lambda x: int(x[1:])):
+        s  = summary[p]
+        k  = oversample_factors[p]
+        ea = s["atypisch"] * k
+        en = s["normal"]   * k
+        print(f"{p:<8}{s['files']:>8}{s['atypisch']:>10}{s['normal']:>10}{k:>12}{ea:>10}{en:>10}")
+        total_files += s["files"]
+        total_atyp  += s["atypisch"]
+        total_norm  += s["normal"]
     print(f"{'TOTAL':<8}{total_files:>8}{total_atyp:>10}{total_norm:>10}")
     if total_norm > 0:
-        print(f"Atypisch:Normal ratio = {total_atyp / total_norm:.1f} : 1")
+        print(f"Raw ratio      = {total_atyp / total_norm:.1f} : 1")
+    if eff_norm > 0:
+        print(f"Effective ratio = {eff_atyp / eff_norm:.1f} : 1  (target {OVERSAMPLE_TARGET_RATIO:.0f}:1)")
 
     # ------------------------------------------------------------------
-    # 2. Load P1 backgrounds and P2 FP negatives (tagged by patient)
+    # 2. Load P1 backgrounds and per-patient FP negatives (tagged by patient)
     # ------------------------------------------------------------------
     neg_with_meta: list[tuple[str, str]] = []
 
@@ -463,29 +597,35 @@ if __name__ == "__main__":
     else:
         print("\nP1 backgrounds disabled (BG_RATIO=0) — DoE conclusion.")
 
-    if FP_NEG_OVERSAMPLE > 0 and os.path.exists(P2_FP_EXCEL):
-        print("Indexing P2 disk for FP resolution...")
-        p2_disk_dir = case_insensitive_resolve(P2_ROOT)
-        p2_disk     = glob.glob(os.path.join(p2_disk_dir, "**/*.jpeg"), recursive=True)
-        p2_disk    += glob.glob(os.path.join(p2_disk_dir, "**/*.JPEG"), recursive=True)
-        p2_index    = {os.path.basename(p): p for p in p2_disk}
+    if FP_NEG_OVERSAMPLE > 0:
+        print(f"\nLoading FP negatives (oversample={FP_NEG_OVERSAMPLE})...")
+        total_fp_missing = []
+        for fp_patient, excel_path in PATIENT_FP_EXCELS.items():
+            if not os.path.exists(excel_path):
+                print(f"  {fp_patient}: Excel not found, skipping ({excel_path})")
+                continue
 
-        fp_df        = pd.read_excel(P2_FP_EXCEL, header=None)
-        fp_filenames = fp_df[0].dropna().tolist()
-        fp_paths, fp_missing = [], []
-        for fn in fp_filenames:
-            basename = os.path.basename(str(fn))
-            if basename in p2_index:
-                fp_paths.append(p2_index[basename])
-            else:
-                fp_missing.append(fn)
+            disk_index   = build_disk_index(fp_patient)
+            fp_df        = pd.read_excel(excel_path, header=None)
+            fp_filenames = fp_df[0].dropna().tolist()
+            fp_paths, fp_missing = [], []
+            for fn in fp_filenames:
+                bn = os.path.basename(str(fn))
+                if bn in disk_index:
+                    fp_paths.append(disk_index[bn])
+                else:
+                    fp_missing.append(fn)
 
-        for p in fp_paths:
-            neg_with_meta.append((p, "P2"))
+            for p in fp_paths:
+                neg_with_meta.append((p, fp_patient))
 
-        print(f"P2 FP negatives (oversample={FP_NEG_OVERSAMPLE}): {len(fp_paths)} resolved")
-        if fp_missing:
-            print(f"  not found: {len(fp_missing)} (first 5: {fp_missing[:5]})")
+            print(f"  {fp_patient}: {len(fp_paths)} resolved, {len(fp_missing)} missing")
+            if fp_missing:
+                print(f"    first 5 missing: {fp_missing[:5]}")
+            total_fp_missing.extend(fp_missing)
+
+        print(f"Total FP negatives added: {sum(1 for _, p in neg_with_meta if p in PATIENT_FP_EXCELS)}"
+              f"  ({len(total_fp_missing)} unresolved across all patients)")
 
     # ------------------------------------------------------------------
     # 3. Build CV folds
@@ -513,7 +653,8 @@ if __name__ == "__main__":
             val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
 
             fold_tasks.append((fold_idx, holdout,
-                               train_pos, val_pos, test_pos, train_neg))
+                               train_pos, val_pos, test_pos, train_neg,
+                               oversample_factors))
             print(f"  Fold {fold_idx+1}: holdout={holdout}, "
                   f"train={len(train_pos)} pos / {len(train_neg)} neg, "
                   f"val={len(val_pos)}, test={len(test_pos)}")
@@ -540,7 +681,8 @@ if __name__ == "__main__":
             train_pos = list(zip(X_tr.tolist(), y_tr.tolist()))
             val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
             fold_tasks.append((fold_idx, f"fold{fold_idx+1}",
-                               train_pos, val_pos, te_pos, tr_neg))
+                               train_pos, val_pos, te_pos, tr_neg,
+                               oversample_factors))
         print(f"\n=== Stratified {N_SPLITS_FALLBACK}-fold CV (legacy) ===")
 
     # ------------------------------------------------------------------
