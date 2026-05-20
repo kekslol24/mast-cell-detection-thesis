@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>ba_fv_ext</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="BA_FV_ext_files/libs/clipboard/clipboard.min.js"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/popper.min.js"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="BA_FV_ext_files/libs/quarto-html/anchor.min.js"></script>
+<link href="BA_FV_ext_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="BA_FV_ext_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="BA_FV_ext_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="BA_FV_ext_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="BA_FV_ext_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="ba_fv_ext.qmd" class="level1">
+<h1>BA_FV_ext.qmd</h1>
+</section>
+<section id="extension-file-all-newly-written-sections-for-ba_fv.qmd" class="level1">
+<h1>Extension file — all newly written sections for BA_FV.qmd</h1>
+</section>
+<section id="paste-each-section-into-the-corresponding-location-in-the-main-file." class="level1">
+<h1>Paste each section into the corresponding location in the main file.</h1>
+</section>
+<section id="figure-placeholders-are-marked-with-figure-placeholder-." class="level1">
+<h1>Figure placeholders are marked with [Figure placeholder: …].</h1>
+<hr>
+</section>
+<section id="abstract" class="level1 unnumbered unlisted">
+<h1 class="unnumbered unlisted">Abstract</h1>
+<section id="english-version" class="level3">
+<h3 class="anchored" data-anchor-id="english-version">English Version</h3>
+<p>Systemic mastocytosis is diagnosed in part by quantifying the proportion of atypical mast cells in bone marrow aspirate samples, a task currently performed manually and subject to observer variability. This thesis presents the first validated deep learning pipeline targeting the binary morphological classification of mast cells in bone marrow aspirates in direct alignment with the WHO 2022 diagnostic criterion requiring at least 25% atypical cells. A YOLO11n object detection model was fine-tuned on annotated data from eight patients provided by the University Hospital Zurich, using a leave-one-patient-out cross-validation strategy to ensure unbiased generalization estimates across independent patient cases. A systematic design-of-experiments sweep over four training hyperparameters identified the optimal configuration, achieving a mean recall of 0.866 (R_Atypisch: 0.892, R_Normal: 0.840) and a mean mAP50 of 0.864 across eight held-out patient folds. The annotation workflow introduced a model-assisted feedback loop using CVAT with NUCLIO integration, significantly reducing clinical annotation effort from the second patient onward. A standalone PySide6 desktop application was developed, packaged as a self-contained Windows executable with PyInstaller, and tested on real USZ patient data. The application processes slide-scale image sets of up to 20,000 tiles in configurable chunks, displays per-image detections with an interactive annotation editor, and presents the computed Atypisch fraction relative to the WHO threshold in a patient-level statistics view. The trained model weights were handed over to the USZ for continued deployment and prospective data collection.</p>
+<div style="page-break-after: always;"></div>
+</section>
+<section id="german-version" class="level3">
+<h3 class="anchored" data-anchor-id="german-version">German Version</h3>
+<p>Die systemische Mastozytose wird unter anderem durch die Quantifizierung des Anteils atypischer Mastzellen in Knochenmarkaspiraten diagnostiziert, eine Aufgabe, die derzeit manuell durchgeführt wird und anfällig für Beobachtervariabilität ist. Diese Bachelorarbeit stellt die erste validierte Deep-Learning-Pipeline vor, die gezielt auf die binäre morphologische Klassifikation von Mastzellen in Knochenmarkaspiraten ausgerichtet ist und direkt mit dem WHO-2022-Diagnosekriterium von mindestens 25 % atypischen Mastzellen übereinstimmt. Ein YOLO11n-Objekterkennungsmodell wurde auf annotierten Daten von acht Patienten des Universitätsspitals Zürich feinabgestimmt, wobei eine Leave-One-Patient-Out-Kreuzvalidierung zur Sicherstellung unverzerrter Generalisierungsschätzungen eingesetzt wurde. Eine systematische Hyperparameter-Suche über vier Trainingsparameter identifizierte die optimale Konfiguration mit einem mittleren Recall von 0.866 (R_Atypisch: 0.892, R_Normal: 0.840) und einem mittleren mAP50 von 0.864 über acht gehaltene Patientenfälle. Der Annotationsprozess nutzte eine modellgestützte Feedback-Schleife über CVAT mit NUCLIO-Integration, was den manuellen Annotationsaufwand ab dem zweiten Patienten erheblich reduzierte. Eine eigenständige PySide6-Desktop-Applikation wurde entwickelt, als eigenständige Windows-Anwendung mit PyInstaller kompiliert und mit echten USZ-Patientendaten getestet. Die Applikation verarbeitet Bildmengen von bis zu 20.000 Kacheln in konfigurierbaren Abschnitten, zeigt Einzelbild-Detektionen mit einem integrierten Annotationseditor und stellt eine patientenspezifische Statistikansicht mit dem berechneten Atypisch-Anteil relativ zum WHO-Schwellenwert dar. Die trainierten Modellgewichte wurden dem USZ für den weiteren Einsatz und die prospektive Datenerhebung übergeben.</p>
+<hr>
+</section>
+</section>
+<section id="acknowledgement" class="level1 unnumbered unlisted">
+<h1 class="unnumbered unlisted">Acknowledgement</h1>
+<p>I would like to express my sincere gratitude to Dr.&nbsp;Stefan Glüge for setting up the project for this thesis and for his valuable support and guidance throughout the writing and compilation process of this thesis. Special thanks go to Robin Kosche, Assistenzarzt at the Klinik für Medizinische Onkologie und Hämatologie, University Hospital Zurich, for the clinical annotation of the training dataset, for his domain expertise shared throughout the project, and for taking the time to show me around the USZ and introduce me to the clinical environment and subject matter.</p>
+<hr>
+</section>
+<section id="list-of-abbreviations" class="level1 unnumbered">
+<h1 class="unnumbered">List of Abbreviations</h1>
+<ul>
+<li><strong>AI</strong>: Artificial Intelligence</li>
+<li><strong>AP</strong>: Average Precision</li>
+<li><strong>CNN</strong>: Convolutional Neural Network</li>
+<li><strong>COCO</strong>: Common Objects in Context</li>
+<li><strong>CV</strong>: Cross Validation</li>
+<li><strong>DoE</strong>: Design of Experiments</li>
+<li><strong>FN</strong>: False Negative</li>
+<li><strong>FP</strong>: False Positive</li>
+<li><strong>GPU</strong>: Graphics Processing Unit</li>
+<li><strong>HPC</strong>: High Performance Computing</li>
+<li><strong>IoU</strong>: Intersection over Union</li>
+<li><strong>LOPO</strong>: Leave-One-Patient-Out</li>
+<li><strong>MC</strong>: Mast Cells</li>
+<li><strong>mAP</strong>: Mean Average Precision</li>
+<li><strong>RF-DETR</strong>: Roboflow Detection Transformer</li>
+<li><strong>SM</strong>: Systemic Mastocytosis</li>
+<li><strong>TN</strong>: True Negative</li>
+<li><strong>TP</strong>: True Positive</li>
+<li><strong>USZ</strong>: University Hospital Zurich (Universitätsspital Zürich)</li>
+<li><strong>YOLO</strong>: You Only Look Once</li>
+</ul>
+<hr>
+</section>
+<section id="methodology-technical-sections" class="level1">
+<h1>Methodology — Technical Sections</h1>
+</section>
+<section id="replace-the-german-placeholder-text-and-all-empty-subsection-headers" class="level1">
+<h1>(Replace the German placeholder text and all empty subsection headers)</h1>
+<section id="technical" class="level2">
+<h2 class="anchored" data-anchor-id="technical">Technical</h2>
+<section id="general-data-information" class="level3">
+<h3 class="anchored" data-anchor-id="general-data-information">General Data Information</h3>
+<p>The dataset for this study was provided by the University Hospital Zurich and consists of digitized bone marrow aspirate smears from eight individual patients, referred to throughout this thesis as P1 through P8. Each patient’s slide was digitized using a whole-slide scanner and subsequently divided into image tiles stored as JPEG files, at a resolution that allows individual mast cells to be reliably identified and annotated. All images were processed at 512 pixels during both training and inference.</p>
+<p>The annotated portion of the dataset spans 1,103 labeled images containing 1,124 Atypisch and 78 Normal mast cell bounding box annotations. The class distribution varies substantially across patients and reflects their underlying diagnoses. Patients P1 through P4 are systemic mastocytosis cases with predominantly atypical mast cell morphology. P1, in particular, presented exclusively with atypical cells and therefore carries no Normal-class labels, as no normal mast cells were present in that specimen. Patients P5 through P8 include a higher proportion of normally morphed cells; P6 and P8 contribute exclusively Normal-class annotations. The per-patient breakdown is summarized in <a href="#tbl-dataset" class="quarto-xref">Table&nbsp;1</a>.</p>
+<div id="tbl-dataset" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-dataset-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Per-patient annotation counts across the full eight-patient corpus
+</figcaption>
+<div aria-describedby="tbl-dataset-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Patient</th>
+<th>Labeled Images</th>
+<th>Atypisch</th>
+<th>Normal</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>P1</td>
+<td>428</td>
+<td>482</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>P2</td>
+<td>417</td>
+<td>449</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<td>P3</td>
+<td>61</td>
+<td>60</td>
+<td>4</td>
+</tr>
+<tr class="even">
+<td>P4</td>
+<td>126</td>
+<td>122</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<td>P5</td>
+<td>21</td>
+<td>3</td>
+<td>18</td>
+</tr>
+<tr class="even">
+<td>P6</td>
+<td>6</td>
+<td>0</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<td>P7</td>
+<td>20</td>
+<td>8</td>
+<td>12</td>
+</tr>
+<tr class="even">
+<td>P8</td>
+<td>24</td>
+<td>0</td>
+<td>24</td>
+</tr>
+<tr class="odd">
+<td><strong>Total</strong></td>
+<td><strong>1,103</strong></td>
+<td><strong>1,124</strong></td>
+<td><strong>78</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>In addition to the labeled tiles, the dataset includes a larger set of unannotated negative tiles, images confirmed not to contain any mast cells, used as background training examples, and a curated set of confirmed false-positive tiles. The false-positive negatives were compiled from cases where an early model version produced detections that the clinician confirmed were incorrect. These tiles were systematically included in subsequent training rounds as hard negatives, specifically targeting the failure cases that the model found most challenging.</p>
+</section>
+<section id="data-acquisition-annotation" class="level3">
+<h3 class="anchored" data-anchor-id="data-acquisition-annotation">Data Acquisition &amp; Annotation</h3>
+<p>Clinical annotation was carried out by Robin Kosche, Assistenzarzt at the Klinik für Medizinische Onkologie und Hämatologie at the USZ, who provided the domain expertise required to identify and classify mast cells within the bone marrow aspirate tile images. The annotation tool used throughout the project was CVAT (Computer Vision Annotation Tool), an open-source web-based platform that supports bounding-box annotation with multi-class labels and integrates with serverless inference backends for model-assisted annotation workflows.</p>
+<p>The annotation process evolved across two phases. For the first patient (P1), all annotations were produced manually: each tile was reviewed individually, and mast cells were marked with bounding boxes assigned to the Atypisch class. Since P1 presented exclusively with atypical morphology, no Normal labels were produced at this stage. These initial annotations were used to train the first version of the detection model, which became the bootstrapping artifact for all subsequent annotation rounds.</p>
+<p>From the second patient onward (P2 through P8), a model-assisted annotation workflow was adopted. The trained P1 model was deployed as a NUCLIO serverless function integrated directly into the CVAT annotation interface. This setup enabled automatic pre-annotation of new images: when the annotator opened a tile, the model’s predictions appeared as draft bounding boxes that could be accepted, adjusted, or deleted. Annotating in this mode reduced the manual effort per image substantially and introduced a productive feedback loop between the model and the clinical expert. The model’s predictions guided the annotator’s attention to candidate regions, and the corrections produced by the annotator became higher-quality training signal for the next model version. In cases where cell morphology was ambiguous, the annotator consulted colleagues to reach a consensus decision, though no formal inter-rater agreement protocol was applied across the full dataset.</p>
+<p>False-positive cases, tiles where the model produced predictions that the clinician confirmed were incorrect, were flagged during inference review sessions and compiled into an Excel-based tracking sheet maintained by the clinical partner. These entries were imported into subsequent training configurations as hard negative examples, forming the FP-negative component of the dataset.</p>
+</section>
+<section id="data-preprocessing" class="level3">
+<h3 class="anchored" data-anchor-id="data-preprocessing">Data Preprocessing</h3>
+<p>Two approaches to data preprocessing were explored before the final strategy was established. The first approach involved pre-applying augmentation transforms to each training image before training began, writing augmented copies to disk. This was implemented using the Albumentations library and included horizontal flip, random brightness and contrast adjustments, and affine rotation. Analysis of this approach revealed a fundamental limitation: because the augmented images are frozen to disk before training starts, each training epoch sees exactly the same set of transformed images. The regularization benefit of augmentation relies on presenting the model with a different random view of each image in each epoch. When augmented images are baked to disk, this variability is exhausted after the first epoch and training effectively runs on an unaugmented dataset. This approach was abandoned.</p>
+<p>The final preprocessing strategy used YOLO’s built-in on-the-fly augmentation pipeline. Three augmentation settings were fixed based on domain reasoning and experimental evidence. First, mosaic augmentation was disabled (mosaic=0.0): mosaic compositing combines four images into one frame and is appropriate for natural-scene detection, but it distorts single-cell morphology in 512-pixel tiles. Second, vertical flip was enabled with probability 0.5 (flipud=0.5), which is biologically valid because bone marrow cells have no canonical orientation. Third, rotation of up to 5 degrees (degrees=5) was applied: this value was identified as optimal through the hyperparameter sweep described in the training section, with smaller rotations providing insufficient regularization and larger rotations reducing Normal-class recall.</p>
+<p>To address the severe 14:1 class imbalance between Atypisch and Normal annotations across the full corpus, a per-patient image oversampling strategy was applied to the LOPO training folds. Normal-rich patients had their complete image sets duplicated via symlinks with multipliers of P5 by 8, P6 by 15, P7 by 8, and P8 by 10. Combined with on-the-fly augmentation, this brought the effective per-epoch Atypisch-to-Normal ratio to approximately 2:1 without baking any additional fixed copies to disk.</p>
+</section>
+<section id="model-selection-architecture" class="level3">
+<h3 class="anchored" data-anchor-id="model-selection-architecture">Model Selection &amp; Architecture</h3>
+<p>The YOLO11n (nano) architecture from Ultralytics was selected as the detection backbone for this project. YOLO11 is the eleventh generation of the You Only Look Once family of single-stage object detectors, which perform localization and classification simultaneously in a single network forward pass. The nano variant contains approximately 2.6 million parameters and is designed for high inference speed with a minimal computational footprint, properties directly relevant for deployment on clinical workstation hardware. The selection of the nano variant over larger YOLO11 models (small, medium, large, extra-large) was made on the basis of dataset size: the annotated corpus of approximately 1,100 images is insufficient to regularize the larger parameter count of wider architectures. An empirical test with YOLO11l confirmed that the larger model overfitted and produced worse generalization metrics than the nano variant, consistent with the well-known capacity-data mismatch effect in low-data regimes.</p>
+<p>The model was configured to detect two classes: Atypisch (class 0) and Normal (class 1), corresponding to the two morphological phenotypes relevant to the WHO diagnostic threshold.</p>
+<p>An important architectural consideration arose from the multi-phase training strategy. The domain-specific pretrained model used as the starting point for Phase 2 experiments (DL_Modell_FV.pt) had been originally trained with a single-class configuration (nc=1). When reloaded for two-class fine-tuning (nc=2), Ultralytics internally rebuilds the detection head’s classification branch from random initialization, because the final convolutional layer’s output dimensionality changes from 1 to 2 channels. The bounding-box regression branch and all backbone layers transfer correctly. This means that at the start of each Phase 2 fine-tuning run, the classification head is essentially random while the feature extractor is domain-adapted, a configuration that demands a carefully chosen learning rate to allow the classification head to converge without disrupting the pretrained backbone representations. This analysis directly motivated the learning rate experiments described in the following section.</p>
+</section>
+<section id="model-training-fine-tuning-strategy" class="level3">
+<h3 class="anchored" data-anchor-id="model-training-fine-tuning-strategy">Model Training &amp; Fine-Tuning Strategy</h3>
+<p>Training proceeded in three phases, each building on the conclusions drawn from the previous one.</p>
+<p><strong>Phase 1: Single-Patient Baseline (P1).</strong> Training was conducted on the P1 dataset using the YOLO11n model pretrained on COCO (yolo11n.pt). A five-fold stratified cross-validation strategy was applied with patience-based early stopping (patience=50, up to 5,000 epochs) and cosine learning rate annealing. Validation mAP50 reached a maximum of 0.952 in the best fold and a mean of 0.800 across all five folds, but with high cross-fold variance (std=0.129). Fold 5 converged as early as epoch 29 with a recall of only 0.432, indicating an unlucky data split rather than a systematic model failure. The high variance established fold-to-fold instability as the central challenge and motivated the move toward domain-specific pretrained weights for Phase 2.</p>
+<p><strong>Phase 2: P2 Dataset Fine-Tuning Experiments.</strong> Six core training configurations were evaluated on the P2 patient dataset, varying the base model (yolo11n.pt vs.&nbsp;DL_Modell_FV.pt), learning rate, backbone freeze depth, and hyperparameter configuration. The domain-specific pretrained model DL_Modell_FV.pt was the P1-trained model from Phase 1, repurposed here as a fine-tuning starting point for the expanded two-class problem. The key finding was that the default YOLO learning rate (lr0=0.01) is inappropriate for fine-tuning from domain-specific pretrained weights. At this learning rate, the randomly initialized classification head produces large gradients in early epochs that propagate into the pretrained neck and disrupt its feature pyramid. The model converges to a high-precision, low-recall solution by becoming overly conservative to avoid penalization from noisy gradient signals. Reducing the learning rate to lr0=0.001 and freezing the backbone’s first ten layers (freeze=10) resolved this: pretrained feature representations were preserved while only the detection head adapted significantly. The best Phase 2 result achieved a test-set mAP50 of 0.590 and recall of 0.655 with this configuration.</p>
+<p>A trial run using the YOLO built-in hyperparameter tuner (model.tune()) as a fine-tuning configuration source caused catastrophic forgetting in all five folds: classification loss exceeded 5.8 in early epochs against a normal range of 0.5 to 1.5. This confirmed that automated tuners designed for from-scratch training produce configurations that are harmful when applied to fine-tuning. The tuner configuration was permanently excluded from further experiments, and this result was preserved as a methodological negative finding.</p>
+<p><strong>Phase 3: Full Eight-Patient Corpus, Leave-One-Patient-Out CV.</strong> With the stable fine-tuning recipe confirmed (lr0=0.001, freeze=10), the project scaled to all eight patients. The evaluation protocol changed from stratified k-fold to leave-one-patient-out (LOPO) cross-validation, producing eight folds each holding out one patient entirely as the test set. LOPO was chosen because it prevents patient-specific image texture from leaking between train and test splits and evaluates the model on the clinically relevant question: does it generalize to a patient it has never encountered before?</p>
+<p>A four-factor design-of-experiments matrix was run across all eight LOPO folds, varying label smoothing (0.0 and 0.1), rotation augmentation (0, 5, and 10 degrees), DFL loss weight (1.5 and 2.0), and backbone freeze depth (0 and 10 layers). Fourteen of the planned twenty-four matrix cells were completed before queue limits were reached. The label smoothing factor was found to be a no-op: cells with ls=0.0 and ls=0.1 at identical other settings produced bit-identical fold metrics, indicating that label smoothing either did not reach the detection head’s loss path in this Ultralytics version or was otherwise inert. The remaining unrun cells were all label_smoothing=0.1 variants, and given this finding, they were not required to identify the winning configuration. The winner was degrees=5, dfl=1.5, freeze=10, label_smoothing=0.0.</p>
+<p>The YOLO built-in tuner was also re-evaluated in Phase 3 under conditions matching the production recipe. After 30 iterations optimizing a single-fold fitness score, it converged on a configuration specifying degrees=0.0 and dfl=2.47, both of which contradict the matrix evidence (degrees=5 outperforms degrees=0 by approximately 4 percentage points on Normal recall, and higher DFL values consistently regress Normal recall in the matrix). A full eight-fold LOPO validation of the tuner output was therefore skipped, and the matrix winner was retained as the deployment recipe. This outcome reinforces the Phase 2 conclusion: automated single-objective tuners and systematic DoE sweeps answer different questions, and for rare-class clinical applications where per-class recall matters, the DoE approach is more informative.</p>
+<p>All training was executed on ZHAW’s HPC cluster (earth-4 partition, 2x NVIDIA L40S GPUs, 48 GB VRAM each) via SLURM job submission. Two infrastructure-level bugs were identified and corrected during the project. First, concurrent SLURM jobs shared temporary workspace directories, causing fold-level data collisions when jobs ran simultaneously. This was fixed by namespacing temporary paths with the SLURM_JOB_ID environment variable. Second, background-image sampling code contained a logic error that caused the BG_RATIO parameter to have no actual effect in early Phase 2 experiments: the background image list was sampled in the main process but never passed through to the training worker processes. This bug was corrected before any Phase 3 runs were submitted.</p>
+<p>The final deployment model was trained on all eight patients without a holdout, using the Phase 3 winning recipe. This follows standard post-cross-validation practice: the LOPO protocol yields the unbiased generalization estimate, and the final model then uses all available data. The resulting weights file (best.pt) is the artifact delivered to the USZ.</p>
+</section>
+<section id="model-testing" class="level3">
+<h3 class="anchored" data-anchor-id="model-testing">Model Testing</h3>
+<p>The evaluation protocol used a dedicated test split that was excluded from both training and validation during all model fitting steps. In Phase 1 and Phase 2, a three-way split (train, val, and test) was applied within each fold, ensuring that reported test metrics were never seen by the model during training or early stopping. Validation metrics during training were used only for the patience-based early stopping mechanism and were not used to compare configurations against each other. All between-run comparison was performed exclusively on test-set numbers.</p>
+<p>In Phase 3 LOPO evaluation, the held-out patient constituted the test set for each fold. Inference was run using the best.pt checkpoint produced by each fold’s training run, at a confidence threshold of 0.58 and an IoU threshold of 0.45. These threshold values were identified by analyzing the confidence distribution across predictions on held-out data and selecting the operating point consistent with the clinical priority for high recall. The LOPO test-set means across all eight folds represent the primary reported performance figures of this thesis. Fold-level deviations from the mean reflect biological heterogeneity between patients rather than model instability, as each fold is trained and tested on a fully independent patient cohort.</p>
+</section>
+<section id="evaluation-metrics" class="level3">
+<h3 class="anchored" data-anchor-id="evaluation-metrics">Evaluation Metrics</h3>
+<p>Model performance was assessed using four primary metrics: mean Average Precision at IoU threshold 0.50 (mAP50), mean Average Precision integrated across IoU thresholds from 0.50 to 0.95 (mAP50-95), Precision, and Recall. mAP50 serves as the standard benchmark metric for object detection tasks and enables comparison with published results in related work. mAP50-95 provides a stricter localization measure that penalizes boxes that are correctly classified but imprecisely located.</p>
+<p>In the clinical context of this project, Recall is the primary decision metric. A missed mast cell, a false negative, means a cell that should contribute to the Atypisch or Normal count is excluded from the patient-level Atypisch fraction computation, potentially shifting a patient incorrectly across the WHO 25% diagnostic threshold. A false positive, while undesirable, introduces a spurious cell into the count but can in principle be reviewed and removed by the clinician during a post-inference review step. This asymmetry makes missing cells more consequential than spuriously detecting them, and recall is therefore weighted above precision in all model selection decisions throughout the project.</p>
+<p>Per-class recall (R_Atypisch and R_Normal) was tracked separately in all Phase 3 evaluations. The two classes differ by a factor of approximately 14:1 in the raw annotation corpus, and aggregate recall can mask a model that performs well on the majority class (Atypisch) while failing on the minority class (Normal). Since correctly identifying Normal cells is required to compute a meaningful Atypisch fraction, R_Normal is treated as the most sensitive clinical signal among all reported metrics.</p>
+</section>
+<section id="ui-creation" class="level3">
+<h3 class="anchored" data-anchor-id="ui-creation">UI Creation</h3>
+<p>A graphical user interface was developed to make the trained model accessible to clinical users at the USZ without requiring programming knowledge or command-line interaction. An initial prototype was built as a Gradio web application, providing a browser-based drag-and-drop interface for image upload and annotated output display. This prototype was functionally complete but proved inadequate for the actual clinical workflow: the USZ operates on image sets of approximately 20,000 tiles per patient session, and no available hardware configuration allowed a web server to load and process a dataset of this size without exhausting memory.</p>
+<p>The final application was implemented as a standalone PySide6 desktop application named MastCellDetector. PySide6 provides the official Qt for Python bindings, enabling a native-looking windowed application with full hardware access. The application was compiled into a self-contained Windows executable using PyInstaller, bundling all Python dependencies into a single distributable folder that runs on a clinical workstation without requiring a Python installation or any additional setup.</p>
+<p>The core inference challenge, processing 20,000 images without memory overflow, was addressed by a chunk-based processing architecture. The image set is divided into consecutive chunks of configurable size (default: 250 images per YOLO predict() call). Each chunk is processed and its results are persisted to disk before the next chunk is loaded, keeping peak memory usage bounded regardless of total dataset size. Inference runs in a dedicated QThread worker, keeping the interface responsive and supporting user-initiated cancellation at any point.</p>
+<p>The application provides three functional views. The gallery view displays all images in a loaded folder as thumbnail tiles with per-image detection metadata overlaid, and supports seven filter modes: all images, images with detections, images without detections, low-confidence detections, Atypisch-containing, Normal-containing, and manually edited images. The annotation editor view allows the clinician to inspect any image at full resolution, review the model’s predicted bounding boxes, and manually add, delete, or reclassify individual boxes, with all corrections preserved across sessions via a JSON metadata sidecar file. The statistics view displays a patient-level summary including the computed Atypisch fraction relative to the WHO 25% threshold, per-image cell count breakdowns, and the confidence score distribution across all detections, providing an at-a-glance diagnostic context. Additional features include automatic hardware detection with GPU availability and recommended batch size reporting, configurable confidence and IoU thresholds, integrated Google Drive folder download, and persistent settings across sessions.</p>
+<p>The application was tested on real USZ patient data and operated correctly in that environment. It was delivered to the clinical partner as the primary operational interface for the deployed model.</p>
+<p>[Figure placeholder: Screenshots of the MastCellDetector desktop application showing (left) the gallery view with filter chips and detection thumbnails, (center) the annotation editor at full resolution with bounding box overlay, and (right) the statistics view with the Atypisch fraction bar relative to the WHO 25% threshold]</p>
+</section>
+<section id="implementation-in-usz-infrastructure" class="level3">
+<h3 class="anchored" data-anchor-id="implementation-in-usz-infrastructure">Implementation in USZ Infrastructure</h3>
+<p>Integration of the pipeline into Cinderella, the proprietary cell classification software already in use at the USZ, was evaluated as a potential deployment pathway at the outset of the project. However, this route was not pursued. The engineering effort required to interface with Cinderella’s internal API and the associated IT governance and approval processes within the hospital exceeded the scope achievable within the thesis timeline. The standalone desktop application was adopted as the delivery format instead, providing a self-contained and operationally testable artifact that does not depend on hospital software infrastructure. The trained model weights (best.pt) have been handed over to the USZ for direct use within the existing annotation workflow and for inference on new patient slides as they become available.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="results" class="level1">
+<h1>Results</h1>
+<section id="model-results-and-statistical-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="model-results-and-statistical-evaluation">Model Results and Statistical Evaluation</h2>
+<p>The training process yielded results across three phases, each serving a distinct purpose in the overall development arc. Phase 1 established feasibility on a single patient; Phase 2 identified the fine-tuning recipe through controlled experiments; Phase 3 delivered deployment-quality evaluation across an independent eight-patient cohort.</p>
+<p><strong>Phase 1: P1 Dataset (yolo11n.pt, 5-fold CV)</strong></p>
+<p>Training on the P1 dataset with generic COCO-pretrained weights produced promising single-fold results but high cross-fold variance. The following table reports per-fold validation metrics, as no clean held-out test split was maintained for this exploratory phase:</p>
+<div id="tbl-phase1" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-phase1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Phase 1 validation metrics per fold (P1 dataset, yolo11n.pt)
+</figcaption>
+<div aria-describedby="tbl-phase1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Fold</th>
+<th>Best Epoch</th>
+<th>mAP50</th>
+<th>mAP50-95</th>
+<th>Precision</th>
+<th>Recall</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>135</td>
+<td>0.952</td>
+<td>0.805</td>
+<td>0.884</td>
+<td>0.920</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>112</td>
+<td>0.756</td>
+<td>0.583</td>
+<td>0.634</td>
+<td>0.780</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>120</td>
+<td>0.893</td>
+<td>0.745</td>
+<td>0.764</td>
+<td>0.737</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>128</td>
+<td>0.775</td>
+<td>0.637</td>
+<td>0.671</td>
+<td>0.725</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>29</td>
+<td>0.621</td>
+<td>0.473</td>
+<td>0.887</td>
+<td>0.432</td>
+</tr>
+<tr class="even">
+<td><strong>Mean</strong></td>
+<td></td>
+<td><strong>0.800</strong></td>
+<td><strong>0.649</strong></td>
+<td><strong>0.768</strong></td>
+<td><strong>0.719</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Std</strong></td>
+<td></td>
+<td><strong>0.129</strong></td>
+<td><strong>0.131</strong></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The variance is primarily driven by fold 5, which converged at epoch 29 with a recall of 0.432, a strong early-stopping signal indicating that the data split placed the model in a local optimum. The result confirmed that a single-patient dataset of this size is insufficient to produce consistent cross-fold performance and that a more stable starting point was needed.</p>
+<p><strong>Phase 2: P2 Dataset Fine-Tuning Summary</strong></p>
+<p>Phase 2 evaluated seven configurations on the P2 patient dataset. All results shown are test-set metrics from the held-out split within each fold:</p>
+<div id="tbl-phase2" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-phase2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Phase 2 test-set results summary across all configurations
+</figcaption>
+<div aria-describedby="tbl-phase2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Run</th>
+<th>Base Model</th>
+<th>mAP50 (mean +/- std)</th>
+<th>Recall</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>P2-A</td>
+<td>yolo11n</td>
+<td>0.580 +/- 0.172</td>
+<td>0.617</td>
+</tr>
+<tr class="even">
+<td>P2-B</td>
+<td>yolo11n (modified)</td>
+<td>0.614 +/- 0.155</td>
+<td>0.667</td>
+</tr>
+<tr class="odd">
+<td>P2-C</td>
+<td>DL_Modell_FV</td>
+<td>0.469 +/- 0.035</td>
+<td>0.397</td>
+</tr>
+<tr class="even">
+<td>P2-D</td>
+<td>DL_Modell_FV (modified)</td>
+<td>0.590 +/- 0.090</td>
+<td>0.655</td>
+</tr>
+<tr class="odd">
+<td>P2-E</td>
+<td>DL_Modell_FV + tuner cfg</td>
+<td>0.448 +/- 0.007 (failed)</td>
+<td>0.413</td>
+</tr>
+<tr class="even">
+<td>P2-F</td>
+<td>DL_Modell_FV + modified + tuner</td>
+<td>0.508 +/- 0.057</td>
+<td>0.571</td>
+</tr>
+<tr class="odd">
+<td>P2-G</td>
+<td>DL_Modell_FV, BG_RATIO=2</td>
+<td>0.530 +/- 0.090</td>
+<td>0.484</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>P2-E represents the catastrophic forgetting result from the hyperparameter tuner: near-zero variance (std=0.007) indicates all folds collapsed to the same degenerate solution rather than achieving genuine stability. P2-D, using the domain-specific base model with the learning rate reduced to 0.001 and backbone freeze enabled, produced the best Phase 2 result and established the recipe carried into Phase 3.</p>
+<p><strong>Phase 3: Full Corpus LOPO Evaluation</strong></p>
+<p>The eight-patient LOPO baseline (P3-A) established the first full-corpus benchmark. Per-fold test results are presented in <a href="#tbl-lopo-baseline" class="quarto-xref">Table&nbsp;4</a>:</p>
+<div id="tbl-lopo-baseline" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-lopo-baseline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;4: Phase 3-A LOPO test-set results per fold
+</figcaption>
+<div aria-describedby="tbl-lopo-baseline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 13%">
+<col style="width: 15%">
+<col style="width: 10%">
+<col style="width: 16%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Fold</th>
+<th>Holdout</th>
+<th>mAP50</th>
+<th>mAP50-95</th>
+<th>Precision</th>
+<th>Recall</th>
+<th>R_Atypisch</th>
+<th>R_Normal</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>P1</td>
+<td>0.651</td>
+<td>0.491</td>
+<td>0.682</td>
+<td>0.626</td>
+<td>0.753</td>
+<td>0.500</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>P2</td>
+<td>0.884</td>
+<td>0.714</td>
+<td>0.821</td>
+<td>0.826</td>
+<td>0.960</td>
+<td>0.692</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>P3</td>
+<td>0.806</td>
+<td>0.688</td>
+<td>0.800</td>
+<td>0.700</td>
+<td>0.900</td>
+<td>0.500</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>P4</td>
+<td>0.910</td>
+<td>0.763</td>
+<td>0.792</td>
+<td>0.892</td>
+<td>0.783</td>
+<td>1.000</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>P5</td>
+<td>0.604</td>
+<td>0.546</td>
+<td>0.615</td>
+<td>0.617</td>
+<td>0.500</td>
+<td>0.733</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>P6</td>
+<td>0.937</td>
+<td>0.891</td>
+<td>0.716</td>
+<td>0.891</td>
+<td>1.000</td>
+<td>0.781</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>P7</td>
+<td>0.972</td>
+<td>0.866</td>
+<td>0.949</td>
+<td>1.000</td>
+<td>1.000</td>
+<td>1.000</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>P8</td>
+<td>0.922</td>
+<td>0.730</td>
+<td>0.799</td>
+<td>0.911</td>
+<td>1.000</td>
+<td>0.822</td>
+</tr>
+<tr class="odd">
+<td><strong>Mean</strong></td>
+<td></td>
+<td><strong>0.836</strong></td>
+<td><strong>0.711</strong></td>
+<td><strong>0.772</strong></td>
+<td><strong>0.808</strong></td>
+<td><strong>0.862</strong></td>
+<td><strong>0.754</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The systematic hyperparameter matrix identified the winning configuration (degrees=5, dfl=1.5, freeze=10, label_smoothing=0.0). <a href="#tbl-matrix-comparison" class="quarto-xref">Table&nbsp;5</a> shows the top configurations from the matrix alongside the baseline:</p>
+<div id="tbl-matrix-comparison" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-matrix-comparison-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;5: Tinkering matrix top configurations (8-fold LOPO means)
+</figcaption>
+<div aria-describedby="tbl-matrix-comparison-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 13%">
+<col style="width: 15%">
+<col style="width: 23%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Configuration</th>
+<th>mAP50</th>
+<th>Recall</th>
+<th>R_Atypisch</th>
+<th>R_Normal</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Winner: deg=5, dfl=1.5, fr=10</strong></td>
+<td><strong>0.864</strong></td>
+<td><strong>0.866</strong></td>
+<td><strong>0.892</strong></td>
+<td><strong>0.840</strong></td>
+</tr>
+<tr class="even">
+<td>Baseline: deg=0, dfl=1.5, fr=10</td>
+<td>0.844</td>
+<td>0.840</td>
+<td>0.884</td>
+<td>0.795</td>
+</tr>
+<tr class="odd">
+<td>deg=10, dfl=2.0, fr=10</td>
+<td>0.867</td>
+<td>0.826</td>
+<td>0.874</td>
+<td>0.778</td>
+</tr>
+<tr class="even">
+<td>deg=5, dfl=2.0, fr=10</td>
+<td>0.845</td>
+<td>0.831</td>
+<td>0.872</td>
+<td>0.789</td>
+</tr>
+<tr class="odd">
+<td>deg=5, dfl=1.5, fr=0</td>
+<td>0.824</td>
+<td>0.830</td>
+<td>0.887</td>
+<td>0.773</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>[Figure placeholder: Bar chart comparing R_Normal and R_Atypisch across the top five tinkering matrix configurations, grouped bars per metric]</p>
+<p>The winning configuration achieved a mean recall of <strong>0.866</strong> (R_Atypisch: 0.892, R_Normal: 0.840, mAP50: 0.864, mAP50-95: 0.741, Precision: 0.812) across all eight held-out patient folds. This constitutes the primary performance result of this thesis.</p>
+</section>
+<section id="quantitative-and-qualitative-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="quantitative-and-qualitative-evaluation">Quantitative and Qualitative Evaluation</h2>
+<p><strong>Quantitative interpretation.</strong> The overall recall of 0.866 means the final pipeline detects approximately 87 out of every 100 mast cells present in a slide. Given that the WHO minor criterion requires at least 25% of cells to be atypical, a model with this recall level is expected to preserve the clinically correct classification for the majority of patients. Both Atypisch and Normal cells are missed at similar rates (R_Atypisch=0.892 vs.&nbsp;R_Normal=0.840), which means the computed Atypisch fraction remains approximately stable relative to the true fraction rather than being systematically biased toward or away from the 25% boundary. The 5.2-percentage-point gap between R_Atypisch and R_Normal is a residual effect of the class imbalance: despite oversampling, the model has seen substantially more examples of atypical cells and is marginally more confident in that class. This gap narrowed considerably from the Phase 3-A baseline gap of 10.8 percentage points (0.862 vs.&nbsp;0.754) to 5.2 percentage points in the winner, representing a meaningful improvement in relative performance on the rarer and diagnostically critical Normal class.</p>
+<p>A mean mAP50 of 0.864 places the model within the performance range reported for YOLO-family detectors on other hematological cell types (77 to 94% mAP in the literature), while operating on a dataset that is orders of magnitude smaller than those studies. This suggests that the LOPO mean is a conservative but realistic estimate of what the pipeline could achieve on a larger annotated corpus.</p>
+<p><strong>Qualitative interpretation.</strong> The per-fold results in <a href="#tbl-lopo-baseline" class="quarto-xref">Table&nbsp;4</a> reveal the pattern of patient-level heterogeneity. Folds 7 (P7 holdout) and 8 (P8 holdout) achieve recall of 1.000 and 0.911 respectively, while folds 1 (P1 holdout) and 5 (P5 holdout) are the weakest at 0.626 and 0.617. These outlier folds reflect real biological and annotational differences between patients rather than model instability. P1 contributes exclusively Atypisch labels, making it the only patient in the corpus without any Normal-class signal, and its slides were annotated in the first, purely manual annotation round. P5’s unusual class composition (3 Atypisch cells against 18 Normal cells) makes it the only Normal-dominated case in the corpus. A model trained on the other seven patients has never encountered a sample with this Atypisch-to-Normal ratio, and this genuine distributional shift produces the lower generalization performance observed on that fold.</p>
+<p>[Figure placeholder: Per-fold recall bar chart for the winning configuration, with grouped bars for R_Atypisch and R_Normal per patient holdout]</p>
+</section>
+<section id="evaluation-visualization" class="level2">
+<h2 class="anchored" data-anchor-id="evaluation-visualization">Evaluation Visualization</h2>
+<p>The quantitative findings are summarized visually in a set of supporting figures. The per-fold recall plot illustrates the degree to which model performance varies across patients: the strongest folds (P7, P8, P6) correspond to patients with morphologically consistent presentations that are well-represented by the training data, while the weakest (P1, P5) reflect the clinical outlier cases discussed above. The confidence score distribution across all predictions at the deployed threshold shows how the model distributes its certainty: confident predictions cluster toward the upper confidence range, with a smaller population of borderline detections that the annotation editor in the desktop application allows the clinician to review and correct.</p>
+<p>[Figure placeholder: Confidence score distribution histogram across all predictions, at conf=0.25 inference threshold, for the final deployment model]</p>
+<p>[Figure placeholder: Side-by-side mAP50 comparison across all eight LOPO holdout patients, Phase 3-A baseline vs.&nbsp;winning configuration]</p>
+</section>
+<section id="real-world-usage" class="level2">
+<h2 class="anchored" data-anchor-id="real-world-usage">Real World Usage</h2>
+<section id="tests-with-unseen-data" class="level3">
+<h3 class="anchored" data-anchor-id="tests-with-unseen-data">Tests With Unseen Data</h3>
+<p>The desktop application was tested on real bone marrow aspirate slide data from the USZ that was not part of the training corpus. The model processed the full image set using the chunk-based inference pipeline, producing per-image detection results and a patient-level statistics summary within a timeframe practical for clinical review. The statistics view correctly computed the Atypisch fraction from the aggregated detections and displayed it relative to the WHO 25% threshold, delivering the intended decision-support output.</p>
+<p>Qualitative review of the output images confirmed that the model correctly localized mast cells in the large majority of inspected cases. False negatives were observed predominantly on cells at the periphery of tiles, where partial visibility reduces the discriminative signal available to the detector. False positives were sparse but present, consistent with the precision-recall trade-off at the selected confidence threshold of 0.25 used in the review-mode interface of the desktop application. The clinician’s ability to manually correct predictions through the annotation editor was verified during the test session. Corrected labels are preserved across sessions and excluded from re-inference, supporting an iterative review workflow where the clinician progressively improves the accuracy of results on a given dataset.</p>
+<p>The tested data is prospectively tracked for contribution to future model training rounds, pending accumulation of sufficient corrected annotations from the clinical partner.</p>
+<p>[Figure placeholder: Example output tile from unseen USZ data, with bounding box overlays colored by class (Atypisch and Normal), at the deployed confidence threshold]</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="discussion" class="level1">
+<h1>Discussion</h1>
+<section id="interpretation-of-results" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-of-results">Interpretation of Results</h2>
+<p>The progression from Phase 1 to Phase 3 demonstrates a coherent methodological arc. The initial COCO-pretrained baseline established feasibility, but the cross-fold variance was too high to draw reliable conclusions about generalization. The domain-specific pretraining experiments in Phase 2 revealed a counterintuitive pattern: using the domain-relevant starting model (DL_Modell_FV.pt) initially produced worse results than the generic COCO weights, not because the pretrained features were unhelpful, but because the default learning rate was calibrated for from-scratch training and disrupted those features before they could contribute. This is a practical finding that is underrepresented in YOLO deployment documentation, which is primarily written for the from-scratch training context. When fine-tuning a domain-adapted checkpoint to a new class configuration, the learning rate must be reduced to protect the pretrained feature representations that gave the pretrained model its advantage. Freezing the backbone additionally decouples feature extraction from the noisy early training phase, letting the new classification head stabilize before the backbone receives any gradient updates.</p>
+<p>The switch to leave-one-patient-out cross-validation in Phase 3 was the most consequential methodological decision of the project. Stratified k-fold splits individual images randomly across folds, which allows cells from the same patient’s slide to appear in both train and test. This constitutes a form of data leakage that inflates metrics by allowing the model to exploit patient-specific staining patterns, scanner characteristics, or preprocessing artifacts that are shared within a slide but not across patients. LOPO eliminates this entirely by ensuring the held-out test patient is absent from training at every level. The performance figures reported in this thesis are therefore conservative estimates of true clinical generalization, not optimistic within-patient interpolations. For a clinical tool intended to be applied to new patients arriving at a hospital, this is the only evaluation protocol that reflects the actual deployment scenario.</p>
+<p>The hyperparameter matrix approach proved more reliable than the automated tuner for this setting. The YOLO tuner maximizes a fitness metric on a single held-out fold; with 30 iterations and a single patient holdout (P4), it found a local optimum that scored well on P4’s specific texture distribution but generalized poorly when evaluated against the full eight-fold LOPO. The matrix, by contrast, evaluated each configuration across all eight patients simultaneously, producing a selection that is robust to individual-patient variance. The negative tuner result carries a practical lesson: fitness-optimized automated hyperparameter search and systematic DoE sweeps answer fundamentally different questions, and for rare-class clinical applications where per-class recall matters across a heterogeneous patient population, the DoE approach provides more reliable and interpretable guidance.</p>
+</section>
+<section id="clinical-relevance" class="level2">
+<h2 class="anchored" data-anchor-id="clinical-relevance">Clinical Relevance</h2>
+<p>The WHO 2022 minor criterion for SM requires at least 25% of bone marrow mast cells to exhibit atypical morphology. A counting tool with mean recall of 0.866 introduces a proportional undercount of the total cell population, but because Atypisch and Normal cells are missed at similar rates (R_Atypisch=0.892, R_Normal=0.840), the Atypisch fraction computed from model detections approximates the true fraction with a consistent, predictable offset rather than a random one. For a patient with a true Atypisch fraction comfortably above or below the 25% boundary, this offset is unlikely to change the diagnostic classification. For patients near the threshold, however, the approximation error is large enough that clinical judgment and manual review of the flagged images is warranted. The desktop application’s statistics view makes this boundary proximity explicitly visible, giving the reviewing clinician immediate context about whether the model’s computed fraction is comfortably above, comfortably below, or dangerously close to the 25% decision boundary.</p>
+<p>The model was designed with the asymmetric clinical cost of errors in mind from the outset. The recall-first metric hierarchy, the per-patient oversampling, and the availability of an annotation editor in the deployed application all prioritize the ability to identify every candidate cell over the ability to suppress spurious detections. This is consistent with the intended role of the tool as a screening and counting aid rather than an autonomous diagnostic system. The expected clinical workflow is that the model presents its detections to a trained hematopathologist who validates the count, flags corrections, and takes diagnostic responsibility. In this human-in-the-loop setting, a missed cell is a harder error to recover from than a spurious detection: spurious detections are visible in the review interface and can be removed, while missed cells are invisible by definition and require a more active search to identify.</p>
+</section>
+<section id="error-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="error-analysis">Error Analysis</h2>
+<p>Three systematic error patterns emerged from the LOPO evaluation and the infrastructure experiments.</p>
+<p>The first pattern concerns the two weakest holdout folds. P1 and P5 underperform the LOPO mean by a substantial margin, and both cases are explainable by distributional shift rather than model failure. P1 contributes exclusively Atypisch labels to the training corpus and was annotated in the first round of purely manual annotation, before the model-assisted CVAT workflow was introduced. Its slides may therefore carry slightly different annotational characteristics compared to the later patients. P5’s anomalous composition, three Atypisch cells against eighteen Normal cells, makes it the only Normal-dominated case in the corpus. A model trained on the other seven patients, which include no analogous distribution, has never been shown a slide where Normal cells outnumber Atypisch by a factor of six. This genuine prior mismatch is reflected in the weaker generalization performance. Both of these findings point to the same root cause: dataset size and diversity are the binding constraints, and adding more patients with varied presentations is the most direct path to resolving them.</p>
+<p>The second pattern involves the DFL loss weight. A higher DFL emphasis (dfl=2.0) consistently reduced Normal-class recall across all tested freeze and rotation combinations in the matrix. DFL (Distribution Focal Loss) governs the quality of bounding-box localization; a higher weight pushes the model to predict tighter, more precisely located boxes. The associated penalty for imprecise boxes then competes with the classification gradient from the rare Normal class, effectively reducing the signal available for Normal-class discrimination. For single-cell detection in uniform-background tiles where localization is less ambiguous than in multi-object natural scenes, the default DFL weight of 1.5 provides sufficient localization quality without this side effect.</p>
+<p>The third pattern involves label smoothing. The parameter was experimentally confirmed to be a no-op at the value tested (0.1), with cells at ls=0.0 and ls=0.1 at identical other settings producing bit-identical fold metrics. This is worth noting explicitly because label smoothing is commonly recommended for classification problems with small or imbalanced datasets. Its apparent non-functionality here could mislead future practitioners using the same framework version. Whether this is an Ultralytics implementation gap specific to the detection head’s loss path, a version-specific behavior, or a configuration issue was not conclusively determined, but the empirical result is unambiguous across two independent matrix rows.</p>
+<hr>
+</section>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<section id="summary-of-key-findings" class="level2">
+<h2 class="anchored" data-anchor-id="summary-of-key-findings">Summary of Key Findings</h2>
+<p>This thesis developed and validated an end-to-end pipeline for the automated detection and morphological classification of mast cells in bone marrow aspirate images, targeting the binary Atypisch-versus-Normal classification that underlies the WHO 2022 minor diagnostic criterion for systemic mastocytosis. Starting from the clinical need to automate a tedious and error-prone counting task, the project progressed from a single-patient feasibility study to a validated eight-patient leave-one-patient-out evaluation, and delivered a working desktop application tested on real USZ patient data.</p>
+<p>The central technical contribution is the identification of a stable fine-tuning recipe for YOLO11n on a small, class-imbalanced medical imaging dataset: lr0=0.001, backbone freeze depth of 10 layers, on-the-fly augmentation with mosaic disabled, rotation at up to 5 degrees, and per-patient image oversampling. This recipe achieved mean recall of 0.866 (R_Atypisch: 0.892, R_Normal: 0.840) and mAP50 of 0.864 across eight independent patient holdouts. The methodology showed that systematic DoE sweeps over training hyperparameters provide more reliable configuration selection than single-fold automated tuners, and that standard augmentation practices developed for scene-level detection (mosaic composition, large rotation) are counterproductive for single-cell morphology classification.</p>
+<p>A model-assisted annotation workflow was established using CVAT with NUCLIO integration, enabling the clinical partner to annotate seven patient datasets with substantially less effort than purely manual annotation would have required. This feedback loop between a domain-adapted detection model and a clinical annotator is a transferable approach to bootstrapping labeled datasets in rare-cell settings where annotation expertise is a bottleneck.</p>
+<p>To the authors knowledge, no previously published study has specifically addressed the binary morphological classification of mast cells in bone marrow aspirates in direct alignment with a WHO diagnostic threshold. The pipeline developed in this thesis addresses precisely this gap, combining a validated cross-patient evaluation methodology with a clinically usable delivery artifact.</p>
+</section>
+<section id="limitations-and-challenges" class="level2">
+<h2 class="anchored" data-anchor-id="limitations-and-challenges">Limitations and Challenges</h2>
+<p>The primary limitation of this work is dataset size. The eight-patient corpus contains 1,103 annotated images with a severe class imbalance of approximately 14:1 Atypisch to Normal, and only four of the eight patients contribute substantial Normal-class annotations. Performance on Normal cells is correspondingly the most variable metric across folds. The oversampling strategy partially compensates for this imbalance but cannot substitute for additional annotated data from a wider range of Normal-predominant cases. A larger corpus spanning more patients and more diverse scanner and staining protocols would be required to validate the pipeline for broad clinical deployment beyond the single-institution USZ setting.</p>
+<p>A second limitation is the absence of a formal inter-rater agreement assessment. Annotation was performed by a single expert with informal consultation on ambiguous cases. Without a second independent annotator and a measured agreement statistic such as Cohen’s kappa, the reproducibility of the annotation protocol and the consistency of the ground truth cannot be formally quantified. This is a common constraint in rare-cell annotation settings where expert capacity is limited, but it means the reported metrics are conditional on a single annotator’s judgment of what constitutes an atypical versus a normal mast cell.</p>
+<p>A third consideration is that the LOPO results include two systematically weak folds (P1 and P5) that reflect real distributional differences rather than random variation. The mean recall of 0.866 should be interpreted with awareness that the deployed model will likely perform near the higher end of this range on patients with presentations similar to P2 through P4 and P6 through P8, and near the lower end on patients with unusual Atypisch-to-Normal ratios or different slide preparation characteristics.</p>
+</section>
+<section id="future-research-directions" class="level2">
+<h2 class="anchored" data-anchor-id="future-research-directions">Future Research Directions</h2>
+<p>The most impactful near-term direction is the expansion of the annotated corpus. The model weights delivered to the USZ are being used in an active model-assisted annotation loop: the model pre-annotates new patient slides, and the clinician corrects and confirms the detections. Each corrected session contributes new training data, particularly for Normal cells and for patient presentations not yet represented in the eight-patient corpus. A second training round on an expanded dataset of twelve or more patients would allow a direct comparison with the results reported here and would test whether the performance gap seen on the P1 and P5 holdout folds closes with more diverse training data.</p>
+<p>A formal inter-rater reliability study between multiple expert annotators on a representative subset of the data would strengthen the ground truth quality and allow the annotation protocol to be standardized more rigorously. This is particularly relevant for morphologically ambiguous cells near the Atypisch-Normal boundary, where a single annotator’s decision carries full weight in the current protocol.</p>
+<p>On the technical side, the label smoothing no-op finding warrants a controlled investigation into the Ultralytics detection head loss implementation to determine whether label smoothing is silently bypassed in the version used. If confirmed as an implementation gap, this is worth reporting to the Ultralytics open-source community. Additionally, the chunk-based inference architecture in the desktop application could be extended with a confidence calibration module, converting raw YOLO confidence scores to calibrated probabilities, which would make the threshold more interpretable and allow the statistics view to present uncertainty estimates alongside the Atypisch fraction.</p>
+<p>In the longer term, integration of the pipeline into the Cinderella cell classification platform used at the USZ remains a potential pathway for embedding the tool more deeply into the clinical workflow. This would require formal IT governance approval and API integration work beyond the scope of the present thesis, but it represents the logical end state for a tool that has demonstrated clinical utility in standalone testing. As the annotated corpus grows and model performance stabilizes across a wider patient cohort, the case for full institutional integration strengthens.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

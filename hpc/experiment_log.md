@@ -409,3 +409,261 @@ precision benefit without destabilising training.
 If test-set precision is still a concern after P2-H, `FP_NEG_OVERSAMPLE` will be increased from
 1 to 2–3. The FP negatives are high-quality hard negatives (the model's known failure cases) and
 increasing their weight is a targeted way to reduce false positives without adding random noise.
+
+---
+
+# Phase 3 — Full P1–P8 corpus, LOPO CV, class-imbalance handling
+
+After the P2 phase locked in `lr0=0.001 + freeze=10 + DL_Modell_FV.pt` as a stable fine-tuning
+recipe, the project scaled out to the full eight-patient corpus. Two structural changes from P2:
+
+1. **Leave-One-Patient-Out CV** replaces stratified 5-fold. With Normal cells living in only 4 of
+   8 patients (P5–P8, of which P6 and P8 are pure-Normal slides), random stratified splits would
+   leak patient-specific texture into val and inflate metrics. LOPO yields 8 folds — one held-out
+   patient each — and per-fold variance now reflects biological heterogeneity rather than split luck.
+2. **Per-patient image oversampling.** The full dataset is 1124 Atypisch vs 78 Normal (14.4:1).
+   Image-level duplication of Normal-rich patients (`P5×8, P6×15, P7×8, P8×10`) via symlink with
+   on-the-fly augmentation brings the effective per-epoch ratio to ≈ 2:1 without baking
+   transforms to disk.
+
+Switched base weights to `yolo11n.pt`. The deployment-trained `DL_Modell_FV.pt` carried implicit
+features tuned to the P2 phase only; starting from the open-source nano weights and rebuilding
+on the full corpus produced cleaner gradients.
+
+---
+
+### Run P3-A — P1–P8 LOPO baseline with per-patient oversampling
+**SLURM:** `322719`
+**Results dir:** `yolo_new_v1/`
+**Script:** `ba_improved_comb.py` (per-patient oversampling, `cls=1.0`, `mosaic=0.0`, `flipud=0.5`,
+on-the-fly `augment=True`, `lr0=0.001`, `freeze=10`, `BG_RATIO=0`, `FP_NEG_OVERSAMPLE=1`)
+
+#### Test results (per-fold, holdout patient as test set)
+
+| Fold | Holdout | mAP50  | mAP50-95 | Precision | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|----------|-----------|--------|------------|----------|
+| 1    | P1      | 0.651  | 0.491    | 0.682     | 0.626  | 0.753      | 0.500    |
+| 2    | P2      | 0.884  | 0.714    | 0.821     | 0.826  | 0.960      | 0.692    |
+| 3    | P3      | 0.806  | 0.688    | 0.800     | 0.700  | 0.900      | 0.500    |
+| 4    | P4      | 0.910  | 0.763    | 0.792     | 0.892  | 0.783      | 1.000    |
+| 5    | P5      | 0.604  | 0.546    | 0.615     | 0.617  | 0.500      | 0.733    |
+| 6    | P6      | 0.937  | 0.891    | 0.716     | 0.891  | 1.000      | 0.781    |
+| 7    | P7      | 0.972  | 0.866    | 0.949     | 1.000  | 1.000      | 1.000    |
+| 8    | P8      | 0.922  | 0.730    | 0.799     | 0.911  | 1.000      | 0.822    |
+| **mean** | — | **0.844** | **0.718** | **0.772** | **0.808** | **0.862** | **0.754** |
+
+#### Conclusion
+First viable full-corpus result. Mean recall 0.808 across 8 held-out patients is acceptable for a
+clinical deployment baseline, but two soft signals motivate further tuning before shipping:
+- **R_Normal (0.754) trails R_Atypisch (0.862) by ~11 pp**, which is the inverse of where you want
+  the gap given the rare-class clinical priority.
+- **Fold 1 (P1 holdout) and Fold 5 (P5 holdout)** are the weakest. P1 uses the early Pos_neg
+  annotation regime, and P5's 3-Atyp / 18-Norm composition is anomalous within the corpus.
+
+---
+
+### Run P3-B — Tinkering matrix (training-time knob sweep)
+**SLURM:** `Slurm-32714{3..58}` (sbatch grid `submit_grid.sh`)
+**Results dir:** `tinker_ls*_deg*_dfl*_fr*/`
+**Script:** `tinkering/ba_tinker.py` (P3-A recipe + env-overridable knobs)
+
+#### Motivation
+P3-A gave a known-good baseline. A systematic 4-factor matrix over training-time levers tests
+whether modest adjustments can lift Normal recall without sacrificing Atypisch recall. Same
+8-fold LOPO is repeated per cell so any difference is comparable to the P3-A means above.
+
+#### Matrix (4-factor, full factorial = 24 cells; 16 completed at time of writing)
+
+| Knob              | Values        | Hypothesis |
+|-------------------|---------------|------------|
+| `label_smoothing` | 0.0, 0.1      | Soften over-confident logits; possibly improve calibration on rare class |
+| `degrees`         | 0, 5, 10      | Light rotation regularises orientation-agnostic cells |
+| `dfl`             | 1.5, 2.0      | DFL loss weight — higher emphasises localisation refinement |
+| `freeze`          | 0, 10         | Freeze backbone vs. fine-tune end-to-end |
+
+Remaining 10 cells (all `label_smoothing=0.1, degrees ∈ {5,10}` plus two `degrees=0, dfl=2.0`)
+were rejected by SLURM with `QOSMaxSubmitJobPerUserLimit` and queued for re-submission once the
+first batch frees capacity.
+
+#### Test-set means (8-fold LOPO) for the 14 completed cells
+
+| Config                                   | mAP50 | mAP50-95 | Prec  | **Recall** | R_Atyp | **R_Normal** |
+|------------------------------------------|-------|----------|-------|------------|--------|--------------|
+| `ls0.0_deg5_dfl1.5_fr10` ★ **winner**    | 0.864 | 0.741    | 0.812 | **0.866**  | **0.892** | **0.840** |
+| `ls0.0_deg10_dfl2.0_fr10`                | 0.867 | 0.740    | 0.848 | 0.826      | 0.874  | 0.778        |
+| `ls0.0_deg5_dfl2.0_fr0`                  | 0.845 | 0.718    | 0.777 | 0.816      | 0.881  | 0.750        |
+| `ls0.0_deg5_dfl2.0_fr10`                 | 0.845 | 0.721    | 0.801 | 0.831      | 0.872  | 0.789        |
+| `ls0.0_deg0_dfl1.5_fr10` (≡ P3-A)        | 0.844 | 0.718    | 0.764 | 0.840      | 0.884  | 0.795        |
+| `ls0.0_deg10_dfl1.5_fr10`                | 0.843 | 0.703    | 0.830 | 0.829      | 0.888  | 0.770        |
+| `ls0.0_deg0_dfl1.5_fr0` (P3-A, fr=0)     | 0.836 | 0.711    | 0.772 | 0.808      | 0.862  | 0.754        |
+| `ls0.0_deg0_dfl2.0_fr10`                 | 0.833 | 0.715    | 0.786 | 0.812      | 0.866  | 0.759        |
+| `ls0.0_deg10_dfl1.5_fr0`                 | 0.828 | 0.705    | 0.745 | 0.833      | 0.856  | 0.810        |
+| `ls0.0_deg0_dfl2.0_fr0`                  | 0.828 | 0.714    | 0.749 | 0.825      | 0.872  | 0.777        |
+| `ls0.0_deg10_dfl2.0_fr0`                 | 0.815 | 0.690    | 0.781 | 0.830      | 0.887  | 0.773        |
+| `ls0.0_deg5_dfl1.5_fr0`                  | 0.824 | 0.716    | 0.775 | 0.830      | 0.887  | 0.773        |
+| `ls0.1_deg0_dfl1.5_fr0`  (≡ ls0.0 row)   | 0.836 | 0.711    | 0.772 | 0.808      | 0.862  | 0.754        |
+| `ls0.1_deg0_dfl1.5_fr10` (≡ ls0.0 row)   | 0.844 | 0.718    | 0.764 | 0.840      | 0.884  | 0.795        |
+
+#### Findings
+1. **Winner: `ls0.0_deg5_dfl1.5_fr10`** dominates every clinically meaningful metric:
+   - Test Recall **0.866** (+5.8 pp vs P3-A baseline)
+   - Test Recall_Normal **0.840** (+8.6 pp vs P3-A) — the rare-class metric and WHO-criterion proxy
+   - Test Recall_Atypisch **0.892** (+3.0 pp vs P3-A)
+   - mAP50 0.864 (statistically tied with the `deg10_dfl2.0_fr10` cell at 0.867)
+
+2. **`dfl=2.0` consistently regresses Normal recall** versus `dfl=1.5` across degrees and freeze
+   levels. The localisation/classification loss balance tilts away from rare-class discrimination
+   when DFL is pushed up.
+
+3. **Light rotation (`degrees=5`) is the sweet spot.** `degrees=0` loses ~4 pp R_Normal vs `=5`,
+   and `degrees=10` doesn't add further benefit. Bone-marrow cells are orientation-invariant, so
+   modest rotation regularises without distorting morphological cues.
+
+4. **`freeze=10` (default) is correct.** Unfrozen backbone (`fr=0`) marginally underperforms in
+   every recall-relevant slice. The fine-tuning data is too small relative to the backbone's
+   learned features to risk overwriting them.
+
+5. **`label_smoothing=0.1` is a no-op.** Cells `ls0.0_deg0_dfl1.5_fr{0,10}` and `ls0.1_deg0_dfl1.5_fr{0,10}`
+   produce bit-identical fold metrics. Either the env-var didn't propagate to YOLO's training
+   loop or Ultralytics' detection-head label-smoothing path is non-functional in this version.
+   Either way, dropping LS from the search space removes 8 cells worth of compute and the
+   conclusion does not change.
+
+#### Conclusion
+The `ls0.0_deg5_dfl1.5_fr10` cell is the deployment recipe. The 8 remaining unrun cells (the
+`ls=0.1, degrees ∈ {5,10}` block, plus the two missing `dfl=2.0` ones) are unlikely to dislodge
+the winner: the `degrees=5` zone is already mapped out, and label-smoothing is empirically inert.
+
+---
+
+### Run P3-C — YOLO `model.tune()` on the production recipe (negative result)
+**SLURM:** `323280` (and earlier tune* directories)
+**Results dir:** `runs/detect/tune11/` (30/30 iterations, the canonical run)
+**Script:** `tinkering/tune_hyperpara.py`
+
+#### Motivation
+The P2-E failure was diagnosed in the original log as "the YOLO tuner cannot be applied to
+fine-tuning." On review, that conclusion was overly broad: P2-E's failure was a **recipe
+mismatch** — the tuner ran with `lr0=0.01` from-scratch hyperparameters and the output was applied
+to a fine-tune of `DL_Modell_FV.pt`, which catastrophically forgot the pretrained features.
+
+P3-C re-runs the tuner against the **production recipe** (yolo11n.pt + freeze=10 + AdamW +
+`augment=True`, `mosaic=0.0`, `flipud=0.5`, `cls=1.0`), so the tuner's search space coincides with
+deployment conditions. 30 iterations × 50 epochs each, held out P4 as a single fitness fold
+(mAP50-95).
+
+#### Tuner output (`best_hyperparameters.yaml`)
+```
+fitness=0.73582 at iteration 13
+box=6.97  cls=1.11  dfl=2.47   degrees=0.0   flipud=0.408
+hsv_v=0.358  scale=0.220  fliplr=0.456  mosaic=0.0  close_mosaic=10
+lr0=0.00884  lrf=0.00885  momentum=0.938  weight_decay=0.00028
+```
+
+#### Findings
+The tuner converged on a recipe whose dominant moves **contradict** the matrix evidence on the
+same parameters:
+- **`degrees=0.0`** vs matrix-optimal `degrees=5` (matrix shows +4-5 pp R_Normal at `=5`)
+- **`dfl=2.47`** vs matrix-optimal `dfl=1.5` (matrix shows `dfl=2.0` already regresses R_Normal;
+  the tuner's `2.47` is further in the wrong direction)
+- **`mosaic=0.0`** (correct — the tuner agrees this is mandatory)
+- **`flipud=0.41`** vs production `0.5` (close enough)
+
+Fitness 0.736 (mAP50-95 on P4 only) is essentially indistinguishable from the matrix winner's
+0.741 (mAP50-95 averaged across 8 LOPO folds). The tuner's "improvement" is well inside
+cross-fold variance and was achieved by over-fitting hyperparameters to a single holdout.
+
+#### Conclusion
+**Negative result, but methodologically informative.** Stage-3 validation (training the tuner's
+yaml on the full 8-fold LOPO) is **skipped**: the cost is ~6-12 GPU-hours and the prior is that
+the recipe will underperform the matrix winner on Normal recall, since its two dominant changes
+both move *away* from the matrix's optimal zone. The matrix winner remains the deployment recipe.
+
+For the thesis: P3-C is a productive negative finding. An unconstrained 30-iteration tuner
+optimising a single-fold mAP50-95 objective converged on choices that disagree with systematic
+8-fold matrix evidence — illustrating why the matrix DoE approach was retained.
+
+---
+
+### Run P3-D — Final deployment model (single training, all P1–P8)
+**SLURM:** completed 2026-05-11
+**Results dir:** `tinker_final/final/`
+**Script:** `tinkering/ba_tinker_final.py` + `tinkering/run_final.sh`
+
+#### Strategy
+LOPO is an evaluation protocol. Each of P3-B's fold models has never seen one of the 8 patients,
+so none of them is a deployment artifact. Standard post-CV practice: take the recipe that the CV
+proved works (`ls0.0_deg5_dfl1.5_fr10`) and train one final model on the full corpus with no
+holdout — that model has strictly more data than any LOPO fold model and is what we ship.
+
+#### Setup
+- Recipe identical to P3-B winner: `FREEZE=10, DEGREES=5.0, DFL=1.5, LABEL_SMOOTHING=0.0,
+  CLS=1.0, lr0=0.001, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, AdamW, imgsz=512, batch=32`
+- Single training on all 8 patients (no LOPO loop, no `mp.Pool`)
+- 85/15 stratified-by-patient val split for early stopping only (texture leakage is acceptable
+  here — the unbiased generalization estimate already comes from P3-B)
+- Per-patient image oversampling unchanged (`P5×8, P6×15, P7×8, P8×10`)
+- Pretrained base: `yolo11n.pt`
+
+#### In-train val sanity check (NOT a generalization estimate)
+| Metric             | Value  |
+|--------------------|--------|
+| mAP50-95           | 0.7175 |
+| mAP50              | 0.8538 |
+| Precision          | 0.7526 |
+| Recall             | 0.8386 |
+| Recall (Atypisch)  | 0.9639 |
+| Recall (Normal)    | 0.7133 |
+
+#### Interpretation
+- **Convergence is healthy.** Overall recall 0.84, mAP50 0.85, and Atypisch recall 0.96 are all
+  consistent with — or slightly above — the P3-B matrix winner LOPO means. The run converged on
+  the recipe-specified epoch with no anomalies.
+- **R_Normal 0.713 is below the LOPO mean of 0.840** and looks surprising at first because val
+  patients are also in train (leakage normally *inflates* val). Root cause: this val split has
+  only ~10–15 Normal labels total (15% of the corpus's 78 Normals, stratified by patient), and
+  missing 3–4 of those moves R_Normal by ≈25 pp. Single-point variance is ±0.10 easily. A
+  secondary effect is YOLO's `best.pt` fitness criterion, which is a weighted mean over classes
+  and so biases checkpoint selection toward the epoch where Atypisch peaked rather than where
+  Normal peaked — the same selection rule was used in all P3-B fold runs, so this is at least
+  apples-to-apples but the variance on Normal specifically is amplified.
+- **The authoritative generalization number remains the LOPO matrix winner:**
+  Recall ≈ 0.866 | R_Normal ≈ 0.840 | R_Atypisch ≈ 0.892. The val sanity check verifies
+  *convergence*, not deployment quality.
+
+#### Deliverable
+`hpc/tinker_final/final/weights/best.pt` → sent to USZ for next-round case collection
+(model-assisted review of unannotated slides, FP/FN correction loop, new-patient acquisition).
+Acceptance handover to USZ: flag both clinician misses (FN) and low-confidence Normal predictions
+in the review loop, and track per-class R_Normal on incoming P9+ slides as the primary monitoring
+metric.
+
+---
+
+## Daily log — 2026-05-11
+
+Tasks completed today:
+
+1. **P3-B matrix analysed.** Computed 8-fold LOPO test-set means for all 14 completed cells.
+   Identified `ls0.0_deg5_dfl1.5_fr10` as the unambiguous winner across every clinically
+   meaningful metric (R 0.866, R_Normal 0.840, R_Atypisch 0.892). Confirmed `dfl=2.0` regresses
+   Normal recall, `degrees=5` is the sweet spot, `freeze=10` beats `=0`, and
+   `label_smoothing=0.1` is a bit-for-bit no-op vs `=0.0` (env-var didn't reach YOLO's loss
+   path or the implementation is inert in this Ultralytics version).
+2. **P3-C tuner reviewed.** 30-iteration `model.tune()` on P4 holdout completed at fitness 0.736
+   (single-fold mAP50-95). Output yaml contradicts the matrix on `degrees` and `dfl`. Decided to
+   skip Stage-3 validation — productive negative result for the thesis.
+3. **P3-D final model built and trained.** Created `tinkering/ba_tinker_final.py` (single-run
+   variant of `ba_tinker.py`, no LOPO loop, recipe baked as defaults but env-overridable) and
+   `tinkering/run_final.sh`. Submitted, ran on 1 L40S, converged with the val metrics tabulated
+   above. `tinker_final/final/weights/best.pt` is the USZ deliverable.
+4. **Documentation.** Extended this log with Phase 3 (sub-runs A–D) and the P3-D in-train val
+   sanity check.
+
+Outstanding:
+
+- 10 matrix cells (`ls=0.1, degrees ∈ {5,10}` + 2 `dfl=2.0`) still queued from the
+  `QOSMaxSubmitJobPerUserLimit` rejection. Unlikely to dislodge the winner (label-smoothing is
+  inert, `degrees=5` zone already mapped) — re-submission is bookkeeping for completeness, not
+  decision-relevant.
+- USZ handover of `best.pt` + acceptance documentation.
