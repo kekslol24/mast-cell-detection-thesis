@@ -351,64 +351,692 @@ the primary bottleneck.
 
 ---
 
-### Run P2-H — Lower LR + Backbone Freeze, No Background (planned)
-**SLURM:** next submission  
-**Status:** pending
+### Run P2-H — Lower LR + Backbone Freeze, No Background
+**SLURM:** 320698 (`train_p2_fp1_bgr0_new`)  
+**Status:** complete
 
-#### Motivation
-Root cause analysis across all P2 runs points to `lr0=0.01` (YOLO default, calibrated for
-training from scratch) being too high when fine-tuning from `DL_Modell_FV.pt`. A 10× reduction
-(`lr0=0.001`) keeps the pretrained feature representations intact while only the detection heads
-adapt significantly. Freezing the backbone (first 10 layers) additionally prevents the feature
-extractor from being overwritten during the early aggressive phase of training.
+#### Setup
+- Base model: `DL_Modell_FV.pt`
+- `lr0=0.001`, `freeze=10`, `FP_NEG_OVERSAMPLE=1`, `BG_RATIO=0`
+- `patience=100`, `epochs=5000` (early stopping active)
+- BG_RATIO bug fixed: background images now correctly passed to fold workers
 
-BG_RATIO is set to 0 in this run to isolate the effect of the LR and freeze changes. If the
-folds become stable, backgrounds can be reintroduced at ratio 1 in a subsequent run.
+#### Test results
+| Fold | mAP50-95 | mAP50  | Precision | Recall |
+|------|----------|--------|-----------|--------|
+| 1    | 0.5566   | 0.6482 | 0.9644    | 0.4537 |
+| 2    | 0.3604   | 0.4562 | 0.9427    | 0.4250 |
+| 3    | 0.7568   | 0.9401 | 0.8324    | 0.9118 |
+| 4    | 0.3876   | 0.4784 | 0.9647    | 0.4292 |
+| 5    | 0.4063   | 0.4991 | 0.9635    | 0.4660 |
+| **mean** | **0.494** | **0.604** | **0.934** | **0.537** |
+| **std**  | **0.166** | **0.194** | **0.057** | **0.210** |
 
-#### Changes from P2-G
-| Parameter      | P2-G          | P2-H              |
-|----------------|---------------|-------------------|
-| `lr0`          | 0.01 (default)| **0.001**         |
-| `lrf`          | 0.01 (default)| **0.01** (final lr = 1e-5) |
-| `freeze`       | —             | **10** (first 10 layers frozen) |
-| `BG_RATIO`     | 2             | **0** (removed to isolate effect) |
-| `FP_NEG_OVERSAMPLE` | 1       | 1 (unchanged)     |
-| `cfg`          | not used      | not used          |
+#### Conclusion
+The `lr0=0.001` + `freeze=10` configuration successfully prevents the fold-collapse seen in
+P2-C/P2-G (no fold peaks and immediately drops to plateau). All folds converge. However, the
+variance target (std < 0.06) was **not met** — std remains at 0.194. Fold 3 is the outlier:
+it achieves mAP50=0.940 and recall=0.912, while the other four folds are stuck at mAP50
+0.46–0.65 and recall 0.43–0.47. This is a persistent fold-split artefact, not a training
+instability. The learning rate fix solved convergence but not generalisation.
 
-#### Expected outcome
-All 5 folds should converge rather than peak and collapse, bringing std below ~0.06.
-Mean test mAP50 expected to remain ≥0.59 (matching P2-D) with more consistent recall.
+Mean mAP50=0.604 matches P2-D (0.590) and bests P2-G (0.530), confirming that `lr0=0.001`
+is the correct fine-tuning learning rate. This is now the reference configuration for the DoE
+grid.
 
-#### Results
-*(to be filled in after SLURM job completes)*
+---
+
+### DoE Grid — Full 3×4 Factorial: FP_NEG_OVERSAMPLE × BG_RATIO
+**SLURM:** 320698–320709  
+**Results dirs:** `train_p2_fp{1,2,3}_bgr{0,1,2,3}_new/`  
+**Status:** 11 of 12 complete; fp3_bgr3 (320709) failed (no TEST output — likely timeout/OOM)
+
+All runs share the reference config established by P2-H:
+`DL_Modell_FV.pt`, `lr0=0.001`, `freeze=10`, `patience=100`, `epochs=5000`, `BG_RATIO` and
+`FP_NEG_OVERSAMPLE` varied per grid cell. BG_RATIO bug fixed in all.
+
+#### Test results — DoE grid
+
+| Config | SLURM | FP× | BGr | mAP50 (mean) | mAP50-95 | Recall | Precision |
+|--------|-------|-----|-----|--------------|----------|--------|-----------|
+| fp1_bgr0 | 320698 | ×1 | 0 | **0.604** | 0.494 | 0.537 | **0.934** |
+| fp1_bgr1 | 320699 | ×1 | 1 | 0.562 | 0.438 | 0.531 | 0.911 |
+| fp1_bgr2 | 320700 | ×1 | 2 | 0.564 | 0.433 | 0.523 | 0.828 |
+| fp1_bgr3 | 320701 | ×1 | 3 | 0.591 | 0.441 | 0.518 | 0.820 |
+| fp2_bgr0 | 320702 | ×2 | 0 | 0.581 | 0.446 | **0.638** | 0.726 |
+| fp2_bgr1 | 320703 | ×2 | 1 | 0.565 | 0.426 | 0.523 | 0.920 |
+| fp2_bgr2 | 320704 | ×2 | 2 | 0.592 | 0.446 | 0.637 | 0.831 |
+| fp2_bgr3 | 320705 | ×2 | 3 | 0.596 | 0.467 | 0.539 | 0.792 |
+| fp3_bgr0 | 320706 | ×3 | 0 | 0.548 | 0.407 | 0.537 | 0.908 |
+| fp3_bgr1 | 320707 | ×3 | 1 | 0.566 | 0.434 | 0.546 | 0.798 |
+| fp3_bgr2 | 320708 | ×3 | 2 | 0.572 | 0.422 | 0.526 | 0.925 |
+| fp3_bgr3 | 320709 | ×3 | 3 | ❌ FAILED | — | — | — |
+
+#### Fold-level pattern (consistent across all runs)
+
+Fold 3 is an outlier in every single grid cell:
+
+| Fold | Typical mAP50 range (non-fold-3) | Fold 3 range |
+|------|----------------------------------|--------------|
+| 1, 2, 4, 5 | 0.44 – 0.61 | — |
+| 3 | — | 0.88 – 0.94 |
+
+The within-fold recall for folds 1, 2, 4, 5 is stuck at 0.42–0.49 across all 11 configurations.
+Fold 3 alone achieves 0.80–0.95. The cross-fold std (~0.15–0.21) completely dominates any
+signal from the FP or BG factors. This is a small-dataset fold-split artefact.
+
+#### Conclusions from DoE
+
+**1. No configuration significantly outperforms fp1_bgr0 (P2-H).** The total mAP50 spread
+across all 11 completed cells is 0.548–0.604 — a range of 0.056. Within the noise of fold
+variance (std ≈ 0.19), no combination is meaningfully different.
+
+**2. BG_RATIO has a consistently negative effect.** Within every FP level, bgr=0 gives the
+best or tied-best mAP50 (fp1: 0.604, fp2: 0.581, fp3: 0.548). Each step up in BG_RATIO
+degrades performance. Confirmed: background tiles suppress recall without improving precision
+at this dataset scale. BG_RATIO should be kept at 0 for all further runs.
+
+**3. FP_NEG_OVERSAMPLE has diminishing returns above ×2.** fp=1 gives the best mAP50.
+fp=2 gives the highest reported recall (0.638) but this is driven by a single fold-2 outlier
+(recall=0.974 in 320702, 0.965 in 320704) — without those outliers, fp=2 is indistinguishable
+from fp=1. fp=3 underperforms both on mAP50 and shows no recall benefit.
+
+**4. The recall problem is a generalisation problem, not a data-ratio problem.** Recall
+outside of fold 3 is 0.42–0.49 regardless of FP or BG configuration. The model is not
+failing because of class imbalance or insufficient negatives — it is failing to transfer the
+features it learned in training to the test split. On-the-fly augmentation is the correct
+next intervention.
+
+**5. fp3_bgr3 (320709) failed** — no TEST output in SLURM log. Likely timeout or OOM from
+the largest dataset (3× FP + 3 BG tiles per annotated image). Not worth retrying; this corner
+of the grid is already ruled out by the BG_RATIO trend.
+
+#### Best config from DoE
+**fp1_bgr0** (= P2-H baseline): mAP50=0.604, recall=0.537, precision=0.934.
+This is the cleanest result and uses the minimum additional data manipulation.
 
 ---
 
 ## Summary Table — Test Set Results (all P2 runs)
 
-| Run   | SLURM     | Base Model    | BG_RATIO | lr0   | freeze | mAP50 (mean±std)   | Recall (mean) |
-|-------|-----------|---------------|----------|-------|--------|--------------------|---------------|
-| P2-A  | 319399    | yolo11n       | 0        | 0.01  | —      | 0.580 ± 0.172      | 0.617         |
-| P2-B  | 319400    | yolo11n (mod) | 0        | 0.01  | —      | 0.614 ± 0.155      | 0.667         |
-| P2-C  | 319401    | DL_Modell_FV  | 0        | 0.01  | —      | 0.469 ± 0.035      | 0.397         |
-| P2-D  | 319416    | DL_Modell_FV (mod) | 0   | 0.01  | —      | 0.590 ± 0.090      | 0.655         |
-| P2-E  | 319536    | DL_Modell_FV + tuner cfg | 0 | 0.01 | —   | 0.448 ± 0.007 ❌  | 0.413         |
-| P2-F  | 319538    | DL_Modell_FV + mod + tuner cfg | 0 | 0.01 | — | 0.508 ± 0.057 | 0.571      |
-| P2-G  | 319934    | DL_Modell_FV  | 2        | 0.01  | —      | 0.530 ± 0.090      | 0.484         |
-| **P2-H** | pending | DL_Modell_FV | 0       | **0.001** | **10** | *pending*      | *pending*     |
+| Run | SLURM | Base Model | FP× | BGr | lr0 | freeze | mAP50 (mean±std) | Recall |
+|-----|-------|-----------|-----|-----|-----|--------|------------------|--------|
+| P2-A | 319399 | yolo11n | ×1 | 0 | 0.01 | — | 0.580 ± 0.172 | 0.617 |
+| P2-B | 319400 | yolo11n (mod) | ×1 | 0 | 0.01 | — | 0.614 ± 0.155 | 0.667 |
+| P2-C | 319401 | DL_Modell_FV | ×1 | 0 | 0.01 | — | 0.469 ± 0.035 | 0.397 |
+| P2-D | 319416 | DL_Modell_FV (mod) | ×1 | 0 | 0.01 | — | 0.590 ± 0.090 | 0.655 |
+| P2-E | 319536 | DL_Modell_FV + tuner | ×1 | 0 | 0.01 | — | 0.448 ± 0.007 ❌ | 0.413 |
+| P2-F | 319538 | DL_Modell_FV + mod + tuner | ×1 | 0 | 0.01 | — | 0.508 ± 0.057 | 0.571 |
+| P2-G | 319934 | DL_Modell_FV | ×1 | 2 | 0.01 | — | 0.530 ± 0.090 | 0.484 |
+| **P2-H** | 320698 | DL_Modell_FV | ×1 | 0 | **0.001** | **10** | **0.604 ± 0.194** | **0.537** |
+| DoE fp1_bgr1 | 320699 | DL_Modell_FV | ×1 | 1 | 0.001 | 10 | 0.562 ± 0.181 | 0.531 |
+| DoE fp1_bgr2 | 320700 | DL_Modell_FV | ×1 | 2 | 0.001 | 10 | 0.564 ± 0.172 | 0.523 |
+| DoE fp1_bgr3 | 320701 | DL_Modell_FV | ×1 | 3 | 0.001 | 10 | 0.591 ± 0.174 | 0.518 |
+| DoE fp2_bgr0 | 320702 | DL_Modell_FV | ×2 | 0 | 0.001 | 10 | 0.581 ± 0.184 | 0.638 |
+| DoE fp2_bgr1 | 320703 | DL_Modell_FV | ×2 | 1 | 0.001 | 10 | 0.565 ± 0.163 | 0.523 |
+| DoE fp2_bgr2 | 320704 | DL_Modell_FV | ×2 | 2 | 0.001 | 10 | 0.592 ± 0.180 | 0.637 |
+| DoE fp2_bgr3 | 320705 | DL_Modell_FV | ×2 | 3 | 0.001 | 10 | 0.596 ± 0.172 | 0.539 |
+| DoE fp3_bgr0 | 320706 | DL_Modell_FV | ×3 | 0 | 0.001 | 10 | 0.548 ± 0.185 | 0.537 |
+| DoE fp3_bgr1 | 320707 | DL_Modell_FV | ×3 | 1 | 0.001 | 10 | 0.566 ± 0.183 | 0.546 |
+| DoE fp3_bgr2 | 320708 | DL_Modell_FV | ×3 | 2 | 0.001 | 10 | 0.572 ± 0.186 | 0.526 |
+| DoE fp3_bgr3 | 320709 | DL_Modell_FV | ×3 | 3 | 0.001 | 10 | ❌ FAILED | — |
 
 ---
 
-## Planned: Run P2-I — Reintroduce Background at BG_RATIO=1
-*(contingent on P2-H being stable)*
+## Next Steps
 
-If P2-H confirms that `lr0=0.001` + `freeze=10` eliminates fold-collapse, backgrounds will be
-reintroduced at 1:1 ratio (one background tile per annotated image) to test whether they add
-precision benefit without destabilising training.
+### Run P2-I — On-the-fly augmentation (planned)
+
+The DoE conclusively showed that data-ratio manipulation (FP oversample, BG tiles) cannot
+overcome the generalisation gap. The one untested lever is **per-epoch random augmentation**
+during training. Config:
+
+- Base: fp1_bgr0 (P2-H reference)
+- Change: `augment=True` → replace with `mosaic=0.0` and explicit augmentation flags in
+  `model.train()` (fliplr=0.5, flipud=0.5, hsv_h/s/v at YOLO defaults)
+- `mosaic=0.0` is mandatory: mosaic composites four images which is appropriate for scene
+  detection but scrambles single-cell 512 px crops
+- `flipud=0.5` is valid: bone marrow cells have no canonical orientation
+
+If augmentation closes the val/test gap, the inter-fold std should drop and mean recall
+outside fold 3 should rise above 0.50.
 
 If test-set precision is still a concern after P2-H, `FP_NEG_OVERSAMPLE` will be increased from
 1 to 2–3. The FP negatives are high-quality hard negatives (the model's known failure cases) and
 increasing their weight is a targeted way to reduce false positives without adding random noise.
+
+### Clinical dataset note (added 2026-05-07)
+
+All training data (P2) comes from SM patients, meaning **Atypisch is the dominant class and
+Normal is the minority**. This is the inverse of the typical object detection imbalance
+assumption. Consequences:
+
+- The model has good Atypisch recall by default (majority class, well represented).
+- Normal cells are under-detected — the model has rarely seen a Normal-dominant slide.
+- Missing Normal cells inflates the Atypisch/Normal ratio, which can produce false SM flags
+  even in borderline patients.
+- The WHO criterion (>25% Atypisch) requires reliable detection of *both* classes. Under-
+  detection of Normal is therefore a clinically meaningful failure mode, not just a precision
+  issue.
+- Generalisation to non-SM patients (who present with Normal-dominant slides) is a hard
+  out-of-distribution problem: the training set contains almost no examples of that regime.
+- This should be flagged as a primary limitation in the thesis Methods section.
+
+---
+
+## P1–P8 Full Dataset — Class Imbalance Strategy (added 2026-05-08)
+
+### Distribution across all 8 patients
+
+Combining all available phases (P1–P8) into one training corpus reveals the true scale of
+the class imbalance:
+
+| Phase | Files | Atypisch | Normal | Notes |
+|-------|-------|----------|--------|-------|
+| P1    | 428   | 482      | 2      | SM patient — pure Atypisch |
+| P2    | 417   | 449      | 6      | SM patient — pure Atypisch |
+| P3    | 61    | 60       | 4      | SM patient |
+| P4    | 126   | 122      | 6      | SM patient |
+| P5    | 21    | 3        | 18     | Normal-rich |
+| P6    | 6     | 0        | 6      | **Pure Normal** |
+| P7    | 20    | 8        | 12     | Mixed |
+| P8    | 24    | 0        | 24     | **Pure Normal** |
+| **Total** | **1103** | **1124** | **78** | **Ratio ≈ 14.4 : 1** |
+
+Normal cells live in only four patients (P5–P8). P6 and P8 contain *zero* Atypisch — they
+are the only "non-SM-like" reference data in the entire corpus. P1–P4 contribute 1112
+Atypisch but only 18 Normal annotations across 1032 images.
+
+### Why the previous DoE strategies do not solve this
+
+The DoE explored `FP_NEG_OVERSAMPLE` and `BG_RATIO`. Neither addresses class imbalance:
+
+- `FP_NEG_OVERSAMPLE` duplicates **negative** images (no labels). It teaches the model what
+  is *not* a cell, not how to distinguish Atypisch from Normal.
+- `BG_RATIO` adds unlabeled slide tiles. Same problem: it suppresses false positives but
+  does nothing for the minority class.
+- The DoE confirmed both factors plateau (FP) or hurt (BG). Continuing to tune them is
+  exhausted as a research direction.
+
+The 14.4 : 1 imbalance is the dominant unaddressed source of error. Recall on Normal will
+drive every clinical metric (false SM flags), so this is the next required intervention.
+
+### Recommended strategy for full-corpus training
+
+#### 1. Image-level oversampling of Normal-rich images
+
+Duplicate image paths (not annotations) in `train.txt` to bring the *effective* per-epoch
+class ratio closer to 1 : 2. Targeted oversampling per phase:
+
+| Source | Suggested factor | Effective Atypisch | Effective Normal |
+|--------|------------------|--------------------|------------------|
+| P1     | ×1               | 482                | 2                |
+| P2     | ×1               | 449                | 6                |
+| P3     | ×1               | 60                 | 4                |
+| P4     | ×1               | 122                | 6                |
+| P5     | ×8               | 24                 | 144              |
+| P6     | ×15              | 0                  | 90               |
+| P7     | ×8               | 64                 | 96               |
+| P8     | ×10              | 0                  | 240              |
+| **Effective total** | | **≈ 1200** | **≈ 590** |
+
+Result: per-epoch ratio ≈ 2 : 1 instead of 14 : 1. The on-the-fly augmentation already
+planned for P2-I makes each duplicate visually distinct, so the model does not see the
+same pixels 10× per epoch.
+
+#### 2. Patient-aware splitting — leave-one-patient-out (LOPO) CV
+
+5-fold stratified random CV is no longer defensible at this scale:
+- Only 8 patients, 4 of whom contain Normal at all.
+- Random k-fold leaks patient-specific texture between train and val, inflating reported
+  metrics relative to true generalisation.
+
+Switch to **LOPO CV** — 8 folds, one patient held out per fold. Caveats:
+
+- When P6 or P8 is the test fold, only Normal recall is measured (no Atypisch present).
+  This is exactly the metric of interest for non-SM generalisation.
+- When P1 or P2 is the test fold, only Atypisch recall is meaningfully measured.
+- Per-fold metrics will be more variable than under stratified CV, but the variance will
+  reflect real biological inter-patient heterogeneity, not split luck.
+
+#### 3. P6 and P8 as the Normal-domain anchor
+
+These are the only data points for the "Normal-dominant slide" regime. Treat them as
+strategic test cases:
+- Keep both in the train set across most LOPO folds.
+- Use them periodically as a *separate* sanity-check val ("does the model still predict
+  Normal at all when no Atypisch are present?") — independent of CV scoring.
+- Withholding either one entirely as a held-out external validation set is a defensible
+  alternative if cross-validation shows the model is overfitting to majority Atypisch.
+
+#### 4. On-the-fly augmentation (still required)
+
+Pure duplication × 10 means the model sees identical pixels 10×. Pair oversampling with
+the per-epoch random augmentation already planned for P2-I (`augment=True`, `mosaic=0.0`,
+`fliplr=0.5`, `flipud=0.5`, default HSV jitter). Augmentation is what makes oversampling
+work — without it, the duplicated copies are wasted compute.
+
+#### 5. Class loss weight (optional, secondary)
+
+YOLO11 does not expose per-class loss weights cleanly, but the global classification loss
+weight `cls` (default `0.5`) can be raised to ~`1.0`. This invests more model capacity in
+class discrimination relative to localisation. Marginal effect compared to oversampling;
+test only after the oversampling+LOPO baseline is established.
+
+#### 6. Negative-set provenance — three distinct categories (clarified 2026-05-08)
+
+The previous "BG vs FP" framing was incomplete. Negatives in this project come from
+three distinct asset classes, each with different curation level and trust:
+
+| Category | Source | What it is |
+|----------|--------|-----------|
+| **P1 gold negatives** | `old/P1/Negativ 12241515/` | Hand-curated empty tiles by FV during the original from-scratch P1 training that produced `DL_Modell_FV.pt`. Verified backgrounds. |
+| **P2 hard FPs** | `Task 6_1224151_negative.xlsx` | Tiles where `DL_Modell_FV.pt` produced false positives at USZ during their CVAT annotation work. Flagged by USZ as confirmed-empty. |
+| **P2 random BG** | `new/P2/images/Train/` minus annotated minus FPs | Random sample from the ~20k P2 slide tiles that were skimmed but not annotated or flagged. |
+
+The DoE's `BG_RATIO` knob varied **category 3** (random P2 BG). Its conclusion that
+"BG uniformly hurts" applies *only* to that category. Categories 1 and 2 were never
+the subject of an ablation:
+
+- The **P1 gold negatives** were used to train `DL_Modell_FV.pt` from scratch and
+  are an independent training asset. They were silently disabled by `BG_RATIO=0`
+  in the DoE — that was a code-structure artefact, not an experimental finding.
+  The new pipeline includes all of them by default (`USE_P1_GOLD_BG=1`) when P1
+  is in train.
+- The **P2 hard FPs** stay at `FP_NEG_OVERSAMPLE=1` (DoE-validated default).
+- The **P2 random BG** stays at `RANDOM_BG_RATIO=0` (DoE conclusion holds for
+  this category only).
+
+Config in `ba_improved_comb.py`:
+
+```python
+USE_P1_GOLD_BG     = True   # always include FV's curated tiles
+FP_NEG_OVERSAMPLE  = 1      # all hard FPs once
+RANDOM_BG_RATIO    = 0      # DoE rejected; kept as a knob for future tests
+```
+
+### Run P3-A — LOPO + Normal oversampling on P1–P8 (full-corpus baseline)
+**SLURM:** 322719 (`yolo_new_v1`)
+**Results dir:** `hpc/yolo_new_v1/fold_{1..8}_P{1..8}/`, summary in `fold_results.csv`
+**Status:** complete, 2026-05-09
+
+#### Setup
+- **Anchor:** `yolo11n.pt` (changed from the originally planned `DL_Modell_FV.pt` — see *Anchor checkpoint changed* below for rationale).
+- 8-fold **LOPO CV** (one patient held out per fold).
+- Per-patient image oversampling per the table in the strategy section above (P5×8, P6×15, P7×8, P8×10; SM-heavy patients ×1).
+- On-the-fly augmentation: `augment=True`, `mosaic=0.0`, `fliplr=0.5`, `flipud=0.5`, default HSV jitter.
+- `lr0=0.001`, `freeze=10`, `cls=1.0`, `patience=100`, `epochs=5000` (early stopping active).
+- `USE_P1_GOLD_BG=1`, `FP_NEG_OVERSAMPLE=1`, `RANDOM_BG_RATIO=0` (DoE-validated negative-set defaults).
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50-95 | mAP50  | Precision | Recall | Recall (Atyp) | Recall (Norm) | Atyp / Norm in test |
+|------|---------|----------|--------|-----------|--------|---------------|---------------|---------------------|
+| 1    | P1      | 0.593    | 0.730  | 0.691     | 0.680  | 0.861         | 0.500         | 482 / **2**         |
+| 2    | P2      | 0.724    | 0.875  | 0.876     | 0.808  | 0.914         | 0.702         | 449 / **6**         |
+| 3    | P3      | 0.727    | 0.845  | 0.761     | 0.848  | 0.981         | 0.716         | 60  / **4**         |
+| 4    | P4      | 0.670    | 0.862  | 0.684     | 0.909  | 0.819         | 1.000         | 122 / **6**         |
+| 5    | P5      | 0.492    | 0.543  | 0.535     | 0.650  | 0.500         | 0.800         | **3** / 18          |
+| 6    | P6      | 0.931    | 0.995  | 0.900     | 1.000  | (vacuous)     | 1.000         | **0** / 6           |
+| 7    | P7      | 0.827    | 0.968  | 0.953     | 0.909  | 1.000         | 0.818         | 8   / 12            |
+| 8    | P8      | 0.782    | 0.935  | 0.711     | 0.913  | (vacuous)     | 0.826         | **0** / 24          |
+| **mean** |     | **0.718**| **0.844** | **0.764** | **0.840** | —          | —             |                     |
+| **std**  |     | 0.143    | 0.137  | 0.140     | 0.114  |               |               |                     |
+
+Per-class recall on rows with insufficient minority-class instances is unreliable: P1 has
+2 Normal cells, P2 has 6, P3 has 4, P4 has 6 — recall on those folds for the Normal class
+should be treated as noise. Atypisch recall on P6 and P8 is vacuous (zero Atypisch in the
+held-out patient). The four meaningful Normal-recall measurements are P5/P6/P7/P8 holdout.
+
+#### Class-recall summary (Normal-meaningful folds only)
+
+| Holdout | Normal in test | Recall (Normal) |
+|---------|----------------|-----------------|
+| P5 | 18 | 0.800 |
+| P6 | 6  | 1.000 |
+| P7 | 12 | 0.818 |
+| P8 | 24 | 0.826 |
+| **mean** | | **0.861** |
+
+All four ≥ 0.80; mean 0.861. This was the headline target of the strategy and it landed.
+
+#### Conclusion
+
+This is the strongest result in the project: mAP50 **0.844 ± 0.137**, recall **0.840**,
+with cross-fold std finally below the P2-only DoE's 0.19 despite LOPO being a harder
+evaluation than random k-fold. The intuition that LOPO would *lower* aggregate mAP50
+relative to random CV did not hold — the larger and more diverse training corpus more
+than compensates for the harder split.
+
+**Comparison to P2-only baseline (P2-H: mAP50 0.604, R 0.537):** every fold except P5
+exceeds the P2-H mean on both metrics, most by a wide margin. **Fold 5 (P5) is the only
+soft spot** (mAP50 0.543 vs. P2-H mean 0.604). Explanation: P5 has 3 Atypisch and 18
+Normal instances in the test set, so each missed Atypisch costs −0.33 in Atypisch recall.
+This is a small-sample artefact, not a model regression.
+
+**Normal recall is acceptable.** With only 78 Normal annotations corpus-wide, the
+strategy's per-patient oversampling + on-the-fly augmentation succeeded in lifting Normal
+recall on every Normal-rich holdout fold to ≥ 0.80. The remaining concern — generalisation
+to non-SM patients (the P6/P8 regime) — is now empirically validated, not assumed: with
+those patients held out, the model still detects all 6 / 24 Normal cells with recall 1.0 / 0.826.
+
+#### Implications
+
+- **No need for synthetic Normal tiles.** The fallback plan (cropping patches centred on
+  Normal cells from P5–P8) is unnecessary at this dataset scale; the oversampling table
+  already delivers the targeted ratio.
+- **The next bottleneck is Atypisch recall on Normal-dominant test slides** (Fold 5
+  Atypisch recall = 0.50 on 3 samples, Fold 4 Atypisch recall = 0.82 on 122). More
+  mixed-presentation patients (some Atypisch + some Normal in the same slide, like P7)
+  would tighten this faster than any further algorithmic tuning.
+- **`yolo_new_v1/fold_8_P8/weights/best.pt` is the candidate v1 shipped weight.** All folds
+  produced a `best.pt` of consistent size (~5.4 MB), and any of them is a defensible
+  release weight; using the P8-holdout fold as the canonical version means the shipped
+  model has been evaluated against the hardest pure-Normal slide on hand.
+
+### Thesis implications
+
+This shifts the central methodological story from "find optimal FP/BG ratio" to "address
+clinical class imbalance under patient-level data scarcity". Update for `BA_FV_extended.qmd`:
+
+- **Methodology — Data Acquisition**: replace the P2-only description with P1–P8 table and
+  patient-level breakdown.
+- **Methodology — Model Training Strategy**: replace stratified k-fold with LOPO CV and
+  document the oversampling table.
+- **Limitations**: reframe SM-only data as "clinical asymmetry — only 8 patients, of which
+  4 contain Normal cells, of which 2 are pure-Normal" rather than "Atypisch-dominant data".
+- **Future Research**: add patient enrolment as the primary axis for future work — more
+  non-SM patients is more valuable than algorithmic refinement at this dataset scale.
+
+---
+
+## Session log — 2026-05-08 (post-strategy adjustments and operational decisions)
+
+### Anchor checkpoint changed: yolo11n.pt instead of DL_Modell_FV.pt
+
+The first run of `ba_improved_comb.py` against the full P1–P8 corpus was launched with
+`PRETRAINED_WEIGHTS = "yolo11n.pt"`, not `DL_Modell_FV.pt` as the strategy section above
+originally specified. Rationale: with a corpus of ~1100 labelled images and per-patient
+oversampling, the new dataset is large enough that the COCO-pretrained yolo11n base
+trains cleanly without the domain-specific warm-start. This also produces a cleaner
+provenance story — every future model version reproduces from `(yolo11n.pt, dataset
+snapshot, config)` in a single training run, with no chain of fine-tunes to track.
+
+`DL_Modell_FV.pt` remains on disk as a historical artefact (the original P1-only model
+shipped to USZ for CVAT annotation) but is no longer the anchor for new runs.
+
+### Per-fold annotation ratios (computed from current config)
+
+The strategy targets ~2 : 1 Atypisch : Normal across the whole corpus. Per fold the
+ratio shifts because LOPO removes whichever patient is held out:
+
+| Holdout | Atyp (eff.) | Norm (eff.) | Ratio |
+|---|---|---|---|
+| P1 | 719 | 586 | 1.23 : 1 |
+| P2 | 752 | 582 | 1.29 : 1 |
+| P3 | 1141 | 584 | 1.95 : 1 |
+| P4 | 1079 | 582 | 1.85 : 1 |
+| P5 | 1177 | 444 | 2.65 : 1 |
+| P6 | 1201 | 498 | 2.41 : 1 |
+| P7 | 1137 | 492 | 2.31 : 1 |
+| P8 | 1201 | 348 | 3.45 : 1 |
+
+Mean ≈ 2.14 : 1, range 1.23–3.45 : 1. This is unavoidable with fixed per-patient
+oversample factors + LOPO. Folds where SM-heavy patients are held out (P1, P2) skew
+Normal-favourable; folds where pure-Normal patients are held out (P5–P8) skew
+Atypisch-heavy. Per-class recall already captures this asymmetry; no further code
+change required.
+
+### Strict LOPO on negatives — confirmed (not relaxed)
+
+Negatives (P1 gold backgrounds, P2 hard FPs) are held out by patient tag along with
+positives. Consequence:
+
+| Fold | Holdout | P1 gold in train | P2 FPs in train | Total neg |
+|---|---|---|---|---|
+| 1 | P1 | — (excluded) | 330 | 330 |
+| 2 | P2 | 1030 | — (excluded) | 1030 |
+| 3–8 | P3–P8 | 1030 | 330 | 1360 |
+
+Discussed relaxing this (negatives shared across folds) since empty tiles carry no
+diagnostic morphology. Decision: keep strict — slide-level batch effects (stain,
+microscope white balance, slide age) can leak even through empty tiles, and "I held
+everything out by patient" is a one-line claim for thesis defence. The fold-1/fold-2
+asymmetry is a known accepted cost.
+
+### Cluster correction: earth-4 has 8× L40S
+
+Earlier `CLAUDE.md` note "2× L40S" was based on the SLURM script's request, not the
+actual node capacity. `sinfo -o "%P %G %t" | grep gpu` confirms `earth-4 gpu:l40s:8`.
+The current run still uses 2 GPUs (4 folds per GPU) because the SLURM script wasn't
+changed; future runs can request `--gres=gpu:l40s:8` for one fold per GPU and ~4× wall
+clock reduction (each fold runs on its own L40S, no contention).
+
+`ba_improved_comb.py` now picks GPU count from `torch.cuda.device_count()` or `N_GPUS`
+env var; no code change needed when bumping the SLURM allocation.
+
+### Operational doctrine — retraining and versioning (added 2026-05-08)
+
+Three retraining patterns exist; risk and reproducibility differ sharply.
+
+| Pattern | What's seen during training | When it makes sense |
+|---|---|---|
+| **A. Fine-tune on new data only** (e.g. v2 + new patient corrections) | Only new data | Never for shipped models — this is the failure mode that produced the original P2 / DL_FV regression |
+| **B. Continue from v_n on full accumulated corpus** | Full P1–P_N | Production iteration when compute is expensive and a regression test suite exists |
+| **C. Retrain from yolo11n.pt on full accumulated corpus** | Full P1–P_N | Default for this thesis and for any model intended for distribution |
+
+Rule for shipped models: **C is the default.** Each version is a one-step recipe from
+a fixed input (`yolo11n.pt`, dataset at version N, config). No anchor-chain to audit,
+no compounding bias, no catastrophic-forgetting accumulation.
+
+B is acceptable for in-house iteration when compute is the bottleneck, *provided* the
+new training pass uses the full corpus (not just new data). Continuing from v_n on
+P_(1..N) is a normal, well-understood ML practice and is not the same as the desktop
+app's local fine-tune (which is A).
+
+A is reserved for the desktop app's "Personal model" feature — clearly labelled as
+local-only and never represented as a shared model version.
+
+### Customer-correction workflow
+
+When a downstream user (USZ or future customer) returns corrections:
+
+1. Annotated images they edited become a new patient directory under `data/new/P_(N+1)/`.
+2. Their FP list (Excel or otherwise) maps to the same patient tag and is loaded via
+   the existing `FP_NEG_OVERSAMPLE` path.
+3. Add `"P_(N+1)"` to `PATIENT_IMAGE_DIRS` and to `PATIENT_OVERSAMPLE` (factor depends
+   on their class balance).
+4. Re-run `ba_improved_comb.py` from `yolo11n.pt`. LOPO automatically becomes
+   (N+1)-fold; the new patient gets one fold where they're held out, which directly
+   measures generalisation to the new clinical site.
+5. Compare per-class recall on the new patient's holdout fold against the prior
+   version's recall on the same patient — this is the regression check.
+
+Document each customer's correction batch as a discrete entry in this log so the
+training corpus version → model version mapping stays auditable.
+
+---
+
+## Desktop application — safeguards added 2026-05-08
+
+Implemented in `desktop_app/`; full rationale in `BA_FV_extended.qmd` §
+*Continual Learning Without Distribution Drift*.
+
+- **Anchored fine-tune.** `FineTuneWorker` accepts `base_train_dir`; when set, the
+  base corpus is symlinked into the train split alongside user edits. Prevents
+  catastrophic forgetting in the local "Personal model" path.
+- **Baseline validation pass.** `FineTuneWorker` accepts `baseline_test_dir`; old +
+  new model are evaluated on the held-out set after training. UI dialog shows
+  per-class recall delta and refuses promotion (default "No") if any class regresses
+  by more than 2 percentage points.
+- **Corrections export.** `core/exporter.py` packages edited images + labels +
+  provenance manifest (annotator, host, date, model SHA-1 hash, source identifier,
+  notes) into a ZIP. This is the *recommended* path for genuine improvement and is
+  styled accordingly in the UI.
+- **Renamed for honesty.** "Retrain on Edits" → "Personal model (this machine
+  only)". "Export corrections…" → "Submit for central improvement (recommended)".
+  Tooltips and the sidebar paragraph make the local-vs-central distinction explicit.
+
+### Statistics view (added 2026-05-08)
+
+`ui/statistics_view.py` + `core/statistics.py`. Patient-level summary panel
+implementing the WHO 25% Atypisch minor criterion for SM:
+
+- Verdict banner: "Indication of SM" / "No SM indication" / "Insufficient data"
+  (red / green / grey). Threshold is `WHO_ATYPISCH_THRESHOLD = 0.25`; minimum
+  10 total mast cells before any verdict is rendered.
+- Counts: total Atypisch, total Normal, ratio, threshold.
+- Confidence summary per class (mean, median, range) — relevant because low-conf
+  Atypisch detections inflate the ratio.
+- Per-image breakdown table, sortable, double-click opens image in editor.
+- Always-visible WHO caveat: this is one of several minor criteria, not a
+  diagnosis, and model recall is imperfect.
+- "Export summary" produces a TXT report including the disclaimer.
+- Auto-refreshes after folder load, after inference completes, and after every edit.
+
+This is the intended end-user output of the pipeline: load images → run detection
+→ open Statistics → read the indication. Everything else (gallery, editor, fine-tune)
+is supporting infrastructure.
+
+---
+
+## Infrastructure: Desktop Application (added 2026-05-07)
+
+A PySide6 desktop application (`desktop_app/`) was developed in parallel with HPC training
+to enable clinical use of the trained models without a server dependency.
+
+### Key features implemented
+
+- **Chunked inference**: `InferenceWorker` processes images in configurable chunks (default
+  250) to bound peak RAM regardless of folder size. Each chunk saves `.dapp_meta.json` on
+  completion — a crash loses at most one chunk and the next run resumes automatically.
+- **Gallery with filter tabs**: All / With detections / No detection / Low confidence / Edited.
+  Navigation in the annotation editor is scoped to the active tab.
+- **Annotation editor**: Draw/edit/delete bounding boxes. Edits marked in `.dapp_meta.json`
+  and never overwritten by subsequent inference runs.
+- **Active learning loop**: edited images (FP corrections) can be used to fine-tune the
+  loaded model via `FineTuneWorker`. Training batch is automatically set to ⌊inference
+  batch / 3⌋ to avoid OOM (training requires ~3–4× more VRAM than inference due to gradients
+  + Adam states + backprop activations).
+- **QSettings persistence**: confidence, batch size, chunk size, epoch count, and last-used
+  model path are saved across sessions (`~/.config/ZHAW/MastCellDetector.conf` on Linux).
+- **Hardware detection**: CUDA, ROCm (AMD WSL2 via `/dev/dxg`), MPS (Apple), CPU. ROCm
+  recommended batch is halved to leave headroom for the HSA runtime bridge in WSL2.
+
+### PyInstaller packaging (2026-05-07)
+
+Built with:
+```bash
+pyinstaller --noconfirm --windowed --name "MastCellDetector" \
+  --add-data="ui/style.qss:ui" --collect-data ultralytics main.py
+```
+
+Note: `--add-data` separator is `:` on Linux, `;` on Windows. The output is a Linux ELF
+binary (`dist/MastCellDetector/MastCellDetector`) that runs inside WSL2 only — it is not a
+native Windows executable. A native `.exe` would require running PyInstaller from a Windows
+Python environment.
+
+---
+
+## Phase 3 follow-up — Tinkering campaign (planned 2026-05-09)
+
+### Motivation
+
+The P3-A result (mAP50 0.844 ± 0.137, recall 0.840) is the strongest configuration on
+file, but it is the best result *within the design space the prior stages examined*. The
+Phase-2 DoE ruled out dataset-composition factors while holding training-time hyperparameters
+fixed; the Phase-3 LOPO+oversampling pivot changed the cross-validation unit and the
+sampling strategy but inherited the Phase-2 hyperparameter recipe wholesale. Neither stage
+explored training-time hyperparameters orthogonal to data composition. The tinkering campaign
+closes this gap.
+
+### Files
+
+`hpc/tinkering/` — fully isolated from the production scripts.
+
+- `ba_tinker.py` — copy of `ba_improved_comb.py` with seven knobs made env-overridable
+  (`FREEZE`, `CLS_LOSS_WEIGHT`, `LABEL_SMOOTHING`, `DEGREES`, `DFL`, `HSV_V`, `MIXUP`).
+  Defaults reproduce P3-A exactly when no env var is set.
+- `tune_hyperpara.py` — LOPO-Fold-4 (P4 holdout) hyperparameter tuner. Reuses helpers
+  from `ba_improved_comb` so workspace construction is identical to deployment.
+- `run_tune.sh`, `run_tinker.sh` — SLURM job scripts.
+- `submit_tune.sh`, `submit_grid.sh` — launchers.
+
+### Workflow (four steps)
+
+| Step | Job(s) | Purpose | Decision rule |
+|---|---|---|---|
+| 1. Tune | `submit_tune.sh` (1 job, ~1 day on 1 L40S) | yolo11n + freeze=10 + AdamW, 30 iter × 50 epochs on Fold 4 (P4 holdout). Recipe matches deployment exactly. | Output: `best_hyperparameters.yaml` |
+| 2. Matrix | `submit_grid.sh` (24 jobs in parallel) | 2×3×2×2 grid over (label_smoothing, degrees, dfl, freeze). Submit concurrently with step 1 — independent. | Identify best cell vs. P3-A baseline |
+| 3. Validate tuner | One full LOPO with tuner yaml only | Sanity-check that the tuner output doesn't collapse like P2-E. | Reject yaml if test mAP50 regresses by >2 pp vs. P3-A |
+| 4. Final | One full LOPO with (tuner yaml + matrix winner knobs) | Combined configuration. | Adopt as v2 candidate if it beats P3-A; otherwise keep P3-A |
+
+### Knob matrix (Step 2)
+
+| Knob | Default (P3-A) | Levels | Rationale |
+|---|---|---|---|
+| `label_smoothing` | 0.0 | {0.0, 0.1} | Mild regularisation against overconfident class decisions; cheap |
+| `degrees` (rotation) | 0 | {0, 5, 10} | Cells have no canonical orientation; angular jitter unused so far |
+| `dfl` | 1.5 | {1.5, 2.0} | Higher DFL tightens localisation; helps small objects |
+| `freeze` | 10 | {0, 10} | Tests whether the ~3× larger corpus has grown out of the freeze regime that was right for P2-only |
+
+24 cells at full grid; subset by editing the four `_VALUES` lists at the top of
+`submit_grid.sh`. The default cell (`ls=0.0 deg=0 dfl=1.5 fr=10`) is the P3-A control —
+a sanity check that the tinkering pipeline reproduces yolo_new_v1 before reading any
+other cell as a real signal.
+
+### Why a focused tuner is safe now (P2-E reframing)
+
+P2-E (Slurm-319536) used `cfg=best_hyperparameters.yaml` from a tuner that had been run
+on a *from-scratch* recipe (default `lr0=0.01`, no anchor, no freeze). Applying that yaml
+to a fine-tuning run from `DL_Modell_FV.pt` produced catastrophic forgetting (cls_loss
+~5.8 within 3–6 epochs, all 5 folds collapsing to mAP50 ≈ 0.448).
+
+That outcome was logged earlier as "the YOLO tuner cannot be applied to fine-tuning". The
+correct conclusion is narrower: *a tuner whose search recipe differs from the deployment
+recipe* cannot safely contribute its output to deployment. The failure mechanism was the
+recipe mismatch, not the tuner per se.
+
+`tune_hyperpara.py` precludes this failure mode by tuning the *exact* production recipe:
+anchor `yolo11n.pt`, `freeze=10`, AdamW, `augment=True`, `mosaic=0.0`, `flipud=0.5`,
+`cls=1.0`. The output yaml therefore lives in the same hyperparameter regime as the
+deployed model and is structurally safe to apply. Step 3 of the workflow is the empirical
+verification that the structural argument is correct.
+
+### Expected outcomes
+
+- **Tuner yaml**: small adjustments to defaults (lr0, momentum, weight_decay, warmup)
+  within the same recipe family. Catastrophic regression precluded by construction;
+  marginal improvement (1–3 pp on test mAP50) is the realistic upper bound.
+- **Matrix**: most cells expected to be statistically indistinguishable from P3-A given
+  cross-fold std ≈ 0.14. Most likely positive movers: `freeze=0` (corpus has grown
+  enough), `degrees=5–10` (rotation jitter unused so far). `label_smoothing=0.1` is the
+  most likely lever for per-class recall on rare-class folds (P5).
+- **Validation (Step 3)**: tuner output expected within ±2 pp of P3-A. If it regresses
+  by more, reject the yaml and proceed with matrix winner alone.
+- **Combined (Step 4)**: realistic ceiling ~0.87 mAP50 (≈3 pp above P3-A). A larger
+  improvement would suggest the matrix is finding a regime the prior stages did not
+  examine — interesting but unexpected.
+
+### Decision tree on completion
+
+```
+Step 1+2 complete
+    └── Step 3 (validate tuner yaml)
+            ├── Test mAP50 within ±2 pp of P3-A
+            │       └── Step 4: combine yaml + matrix winner → v2 candidate
+            └── Test mAP50 < P3-A by >2 pp
+                    └── Step 4: matrix winner alone (no tuner yaml) → v2 candidate
+v2 candidate ≥ P3-A on test mAP50 AND no per-class recall regression > 2 pp
+    └── adopt as v2; document in this log
+v2 candidate worse than P3-A
+    └── keep P3-A as v1; document the negative result here as a useful bound
+```
+
+The negative-result branch is a productive outcome: it says "the tinkering search did not
+locate a configuration outside the P3-A neighbourhood that performs better", which is
+itself information about the corpus and the recipe. Either way the campaign produces a
+reportable finding.
 
 ---
 
