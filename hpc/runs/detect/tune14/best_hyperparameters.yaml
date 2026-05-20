@@ -1,27 +1,27 @@
-# 7/100 iterations complete ✅ (11806.44s)
+# 12/100 iterations complete ✅ (19916.87s)
 # Results saved to /cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/tune14
-# Best fitness=0.77152 observed at iteration 4
-# Best fitness metrics are {'metrics/precision(B)': 0.92312, 'metrics/recall(B)': 0.85829, 'metrics/mAP50(B)': 0.90041, 'metrics/mAP50-95(B)': 0.77152, 'val/box_loss': 0.80947, 'val/cls_loss': 1.14782, 'val/dfl_loss': 0.96945, 'fitness': 0.77152}
+# Best fitness=0.77995 observed at iteration 10
+# Best fitness metrics are {'metrics/precision(B)': 0.9014, 'metrics/recall(B)': 0.8334, 'metrics/mAP50(B)': 0.91726, 'metrics/mAP50-95(B)': 0.77995, 'val/box_loss': 0.66761, 'val/cls_loss': 0.91089, 'val/dfl_loss': 0.85959, 'fitness': 0.77995}
 # Best fitness model is /cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/train28
-lr0: 0.01038
-lrf: 0.00945
-momentum: 0.937
-weight_decay: 0.0005
-warmup_epochs: 3.0
-warmup_momentum: 0.61196
-box: 7.80963
-cls: 1.23464
-dfl: 1.33352
-hsv_h: 0.015
-hsv_s: 0.68571
-hsv_v: 0.48664
+lr0: 0.01017
+lrf: 0.00609
+momentum: 0.93434
+weight_decay: 0.00049
+warmup_epochs: 2.69817
+warmup_momentum: 0.66648
+box: 6.1713
+cls: 0.90487
+dfl: 1.16422
+hsv_h: 0.0096
+hsv_s: 0.72335
+hsv_v: 0.37797
 degrees: 0.0
-translate: 0.1328
-scale: 0.58876
+translate: 0.13652
+scale: 0.48569
 shear: 0.0
 perspective: 0.0
-flipud: 0.5
-fliplr: 0.5
+flipud: 0.45989
+fliplr: 0.64298
 bgr: 0.0
 mosaic: 0.0
 mixup: 0.0
