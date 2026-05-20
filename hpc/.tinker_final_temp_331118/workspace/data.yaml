@@ -1,0 +1,7 @@
+names:
+- Atypisch
+- Normal
+nc: 2
+path: /cfs/earth/scratch/vollmflo/BA/hpc/.tinker_final_temp_331118/workspace
+train: train.txt
+val: val.txt

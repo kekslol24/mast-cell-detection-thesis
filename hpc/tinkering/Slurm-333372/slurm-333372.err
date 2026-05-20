@@ -1,0 +1,65 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/cfg/__init__.py", line 1026, in <module>
+    entrypoint(debug="")
+    ~~~~~~~~~~^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/cfg/__init__.py", line 985, in entrypoint
+    getattr(model, mode)(**overrides)  # default args from model
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/engine/model.py", line 777, in train
+    self.model, self.ckpt = load_checkpoint(ckpt)
+                            ~~~~~~~~~~~~~~~^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/nn/tasks.py", line 1461, in load_checkpoint
+    ckpt, weight = torch_safe_load(weight)  # load ckpt
+                   ~~~~~~~~~~~~~~~^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/nn/tasks.py", line 1409, in torch_safe_load
+    ckpt = torch_load(file, map_location="cpu")
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/utils/patches.py", line 116, in torch_load
+    return torch.load(*args, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/serialization.py", line 1484, in load
+    with _open_file_like(f, "rb") as opened_file:
+         ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/serialization.py", line 759, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/torch/serialization.py", line 740, in __init__
+    super().__init__(open(name, mode))
+                     ~~~~^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/cfs/earth/scratch/vollmflo/BA/hpc/runs/detect/train26/weights/last.pt'
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/utils/plotting.py:978: RuntimeWarning: Mean of empty slice.
+  mean, std = fitness.mean(), fitness.std()
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/_methods.py:138: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/_methods.py:218: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/_methods.py:175: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/_methods.py:210: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+Traceback (most recent call last):
+  File "/cfs/earth/scratch/vollmflo/BA/hpc/tinkering/tune_hyperpara.py", line 166, in <module>
+    model.tune(
+    ~~~~~~~~~~^
+        data       = yaml_path,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        verbose    = True,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/engine/model.py", line 827, in tune
+    return Tuner(args=args, _callbacks=self.callbacks)(model=self, iterations=iterations)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/engine/tuner.py", line 430, in __call__
+    plot_tune_results(str(self.tune_csv))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/utils/__init__.py", line 382, in wrapper
+    result = func(*args, **kwargs)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/ultralytics/utils/plotting.py", line 984, in plot_tune_results
+    j = np.argmax(fitness)  # max fitness index
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/fromnumeric.py", line 1298, in argmax
+    return _wrapfunc(a, 'argmax', axis=axis, out=out, **kwds)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/numpy/_core/fromnumeric.py", line 57, in _wrapfunc
+    return bound(*args, **kwds)
+ValueError: attempt to get argmax of an empty sequence

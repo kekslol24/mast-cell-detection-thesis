@@ -45,8 +45,8 @@ from ba_improved_comb import (
 # CONFIG
 # ==============================================================================
 HOLDOUT     = os.environ.get("TUNE_HOLDOUT", "P4")
-ITERATIONS  = int(os.environ.get("TUNE_ITERATIONS", "30"))
-EPOCHS      = int(os.environ.get("TUNE_EPOCHS", "50"))
+ITERATIONS  = int(os.environ.get("TUNE_ITERATIONS", "100"))
+EPOCHS      = int(os.environ.get("TUNE_EPOCHS", "300"))
 BATCH_SIZE  = 32
 IMGSZ       = 512
 FREEZE      = 10
@@ -177,7 +177,6 @@ if __name__ == "__main__":
         flipud     = 0.5,
         cls        = 1.0,
         plots      = False,
-        save       = False,
         val        = True,
         verbose    = True,
     )
