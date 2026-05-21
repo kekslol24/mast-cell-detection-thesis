@@ -112,19 +112,15 @@ PATIENT_IMAGE_DIRS = {
     "P6": os.path.join(BASE_DATA_PATH, "new", "P6", "images", "Train"),
     "P7": os.path.join(BASE_DATA_PATH, "new", "P7", "images", "Train"),
     "P8": os.path.join(BASE_DATA_PATH, "new", "P8", "images", "Train"),
+    "P9": os.path.join(BASE_DATA_PATH, "new", "P9",   "images", "Train"),
+    "P10": os.path.join(BASE_DATA_PATH, "new", "P10", "images", "Train"),
+    "P11": os.path.join(BASE_DATA_PATH, "new", "P11", "images", "Train"),
+    "P12": os.path.join(BASE_DATA_PATH, "new", "P12", "images", "Train"),
+    "P13": os.path.join(BASE_DATA_PATH, "new", "P13", "images", "Train"),
+    "P14": os.path.join(BASE_DATA_PATH, "new", "P14", "images", "Train"),
+    "P15": os.path.join(BASE_DATA_PATH, "new", "P15", "images", "Train"),
 }
 
-# P9–P15 use a YOLO-style Train.txt listing absolute image paths (no flat
-# images/Train/ directory). Entries here are read line-by-line at runtime.
-PATIENT_IMAGE_TXTS = {
-    "P9":  os.path.join(BASE_DATA_PATH, "new", "P9",  "Train.txt"),
-    "P10": os.path.join(BASE_DATA_PATH, "new", "P10", "Train.txt"),
-    "P11": os.path.join(BASE_DATA_PATH, "new", "P11", "Train.txt"),
-    "P12": os.path.join(BASE_DATA_PATH, "new", "P12", "Train.txt"),
-    "P13": os.path.join(BASE_DATA_PATH, "new", "P13", "Train.txt"),
-    "P14": os.path.join(BASE_DATA_PATH, "new", "P14", "Train.txt"),
-    "P15": os.path.join(BASE_DATA_PATH, "new", "P15", "Train.txt"),
-}
 
 # Per-patient label directory override.
 # Default behaviour: replace 'images' → 'labels' in the image's path. That
@@ -247,10 +243,6 @@ def load_patient_images(patient: str) -> list[str]:
     """
     if patient in PATIENT_IMAGE_DIRS:
         return glob_images(PATIENT_IMAGE_DIRS[patient])
-    txt = PATIENT_IMAGE_TXTS.get(patient)
-    if txt and os.path.exists(txt):
-        with open(txt) as f:
-            return [ln.strip() for ln in f if ln.strip()]
     return []
 
 
@@ -528,7 +520,7 @@ if __name__ == "__main__":
     pos_with_meta: list[tuple[str, str]] = []   # (img_path, patient)
     summary: dict[str, dict] = {}
 
-    all_patients = sorted(PATIENT_IMAGE_DIRS.keys() | PATIENT_IMAGE_TXTS.keys(),
+    all_patients = sorted(PATIENT_IMAGE_DIRS.keys(),
                           key=lambda p: int(p[1:]))
     for patient in all_patients:
         candidates = load_patient_images(patient)
