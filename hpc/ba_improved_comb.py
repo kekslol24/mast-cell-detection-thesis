@@ -1,46 +1,46 @@
 """
 ba_improved_comb.py — Full P1–P15 corpus training with class-imbalance handling.
 
-Strategy (see hpc/experiment_log.md, "P1–P8 Full Dataset — Class Imbalance Strategy"):
+Strategy (see hpc/experiment_log.md for full rationale and run history):
 
   1. PER-PATIENT IMAGE OVERSAMPLING (the core fix).
-     Total dataset is 1124 Atypisch vs 78 Normal — a ≈ 14.4 : 1 imbalance.
-     Normal cells live in only 4 of 8 patients (P5–P8); P6 and P8 are *pure-Normal*
-     slides. Image-level oversampling of P5–P8 brings the effective per-epoch class
-     ratio from 14:1 down to ≈ 2:1. We duplicate symlinks (with `_dupK` suffix), not
-     annotations, so on-the-fly augmentation makes each duplicate visually distinct.
+     The raw corpus is heavily Atypisch-dominant. Normal cells are concentrated in
+     a minority of patients (P5–P8 from the original P1–P8 cohort; distribution for
+     P9–P15 determined at runtime). Image-level duplication of Normal-rich patients
+     via symlinks with `_dupK` suffix brings the effective per-epoch class ratio down
+     to ≈ 2:1. On-the-fly augmentation makes each duplicate visually distinct.
+
+     P1–P8 oversample factors are pinned in PATIENT_OVERSAMPLE_FIXED (manually
+     validated). P9–P15 factors are computed automatically at runtime by
+     compute_oversample_factors(), which iterates patients from most Normal-heavy to
+     least and solves for the factor k that brings the global weighted ratio closest
+     to OVERSAMPLE_TARGET_RATIO=2.0. Factors are capped at OVERSAMPLE_CAP=25 to
+     prevent pathological duplication of very small patient sets.
 
   2. LEAVE-ONE-PATIENT-OUT (LOPO) CV.
-     With only 8 patients and Normal cells concentrated in 4 of them, stratified
-     random k-fold leaks patient-specific texture between train and val and inflates
-     metrics relative to true generalisation. LOPO yields 8 folds, one patient held
-     out per fold — variance reflects real biological heterogeneity, not split luck.
-     When P6 / P8 (pure-Normal) is held out, only Normal recall is measurable, which
-     is exactly the metric of interest for non-SM generalisation.
+     With patients varying widely in class composition, stratified random k-fold
+     leaks patient-specific texture and inflates metrics. LOPO yields one fold per
+     patient, each held out once as the test set. Variance across folds reflects
+     biological heterogeneity between clinical sites, not split luck.
 
   3. ON-THE-FLY AUGMENTATION instead of pre-applied.
-     The DoE concluded that pre-applied (per-image, baked-to-disk) augmentation
-     exhausts variability after epoch 1. We pass the originals to YOLO and let
-     `augment=True` re-sample transforms each epoch. `mosaic=0.0` is mandatory:
+     Pre-applied augmentation exhausts variability after epoch 1. YOLO's
+     `augment=True` re-samples transforms each epoch. `mosaic=0.0` is mandatory:
      mosaic composites four images, which scrambles single-cell crops at 512 px.
      `flipud=0.5` is valid because bone-marrow cells have no canonical orientation.
 
   4. CLASS LOSS WEIGHT (`cls=1.0`, double the YOLO default).
-     Marginal effect compared to oversampling; investing more model capacity in
-     class discrimination relative to localisation. Secondary lever.
+     Marginal effect compared to oversampling; invests more model capacity in class
+     discrimination relative to localisation.
 
   5. NO BACKGROUND TILES, MINIMAL FP NEGATIVES.
-     `BG_RATIO=0`, `FP_NEG_OVERSAMPLE=1`. The DoE showed BG tiles uniformly hurt
-     and FP oversampling plateaus above ×1. We isolate the oversampling effect.
+     `BG_RATIO=0`, `FP_NEG_OVERSAMPLE=1`. BG tiles uniformly hurt in the DoE; FP
+     oversampling plateaus above ×1. FP negatives are loaded from per-patient Excel
+     files (P2 and P9–P15 each have one) and added to train-only splits.
 
-  6. CASE-INSENSITIVE PATH RESOLUTION.
-     'Train' vs 'train' inconsistencies on disk for both `images/` and `labels/`
-     subdirs are resolved transparently by `case_insensitive_resolve`.
-
-  7. PER-CLASS RECALL is the primary clinical metric, not aggregate mAP50.
+  6. PER-CLASS RECALL is the primary clinical metric, not aggregate mAP50.
      Atypisch recall and Normal recall are recorded separately. WHO uses a 25 %
-     Atypisch threshold for SM; under-detection of *either* class produces wrong
-     ratios and false flags.
+     Atypisch threshold for SM; under-detection of either class produces wrong ratios.
 """
 
 import os

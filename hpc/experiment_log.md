@@ -1295,3 +1295,128 @@ Outstanding:
   inert, `degrees=5` zone already mapped) — re-submission is bookkeeping for completeness, not
   decision-relevant.
 - USZ handover of `best.pt` + acceptance documentation.
+
+---
+
+### Run P3-E — yolo11l (large model) on P1–P8, same recipe as P3-A (negative result)
+**Results dir:** `tinker_default/`
+**Script:** `tinkering/ba_tinker.py` with `PRETRAINED_WEIGHTS=yolo11l.pt`, all other knobs at P3-A defaults (`degrees=0, dfl=1.5, freeze=10, label_smoothing=0.0`)
+
+#### Motivation
+P3-A and the tinkering matrix were run entirely on `yolo11n` (2.6 M params). The question was whether scaling to `yolo11l` (43 M params, ~16× larger) would yield better feature representations and lift recall — particularly R_Normal, which lagged R_Atypisch by ~11 pp.
+
+#### Setup
+- Base model: `yolo11l.pt` (COCO pretrained, large variant)
+- All training knobs identical to P3-A: `lr0=0.001, freeze=10, cls=1.0, dfl=1.5, degrees=0, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, batch=32, imgsz=512`
+- 8-fold LOPO CV on P1–P8
+
+#### Test results
+
+| Fold | Holdout | mAP50  | mAP50-95 | Precision | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|----------|-----------|--------|------------|----------|
+| 1    | P1      | 0.735  | 0.669    | 0.761     | 0.664  | 0.829      | 0.500    |
+| 2    | P2      | 0.881  | 0.746    | 0.814     | 0.826  | 0.937      | 0.714    |
+| 3    | P3      | 0.769  | 0.676    | 0.757     | 0.711  | 0.923      | 0.500    |
+| 4    | P4      | 0.912  | 0.755    | 0.965     | 0.793  | 0.810      | 0.777    |
+| 5    | P5      | 0.712  | 0.600    | 0.615     | 0.653  | 0.500      | 0.807    |
+| 6    | P6      | 0.995  | 0.890    | 0.886     | 0.821  | 1.000      | 0.641    |
+| 7    | P7      | 0.913  | 0.791    | 0.859     | 0.955  | 1.000      | 0.909    |
+| 8    | P8      | 0.927  | 0.834    | 0.570     | 0.854  | 1.000      | 0.708    |
+| **mean** | — | **0.855** | **0.745** | **0.778** | **0.785** | **0.875** | **0.695** |
+
+#### Comparison vs P3-A (yolo11n, same recipe) and P3-B winner (yolo11n, degrees=5)
+
+| Config              | mAP50 | Recall | R_Atypisch | R_Normal |
+|---------------------|-------|--------|------------|----------|
+| P3-A (yolo11n, deg=0) | 0.844 | 0.808 | 0.862 | 0.754 |
+| P3-B winner (yolo11n, deg=5) | 0.864 | 0.866 | 0.892 | 0.840 |
+| **P3-E (yolo11l, deg=0)** | **0.855** | **0.785** | **0.875** | **0.695** |
+| Delta vs P3-A | +0.011 | -0.023 | +0.013 | **-0.059** |
+
+#### Conclusion
+**The large model is worse, not better.** mAP50 gains a marginal +1.1 pp but overall recall drops 2.3 pp and R_Normal drops 5.9 pp — the exact metric where improvement was hoped for. R_Normal 0.695 is the weakest result in any model tested on P1–P8, worse even than the P3-A baseline.
+
+**Why the large model underperforms:**
+
+1. **Dataset is too small for 43 M parameters.** Each LOPO fold trains on roughly 170–220 images. yolo11l has 16× more free parameters than yolo11n, most of them in the unfrozen neck and head. The classification head is randomly re-initialized at every run (nc change 1→2 drops pretrained `cv3` weights), so all of those parameters must be learned from scratch from the fold's training images. yolo11n converges with less data; yolo11l overfits the training fold and fails to generalise.
+
+2. **Freeze=10 protects the backbone but exposes a large neck.** yolo11l's neck (layers 10–21) is proportionally wider than yolo11n's. Unfreezing a wider neck with the same small dataset and the same lr0=0.001 means larger gradient norms relative to the feature scale, increasing the risk of overwriting transferred features.
+
+3. **R_Normal is the canary.** Normal cells are underrepresented in most folds; generalising to them requires the model to have learned a robust representation, not just memorised Atypisch patterns. A larger model memorises faster and therefore generalises less when data is scarce.
+
+**Decision:** `yolo11n` is the correct model size for this corpus. Scaling up model capacity is not the path to better Normal recall — the path is more data (P9–P15) and the confirmed recipe (degrees=5). P3-E is a useful negative result that bounds the search space.
+
+---
+
+## Phase 4 — Expanded corpus P1–P15 (added 2026-05-20)
+
+### Dataset additions
+
+Seven new patients (P9–P15) acquired from USZ via the model-assisted annotation loop have been integrated into `ba_improved_comb.py`. Each patient contributes:
+- Annotated Atypisch/Normal images referenced via a YOLO-style `Train.txt` file (absolute paths on HPC; no flat `images/Train/` directory).
+- A per-patient FP-negative Excel file listing confirmed false-positive tile filenames.
+
+| Patient | FP Excel              | FP entries |
+|---------|-----------------------|------------|
+| P9      | Task39_V2.xlsx        | 725        |
+| P10     | Task26_V2.xlsx        | 76         |
+| P11     | Task27_V2.xlsx        | 28         |
+| P12     | Task21_V2.xlsx        | 89         |
+| P13     | Task24_V2.xlsx        | 68         |
+| P14     | Task25_V2.xlsx        | 57         |
+| P15     | Task23_V2.xlsx        | 49         |
+
+### Script changes (`ba_improved_comb.py`)
+
+1. **Generalised FP loading.** The hardcoded P2-only FP block is replaced by a loop over `PATIENT_FP_EXCELS` (P2 + P9–P15). For each patient, `build_disk_index()` builds a `{basename → abspath}` map from the patient's image directory glob, then resolves FP filenames from the Excel against it.
+
+2. **Automatic oversample factors for new patients.** `PATIENT_OVERSAMPLE_FIXED` retains the manually validated P1–P8 factors. P9–P15 are absent from this dict and computed at runtime by `compute_oversample_factors()`, which iterates patients from most Normal-heavy to least and solves the closed-form equation for k such that the global weighted Atypisch:Normal ratio reaches the target (default 2.0). Factors are capped at 25. The summary printout now shows effective counts and the resulting ratio so the output can be verified at a glance.
+
+3. **LOPO now yields up to 15 folds** (one per patient present in the corpus). GPU assignment `fold_idx % 2` continues to interleave across the two L40S GPUs.
+
+### First run output — corpus summary (2026-05-20)
+
+```
+Patient   Files  Atypisch  Normal  Oversample  EffAtyp  EffNorm
+P1          428       482       2           1      482        2
+P2          417       449       6           1      449        6
+P3           61        60       4           1       60        4
+P4          126       122       6           1      122        6
+P5           21         3      18           8       24      144
+P6            6         0       6          15        0       90
+P7           20         8      12           8       64       96
+P8           24         0      24          10        0      240
+P9          193         4     195           1        4      195
+P10          25         5      20           1        5       20
+P11          37        17      20           1       17       20
+P12         125       133       0           1      133        0
+P13           7         0       7           1        0        7
+P14           7         5       3           1        5        3
+P15          67         0      68           1        0       68
+TOTAL      1564      1288     391                           
+Raw ratio      = 3.3 : 1
+Effective ratio = 1.5 : 1  (target 2.0 : 1)
+```
+
+FP negatives: 1434 total resolved (P2: 330, P9: 730, P10: 76, P11: 29, P12: 90, P13: 73, P14: 57, P15: 49). 1 unresolved (P2: `tile_87_38.jpeg`).
+
+**Oversample factors for P9–P15 all computed as 1.** The fixed P5–P8 factors (×8–15), calibrated for the P1–P8 corpus, already push the effective ratio below the 2.0:1 target when P9–P15's Normal-heavy annotations are included. `compute_oversample_factors()` correctly assigns k=1 to all new patients because the global ratio is already below target at each step. The 1.5:1 effective ratio (slightly Normal-biased) is acceptable — if anything, it works in the direction of improving R_Normal, which was the weaker metric.
+
+**Small test sets in three folds:** P6 holdout (6 images), P13 holdout (7), P14 holdout (7). One missed cell moves recall by ~14–17 pp. Metrics from these folds are directional only.
+
+---
+
+### Hyperparameter transferability — P3-B recipe on P1–P15 (analysis, 2026-05-20)
+
+The P3-B winner (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5`) was validated on an 8-fold LOPO of P1–P8 (~170–220 train images per fold). The P1–P15 corpus changes several conditions that those hyperparameters were calibrated against.
+
+| Knob | Transferability | Rationale |
+|------|----------------|-----------|
+| `degrees=5` | Safe | Cells are still orientation-invariant; domain unchanged |
+| `dfl=1.5` | Safe | Finding (dfl=2.0 hurts R_Normal) is about loss balance, not corpus size |
+| `lr0=0.001` | Safe | Catastrophic-forgetting risk from random `cv3` init does not shrink with more data |
+| `mosaic=0.0`, `flipud=0.5` | Safe | Data-domain decisions, unchanged |
+| `freeze=10` | **Uncertain** | Was correct when each fold trained on ~200 images. Folds now train on ~1000–1300 positives — the "corpus too small to unfreeze" argument is weaker. In the P3-B matrix, `freeze=0` already trailed by only ~2 pp R_Normal. Worth re-testing. |
+| `cls=1.0` | **Uncertain** | Raw ratio shifted from 14:1 to 3.3:1; effective ratio is now 1.5:1. With better inherent balance, the double class-loss weight may be less necessary. |
+
+**Plan:** Run P1–P15 with the P3-B recipe as-is (Run P4-A, ongoing). If results are acceptable, follow up with a single `freeze=0` vs `freeze=10` comparison on P1–P15 — one additional run that directly answers the most uncertain knob given the larger corpus. A full re-grid is not warranted unless P4-A shows a clear regression relative to P3-B.
