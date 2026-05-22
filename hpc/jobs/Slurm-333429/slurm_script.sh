@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=yolo_new_v3
+#SBATCH --job-name=yolo_new_v2
 #SBATCH --mail-type=fail,end
 #SBATCH --time=01-00:00:00
 #SBATCH --partition=earth-4
@@ -7,7 +7,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=128GB
+#SBATCH --mem=32GB
 #SBATCH --gres=gpu:l40s:2
 
 

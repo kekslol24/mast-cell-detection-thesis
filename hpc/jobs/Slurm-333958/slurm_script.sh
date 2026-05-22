@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=yolo_new_v3
 #SBATCH --mail-type=fail,end
-#SBATCH --time=01-00:00:00
+#SBATCH --time=00-12:00:00
 #SBATCH --partition=earth-4
 #SBATCH --constraint=rhel8
 #SBATCH --nodes=1
