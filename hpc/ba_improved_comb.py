@@ -72,7 +72,9 @@ BATCH_SIZE         = 32
 BATCH_SIZE_VAL     = 16
 IMGSZ              = 512
 LR0                = 0.001    # critical: 0.01 causes catastrophic forgetting
-FREEZE             = 10       # freeze backbone, fine-tune neck + head only
+FREEZE             = int(os.environ.get("FREEZE", "10"))   # 10=freeze backbone; 0=full fine-tune
+DEGREES            = float(os.environ.get("DEGREES", "5.0"))  # P3-B winner
+DFL                = float(os.environ.get("DFL", "1.5"))       # P3-B winner
 CLS_LOSS_WEIGHT    = 1.0      # double default 0.5 to invest more in class discrimination
 MOSAIC             = 0.0      # mandatory off for cell-tile data
 FLIPUD             = 0.5      # cells have no canonical orientation
@@ -457,11 +459,13 @@ def train_fold(fold_params):
         augment  = True,
         mosaic   = MOSAIC,
         flipud   = FLIPUD,
-        # Fine-tuning hyperparameters
+        # Fine-tuning hyperparameters (P3-B winner; all env-overridable)
         lr0      = LR0,
         freeze   = FREEZE,
         cls      = CLS_LOSS_WEIGHT,
         cos_lr   = COS_LR,
+        degrees  = DEGREES,
+        dfl      = DFL,
     )
 
     del model

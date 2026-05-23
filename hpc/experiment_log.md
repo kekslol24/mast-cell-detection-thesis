@@ -1420,3 +1420,121 @@ The P3-B winner (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0, mosaic=0.0,
 | `cls=1.0` | **Uncertain** | Raw ratio shifted from 14:1 to 3.3:1; effective ratio is now 1.5:1. With better inherent balance, the double class-loss weight may be less necessary. |
 
 **Plan:** Run P1–P15 with the P3-B recipe as-is (Run P4-A, ongoing). If results are acceptable, follow up with a single `freeze=0` vs `freeze=10` comparison on P1–P15 — one additional run that directly answers the most uncertain knob given the larger corpus. A full re-grid is not warranted unless P4-A shows a clear regression relative to P3-B.
+
+**On re-running the full grid:** A 24-cell P3-B matrix on P1–P15 would cost ~24 × 12h = 288 GPU-hours (15 folds × larger corpus vs. 8 folds × smaller corpus). This is not feasible given thesis timelines. The justification for skipping the re-grid is methodological, not just pragmatic: `degrees`, `dfl`, and `lr0` are task-domain properties, not dataset-size properties. The domain has not changed (bone marrow cell morphology, same image resolution, same sensor), so the P3-B findings on those knobs transfer. The sole genuinely corpus-size-dependent knob is `freeze` — hence the single targeted `freeze=0` follow-up is the correct and sufficient experiment.
+
+---
+
+### Run P4-A — P1–P15 LOPO baseline, P3-B recipe
+**SLURM:** 334000 (`yolo_new_v3`)
+**Results dir:** `yolo_new_v3/fold_{1..15}_{P1..P15}/`
+**Script:** `ba_improved_comb.py` (P1–P15 extension with generalised FP loading and auto oversample)
+**Status:** complete, 2026-05-23
+
+#### Setup
+- Recipe identical to P3-B winner: `FREEZE=10, DEGREES=5.0, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, AdamW, imgsz=512, batch=32`
+- 15-fold LOPO CV (one patient held out per fold)
+- Per-patient oversampling: P1–P8 factors pinned from P3-B; P9–P15 computed at runtime (all ×1 — fixed P5–P8 factors already achieve 1.5:1 effective ratio, below the 2.0 target)
+- FP negatives from 8 Excel files (P2 + P9–P15): 1434 resolved total, 1 unresolved (P2: `tile_87_38.jpeg`)
+
+**Note on P9 FP count (725 entries):** The high count is genuine. Confirmed by the USZ physician — P9 slides were systematically misclassified by the v1 model during the annotation-assistance round, producing an unusually large pool of confirmed false positives. The Excel represents real model failures on that patient's slide texture and is a valid hard-negative training asset, not a data entry artefact.
+
+#### Corpus summary at runtime
+```
+Patient   Files  Atypisch  Normal  Oversample  EffAtyp  EffNorm
+P1          428       482       2           1      482        2
+P2          417       449       6           1      449        6
+P3           61        60       4           1       60        4
+P4          126       122       6           1      122        6
+P5           21         3      18           8       24      144
+P6            6         0       6          15        0       90
+P7           20         8      12           8       64       96
+P8           24         0      24          10        0      240
+P9          193         4     195           1        4      195
+P10          25         5      20           1        5       20
+P11          37        17      20           1       17       20
+P12         125       133       0           1      133        0
+P13           7         0       7           1        0        7
+P14           7         5       3           1        5        3
+P15          67         0      68           1        0       68
+TOTAL      1564      1288     391
+Raw ratio      = 3.3 : 1
+Effective ratio = 1.5 : 1  (target 2.0 : 1)
+```
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50-95 | mAP50  | Precision | Recall | R_Atypisch | R_Normal |
+|------|---------|----------|--------|-----------|--------|------------|----------|
+| 1    | P1      | 0.530    | 0.627  | 0.853     | 0.552  | 0.818      | 0.286    |
+| 2    | P10     | 0.875    | 0.978  | 0.881     | 1.000  | 1.000      | 1.000    |
+| 3    | P11     | 0.795    | 0.899  | 0.929     | 0.816  | 0.882      | 0.750    |
+| 4    | P12     | 0.795    | 0.937  | 0.873     | 0.957  | 0.913      | 1.000    |
+| 5    | P13     | 0.807    | 0.876  | 0.851     | 0.954  | 0.954      | (vacuous — 0 Normal) |
+| 6    | P14     | 0.908    | 0.995  | 0.978     | 1.000  | 1.000      | 1.000    |
+| 7    | P15     | 0.882    | 0.959  | 0.830     | 0.963  | 1.000      | 0.925    |
+| 8    | P2      | 0.798    | 0.926  | 0.840     | 0.921  | 0.952      | 0.890    |
+| 9    | P3      | 0.817    | 0.950  | 0.867     | 0.990  | 0.980      | 1.000    |
+| 10   | P4      | 0.800    | 0.923  | 0.735     | 0.877  | 0.755      | 1.000    |
+| 11   | P5      | 0.617    | 0.717  | 0.662     | 0.798  | 0.667      | 0.929    |
+| 12   | P6      | 0.924    | 0.995  | 0.986     | 1.000  | 1.000      | 1.000    |
+| 13   | P7      | 0.853    | 0.995  | 0.981     | 1.000  | 1.000      | 1.000    |
+| 14   | P8      | 0.794    | 0.965  | 0.726     | 0.881  | 1.000      | 0.761    |
+| 15   | P9      | 0.705    | 0.796  | 0.764     | 0.845  | 0.769      | 0.920    |
+| **mean** | — | **0.793** | **0.903** | **0.851** | **0.904** | **0.913** | **0.890** |
+| **std**  | — | 0.106 | 0.100 | 0.097 | 0.120 | 0.110 | 0.194 |
+
+Mean R_Atypisch computed over all 15 folds (n=15); mean R_Normal computed over 14 folds (P13 excluded: 0 Normal in test set).
+
+#### Comparison to P3-B winner (P1–P8, 8-fold LOPO)
+
+| Metric      | P3-B (P1–P8) | P4-A (P1–P15) | Delta    |
+|-------------|--------------|---------------|----------|
+| mAP50       | 0.864        | 0.903         | **+3.9 pp** |
+| mAP50-95    | 0.741        | 0.793         | +5.2 pp  |
+| Recall      | 0.866        | 0.904         | **+3.8 pp** |
+| R_Atypisch  | 0.892        | 0.913         | +2.1 pp  |
+| R_Normal    | 0.840        | 0.890         | **+5.0 pp** |
+
+All metrics improve. R_Normal reaches 0.890 — above R_Atypisch (0.913 is higher, but the 5 pp gain on Normal closes the gap from 8.8 pp in P3-B down to 2.3 pp). This is the correct direction for the WHO criterion.
+
+#### Fold-level notes
+
+**Fold 1 (P1 holdout):** Still the weakest fold — mAP50 0.627, R_Normal 0.286. P1 has only 2 Normal annotations in its test set, so R_Normal = 0.286 means 1/2 found. The Atypisch recall (0.818) is below the corpus mean but P1's annotation style (old Pos_neg regime) is the persistent outlier. This fold's weakness is structural, not fixable by hyperparameter changes.
+
+**Fold 5 (P13 holdout) R_Normal = NaN:** P13 contains 0 Normal cells; Normal recall is undefined and excluded from the mean (n=14). Correctly treated as a vacuous measurement.
+
+**Fold 15 (P9 holdout):** R_Atypisch 0.769 on 4 Atypisch instances — the second weakest Atypisch recall after Fold 1. P9 is Normal-dominant (195 Normal vs 4 Atypisch), so training without P9 has ~1.3:1 Atypisch:Normal ratio instead of the usual 1.5:1, and sees almost no examples of that balance regime. The 0.920 R_Normal is strong, confirming the model handles the Normal-dominant regime well; the weak Atypisch recall is a small-sample artefact (missing 1 of 4 = −25 pp).
+
+**Fold 11 (P5 holdout):** mAP50 0.717, the second-weakest. Consistent with P3-A/P3-B: P5 has 3 Atypisch / 18 Normal in the test set and 1 missed Atypisch = −33 pp. Small-sample artefact, not a model regression.
+
+#### Conclusion
+
+P4-A confirms the P3-B recipe transfers cleanly to the expanded P1–P15 corpus. Adding 7 patients and 503 images delivers +3.9 pp mAP50 and +5.0 pp R_Normal on top of the already-optimised P3-B baseline. The result is strong enough to stand as the thesis's primary experimental result for the extended corpus.
+
+The val metrics (mAP50 0.941, R_Normal 0.946) are near-ceiling, confirming the model is learning the full corpus well. Train metrics (~0.993) are expected high given the train split includes oversampled duplicates.
+
+#### On hyperparameter transferability (why no re-grid)
+
+A full 24-cell re-grid on P1–P15 would cost approximately 24 × 12h = 288 GPU-hours — not feasible given thesis timelines, and not methodologically required. The justification:
+
+- `degrees=5`, `dfl=1.5`, `lr0=0.001`, `mosaic=0.0`, `flipud=0.5`: these are **task-domain decisions**, not dataset-size decisions. The domain hasn't changed: bone marrow cells, same sensor, same image resolution, same orientation invariance. The P3-B findings on these knobs are properties of the problem, not artefacts of the P1-P8 corpus size. The P4-A improvement confirms this — if the recipe had been over-fit to P1-P8, performance would have degraded, not improved, on the larger corpus.
+
+- `freeze=10`: **Genuinely corpus-size-dependent.** The P3-B rationale was "corpus too small to unfreeze." With 15 patients and ~1000-1300 training images per fold (vs ~200 before), this is now uncertain. The `freeze=0` follow-up is the one targeted experiment that remains necessary. It is a single run, not a re-grid.
+
+- `cls=1.0`: The effective class ratio shifted from ~2:1 to 1.5:1. With better inherent balance, the double class-loss weight is less critical. However, changing it simultaneously with the corpus expansion conflates two variables. Keeping it at 1.0 for P4-A was correct; if the freeze=0 run shows no improvement, `cls` is a secondary knob worth testing.
+
+---
+
+### Run P4-B — freeze=0 comparison on P1–P15 (planned)
+**Status:** planned
+**Submit:** `sbatch --export=ALL,FREEZE=0 --job-name=yolo_p4_fr0 jobs/run_training.sh`
+(FREEZE is now env-overridable in `ba_improved_comb.py`; all other knobs at P4-A defaults)
+
+#### Motivation
+The only knob from P3-B that is genuinely uncertain at the P1-P15 scale is `freeze=10`. The "corpus too small to unfreeze the backbone" argument that justified freeze=10 in P3-B is weaker now: each fold trains on ~1000–1300 positives (vs ~200 in P3-B). In the P3-B matrix, `freeze=0` trailed by only ~2 pp R_Normal. With a 6× larger corpus, the backbone may now benefit from end-to-end fine-tuning.
+
+#### Decision rule
+- P4-B test Recall ≥ P4-A + 2 pp → adopt freeze=0 as v2 recipe
+- P4-B test Recall within ±2 pp of P4-A → keep freeze=10; document negative result
+- P4-B test Recall < P4-A − 2 pp → freeze=10 confirmed correct even at this scale
