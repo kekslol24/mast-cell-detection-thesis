@@ -69,6 +69,7 @@ PRETRAINED_WEIGHTS = "yolo11n.pt"
 EPOCHS_PER_FOLD    = 5000
 PATIENCE           = 100
 BATCH_SIZE         = 32
+BATCH_SIZE_VAL     = 16
 IMGSZ              = 512
 LR0                = 0.001    # critical: 0.01 causes catastrophic forgetting
 FREEZE             = 10       # freeze backbone, fine-tune neck + head only
@@ -472,11 +473,11 @@ def train_fold(fold_params):
     val_model    = YOLO(best_weights)
 
     metrics_test  = val_model.val(data=yaml_path, split='test',  verbose=False,
-                                  workers=0, device=gpu_id, batch=BATCH_SIZE)
+                                  workers=0, device=gpu_id, batch=BATCH_SIZE_VAL)
     metrics_val   = val_model.val(data=yaml_path, split='val',   verbose=False,
-                                  workers=0, device=gpu_id, batch=BATCH_SIZE)
+                                  workers=0, device=gpu_id, batch=BATCH_SIZE_VAL)
     metrics_train = val_model.val(data=yaml_path, split='train', verbose=False,
-                                  workers=0, device=gpu_id, batch=BATCH_SIZE)
+                                  workers=0, device=gpu_id, batch=BATCH_SIZE_VAL)
 
     # Per-class recall is the clinical metric. metrics.box.r is shape (nc,) but
     # may be empty/short when a class has no ground truth in the split (common
