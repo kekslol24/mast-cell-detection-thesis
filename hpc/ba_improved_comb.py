@@ -53,6 +53,7 @@ import multiprocessing as mp
 import torch
 from ultralytics import YOLO
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from patient_dir import PATIENT_IMAGE_DIRS
 
 # ==============================================================================
 # CONFIGURATION
@@ -104,26 +105,6 @@ OVERSAMPLE_CAP          = 25    # hard ceiling to avoid extreme duplication
 # Data roots
 BASE_DATA_PATH     = "/cfs/earth/scratch/vollmflo/BA/data"
 
-# Per-phase image directories for patients whose images live in a flat
-# directory (P1–P8). Resolution is case-insensitive at runtime.
-PATIENT_IMAGE_DIRS = {
-    "P1": os.path.join(BASE_DATA_PATH, "old", "P1", "Pos_neg 12241515", "images", "Train"),
-    "P2": os.path.join(BASE_DATA_PATH, "new", "P2", "images", "Train"),
-    "P3": os.path.join(BASE_DATA_PATH, "new", "P3", "images", "Train"),
-    "P4": os.path.join(BASE_DATA_PATH, "new", "P4", "images", "Train"),
-    "P5": os.path.join(BASE_DATA_PATH, "new", "P5", "images", "Train"),
-    "P6": os.path.join(BASE_DATA_PATH, "new", "P6", "images", "Train"),
-    "P7": os.path.join(BASE_DATA_PATH, "new", "P7", "images", "Train"),
-    "P8": os.path.join(BASE_DATA_PATH, "new", "P8", "images", "Train"),
-    "P9": os.path.join(BASE_DATA_PATH, "new", "P9",   "images", "Train"),
-    "P10": os.path.join(BASE_DATA_PATH, "new", "P10", "images", "Train"),
-    "P11": os.path.join(BASE_DATA_PATH, "new", "P11", "images", "Train"),
-    "P12": os.path.join(BASE_DATA_PATH, "new", "P12", "images", "Train"),
-    "P13": os.path.join(BASE_DATA_PATH, "new", "P13", "images", "Train"),
-    "P14": os.path.join(BASE_DATA_PATH, "new", "P14", "images", "Train"),
-    "P15": os.path.join(BASE_DATA_PATH, "new", "P15", "images", "Train"),
-}
-
 
 # Per-patient label directory override.
 # Default behaviour: replace 'images' → 'labels' in the image's path. That
@@ -139,20 +120,6 @@ PATIENT_LABEL_DIRS = {
 # held-out patient's data into train via FP/BG).
 P1_BG_DIR          = os.path.join(BASE_DATA_PATH, "old", "P1", "Negativ 12241515", "images", "train")
 
-# FP-negative Excel files per patient. Each Excel contains filenames of tiles
-# that the model incorrectly detected (confirmed false positives). They are
-# resolved against the patient's image index at runtime and added to train-only
-# splits as empty-label negatives.
-PATIENT_FP_EXCELS = {
-    "P2":  os.path.join(BASE_DATA_PATH, "old",  "P2",  "Task 6_1224151_negative.xlsx"),
-    "P9":  os.path.join(BASE_DATA_PATH, "new",  "P9",  "Task39_V2.xlsx"),
-    "P10": os.path.join(BASE_DATA_PATH, "new",  "P10", "Task26_V2.xlsx"),
-    "P11": os.path.join(BASE_DATA_PATH, "new",  "P11", "Task27_V2.xlsx"),
-    "P12": os.path.join(BASE_DATA_PATH, "new",  "P12", "Task21_V2.xlsx"),
-    "P13": os.path.join(BASE_DATA_PATH, "new",  "P13", "Task24_V2.xlsx"),
-    "P14": os.path.join(BASE_DATA_PATH, "new",  "P14", "Task25_V2.xlsx"),
-    "P15": os.path.join(BASE_DATA_PATH, "new",  "P15", "Task23_V2.xlsx"),
-}
 
 CLASS_NAMES        = ["Atypisch", "Normal"]
 NC                 = len(CLASS_NAMES)
