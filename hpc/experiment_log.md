@@ -38,6 +38,44 @@ PROJECT_DIR = f"./{os.environ.get('SLURM_JOB_NAME', 'local_run')}"
 
 **Clean runs** (wide ID gaps, submitted in isolation): **P2-D (319416)** and **P2-G (319934)**.
 
+### `per_class` positional indexing bug (measurement bug, not fixed)
+
+`per_class(metrics, idx)` in `ba_improved_comb.py` reads per-class recall by position in `metrics.box.r`:
+
+```python
+def per_class(metrics, idx):
+    arr = metrics.box.r
+    return float(arr[idx]) if idx < len(arr) else float('nan')
+```
+
+Ultralytics only includes a class in `ap_class_index` (and therefore in `metrics.box.r`) if that class has either GT instances or model predictions in the evaluated split. When a class is absent from both, the array is shorter than `nc` and positional indexing breaks.
+
+**Observed symptom:** Fold 5 (P13 holdout) reports R_Normal = NaN in every run, even though P13 has 7 Normal GT instances. P13 has 0 Atypisch GT, and the model makes zero class-0 predictions on P13's 7 images — so class 0 is entirely absent from evaluation. `metrics.box.r` = `[0.954]` (length 1, Normal recall only):
+
+- `per_class(_, 0)` → `arr[0]` = 0.954 → reported as R_Atypisch (actually Normal recall)
+- `per_class(_, 1)` → index out of bounds → NaN → reported as R_Normal
+
+The actual Normal recall for Fold 5 is **0.954** across all runs. It is sitting in the R_Atypisch column.
+
+**Why other pure-Normal patients (P6, P8, P15) are unaffected:** the model makes at least one class-0 false-positive prediction on those patients' images, so Ultralytics includes class 0 in `ap_class_index` with vacuous recall = 1.0. The array stays length 2 and positional indexing accidentally works. The R_Atypisch = 1.000 reported for those folds is vacuous and meaningless; the R_Normal values are correct.
+
+**Fix (not yet applied):** use `ap_class_index` for the mapping:
+
+```python
+def per_class(metrics, class_id):
+    try:
+        idx_map = list(metrics.box.ap_class_index)
+        if class_id not in idx_map:
+            return float('nan')
+        return float(metrics.box.r[idx_map.index(class_id)])
+    except (AttributeError, IndexError, TypeError):
+        return float('nan')
+```
+
+Until fixed, treat any fold where a holdout patient is pure-single-class as having potentially swapped or missing per-class recall values. Cross-check against the overall `Recall` column: if `Recall == R_Atypisch` and `R_Normal == NaN` for a pure-Normal holdout, the true Normal recall is `R_Atypisch`.
+
+---
+
 ### BG_RATIO bug (fixed 2026-05-06)
 
 `bg_paths` was sampled in `__main__` but never passed into `fold_tasks`, so background images never reached the training workers. All runs with `BG_RATIO > 0` were effectively `BG_RATIO = 0`. The "backgrounds" YOLO reported scanning were just FP negatives × oversample (e.g. 330 × 3 = 990).
@@ -1425,14 +1463,15 @@ The P3-B winner (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0, mosaic=0.0,
 
 ---
 
-### Run P4-A — P1–P15 LOPO baseline, P3-B recipe
+### Run P4-A — P1–P15 LOPO baseline, P3-A recipe (degrees=0)
 **SLURM:** 334000 (`yolo_new_v3`)
 **Results dir:** `yolo_new_v3/fold_{1..15}_{P1..P15}/`
 **Script:** `ba_improved_comb.py` (P1–P15 extension with generalised FP loading and auto oversample)
 **Status:** complete, 2026-05-23
 
 #### Setup
-- Recipe identical to P3-B winner: `FREEZE=10, DEGREES=5.0, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, AdamW, imgsz=512, batch=32`
+- `FREEZE=10, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, AdamW, imgsz=512, batch=32`
+- **`degrees=0.0`, `dfl=1.5` — YOLO defaults** (neither was explicitly passed to `model.train()` at the time of this run; `DEGREES` and `DFL` were added as env-overridable constants in `ba_improved_comb.py` after this run completed). This makes P4-A equivalent to the P3-A recipe (degrees=0) applied to the larger corpus, **not** the full P3-B winner recipe (degrees=5).
 - 15-fold LOPO CV (one patient held out per fold)
 - Per-patient oversampling: P1–P8 factors pinned from P3-B; P9–P15 computed at runtime (all ×1 — fixed P5–P8 factors already achieve 1.5:1 effective ratio, below the 2.0 target)
 - FP negatives from 8 Excel files (P2 + P9–P15): 1434 resolved total, 1 unresolved (P2: `tile_87_38.jpeg`)
@@ -1486,23 +1525,25 @@ Effective ratio = 1.5 : 1  (target 2.0 : 1)
 
 Mean R_Atypisch computed over all 15 folds (n=15); mean R_Normal computed over 14 folds (P13 excluded: 0 Normal in test set).
 
-#### Comparison to P3-B winner (P1–P8, 8-fold LOPO)
+#### Comparison to prior runs (P1–P8, 8-fold LOPO)
 
-| Metric      | P3-B (P1–P8) | P4-A (P1–P15) | Delta    |
-|-------------|--------------|---------------|----------|
-| mAP50       | 0.864        | 0.903         | **+3.9 pp** |
-| mAP50-95    | 0.741        | 0.793         | +5.2 pp  |
-| Recall      | 0.866        | 0.904         | **+3.8 pp** |
-| R_Atypisch  | 0.892        | 0.913         | +2.1 pp  |
-| R_Normal    | 0.840        | 0.890         | **+5.0 pp** |
+The fair comparison for P4-A (degrees=0, freeze=10, P1–P15) is P3-A (degrees=0, freeze=10, P1–P8) — same recipe, different corpus size. P3-B winner is shown for reference but uses degrees=5, so the delta includes both the corpus expansion and the degrees difference.
 
-All metrics improve. R_Normal reaches 0.890 — above R_Atypisch (0.913 is higher, but the 5 pp gain on Normal closes the gap from 8.8 pp in P3-B down to 2.3 pp). This is the correct direction for the WHO criterion.
+| Metric      | P3-A deg=0 (P1–P8) | P3-B winner deg=5 (P1–P8) | P4-A deg=0 (P1–P15) | P3-A→P4-A delta |
+|-------------|---------------------|---------------------------|----------------------|-----------------|
+| mAP50       | 0.844               | 0.864                     | 0.903                | **+5.9 pp**     |
+| mAP50-95    | 0.718               | 0.741                     | 0.793                | +7.5 pp         |
+| Recall      | 0.808               | 0.866                     | 0.904                | **+9.6 pp**     |
+| R_Atypisch  | 0.862               | 0.892                     | 0.913                | +5.1 pp         |
+| R_Normal    | 0.754               | 0.840                     | 0.890                | **+13.6 pp**    |
+
+The corpus expansion from P1–P8 to P1–P15 alone (holding recipe constant at degrees=0) delivers +5.9 pp mAP50 and +13.6 pp R_Normal. This is a large effect — the seven new patients, especially P9 (195 Normal annotations), substantially improved Normal-class generalisation.
 
 #### Fold-level notes
 
 **Fold 1 (P1 holdout):** Still the weakest fold — mAP50 0.627, R_Normal 0.286. P1 has only 2 Normal annotations in its test set, so R_Normal = 0.286 means 1/2 found. The Atypisch recall (0.818) is below the corpus mean but P1's annotation style (old Pos_neg regime) is the persistent outlier. This fold's weakness is structural, not fixable by hyperparameter changes.
 
-**Fold 5 (P13 holdout) R_Normal = NaN:** P13 contains 0 Normal cells; Normal recall is undefined and excluded from the mean (n=14). Correctly treated as a vacuous measurement.
+**Fold 5 (P13 holdout) R_Normal = NaN:** measurement bug — see `per_class` positional indexing bug in Infrastructure Notes. P13 has 7 Normal GT and 0 Atypisch GT. The model makes no class-0 predictions on P13's images, so Ultralytics omits class 0 from `metrics.box.r`, producing a length-1 array. `per_class(_, 1)` hits an out-of-bounds index → NaN. The true Normal recall is 0.954 (shown in the R_Atypisch column). Excluded from the R_Normal mean (n=14) but the underlying model performance is fine.
 
 **Fold 15 (P9 holdout):** R_Atypisch 0.769 on 4 Atypisch instances — the second weakest Atypisch recall after Fold 1. P9 is Normal-dominant (195 Normal vs 4 Atypisch), so training without P9 has ~1.3:1 Atypisch:Normal ratio instead of the usual 1.5:1, and sees almost no examples of that balance regime. The 0.920 R_Normal is strong, confirming the model handles the Normal-dominant regime well; the weak Atypisch recall is a small-sample artefact (missing 1 of 4 = −25 pp).
 
@@ -1526,15 +1567,23 @@ A full 24-cell re-grid on P1–P15 would cost approximately 24 × 12h = 288 GPU-
 
 ---
 
-### Run P4-B — freeze=0 comparison on P1–P15 (planned)
-**Status:** planned
-**Submit:** `sbatch --export=ALL,FREEZE=0 --job-name=yolo_p4_fr0 jobs/run_training.sh`
-(FREEZE is now env-overridable in `ba_improved_comb.py`; all other knobs at P4-A defaults)
+### Run P4-B — degrees=5, freeze=10 baseline on P1–P15
+**SLURM:** 337215 (`yolo_new_v3_freeze10`)
+**Results dir:** `yolo_new_v3_freeze10/`
+**Status:** queued (pending QOSMaxCpuPerUserLimit — will start after P4-C finishes)
 
 #### Motivation
-The only knob from P3-B that is genuinely uncertain at the P1-P15 scale is `freeze=10`. The "corpus too small to unfreeze the backbone" argument that justified freeze=10 in P3-B is weaker now: each fold trains on ~1000–1300 positives (vs ~200 in P3-B). In the P3-B matrix, `freeze=0` trailed by only ~2 pp R_Normal. With a 6× larger corpus, the backbone may now benefit from end-to-end fine-tuning.
+P4-A ran with degrees=0 (YOLO default, not explicitly set). The P3-B matrix showed degrees=5 added +4 pp R_Normal on P1–P8. Whether that gain transfers to the larger P1–P15 corpus is unknown. P4-B establishes the degrees=5 baseline on P1–P15 before the freeze comparison — without it, any freeze=0 run would differ from P4-A in two knobs simultaneously (degrees and freeze), confounding the interpretation.
 
-#### Decision rule
-- P4-B test Recall ≥ P4-A + 2 pp → adopt freeze=0 as v2 recipe
-- P4-B test Recall within ±2 pp of P4-A → keep freeze=10; document negative result
-- P4-B test Recall < P4-A − 2 pp → freeze=10 confirmed correct even at this scale
+### Run P4-C — degrees=5, freeze=0 comparison on P1–P15
+**SLURM:** 337214 (`yolo_new_v3_freeze0`)
+**Results dir:** `yolo_new_v3_freeze0/`
+**Status:** running (started first — freeze=10 job queued behind it)
+
+#### Motivation
+Clean freeze=0 vs freeze=10 comparison, both with degrees=5. P4-B is the reference; P4-C is the test.
+
+#### Decision rule (applies to P4-B vs P4-C comparison)
+- P4-C test Recall ≥ P4-B + 2 pp → adopt freeze=0 as deployment recipe
+- P4-C test Recall within ±2 pp of P4-B → keep freeze=10; document negative result
+- P4-C test Recall < P4-B − 2 pp → freeze=10 confirmed correct even at P1–P15 scale
