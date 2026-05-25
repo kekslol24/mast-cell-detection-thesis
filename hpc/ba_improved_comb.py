@@ -53,7 +53,7 @@ import multiprocessing as mp
 import torch
 from ultralytics import YOLO
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from patient_dir import PATIENT_IMAGE_DIRS
+from patient_dir import PATIENT_IMAGE_DIRS, PATIENT_FP_EXCELS
 
 # ==============================================================================
 # CONFIGURATION
@@ -85,20 +85,11 @@ COS_LR             = True
 BG_RATIO           = int(os.environ.get("BG_RATIO", "1"))
 FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE", "1"))
 
-# Manually validated oversample factors for P1–P8 (see experiment_log.md).
-# P9–P15 are NOT listed here — their factors are computed automatically at
-# runtime by compute_oversample_factors() to target a ~2:1 Atypisch:Normal
-# ratio. Add a patient here to pin its factor and skip auto-computation.
-PATIENT_OVERSAMPLE_FIXED = {
-    "P1":  1,    # SM-dominant, already over-represented
-    "P2":  1,
-    "P3":  1,
-    "P4":  1,
-    "P5":  8,    # 3 atyp / 18 norm — Normal-rich
-    "P6":  15,   # 0 atyp /  6 norm — pure Normal, scarcest
-    "P7":  8,    # 8 atyp / 12 norm — mixed
-    "P8":  10,   # 0 atyp / 24 norm — pure Normal
-}
+# All patients use auto-computed oversample factors (see compute_oversample_factors).
+# The P1–P8 values were manually validated for the 15-patient corpus; with P1–P53
+# the global class balance changes enough that auto-computation is more appropriate.
+# To pin a specific patient's factor, add it here: {"P1": 1, "P5": 8, ...}
+PATIENT_OVERSAMPLE_FIXED = {}
 OVERSAMPLE_TARGET_RATIO = 2.0   # global effective Atypisch:Normal goal
 OVERSAMPLE_CAP          = 25    # hard ceiling to avoid extreme duplication
 
@@ -515,8 +506,8 @@ if __name__ == "__main__":
             "normal":   norm_count,
         }
 
-    # Compute oversample factors: P1–P8 use pinned values, P9–P15 are solved
-    # automatically to target OVERSAMPLE_TARGET_RATIO globally.
+    # Compute oversample factors: all patients solved automatically to target
+    # OVERSAMPLE_TARGET_RATIO globally (PATIENT_OVERSAMPLE_FIXED is empty).
     oversample_factors = compute_oversample_factors(summary, PATIENT_OVERSAMPLE_FIXED)
 
     # Effective weighted counts after oversampling.
