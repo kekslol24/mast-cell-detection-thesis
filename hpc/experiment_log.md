@@ -1764,6 +1764,21 @@ The raw ratio improved from 3.3:1 (P1–P15) to 2.9:1 (P1–P53 annotated patien
 
 **Secondary open question:** with a 2.9:1 raw ratio, `cls=1.0` (double class-loss weight, set when P1–P8 was 14:1) may be less necessary. Not tested at P1–P53 scale — would require a separate run and is a lower priority than establishing the baseline result.
 
+4. **`ba_improved_comb.py` — LOPO val-split crash on singleton patients fixed (2026-05-25).** When
+   carving the 15% in-fold validation split in the LOPO branch, `train_test_split(..., stratify=y)`
+   requires at least 2 samples per stratum (patient). Patients P24, P28, P29, P31, P39, P40, P45,
+   P50 each contribute only 1 annotated image to the corpus and appear in a fold's `train_pos_full`
+   list as a singleton. The stratified split crashed with `ValueError: The least populated classes
+   in y have only 1 member`.
+
+   Fix: before the split, identify singleton patients (`np.unique` + `return_counts=True`), pull
+   their images out of the stratified pool, run the split on multi-sample patients only, then
+   concatenate singletons back into the train portion. The val set is unaffected: a singleton would
+   have contributed at most 0.15 of one image to val; keeping it in train is both correct and
+   maximises training signal.
+
+---
+
 ### Next run — P1–P53 baseline
 
 **Recipe:** P3-B winner confirmed by P4-B/P4-C — `FREEZE=10, DEGREES=5, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5`.
