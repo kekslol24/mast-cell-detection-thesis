@@ -394,7 +394,8 @@ def train_fold(fold_params):
             'names': CLASS_NAMES,
         }, f)
 
-    gpu_id = fold_idx % 2
+    #gpu_id = fold_idx % 2
+    gpu_id = fold_idx % int(os.environ.get("N_GPUS", "2"))
 
 
     # `cfg=...` is intentionally NOT used — tuner-derived hyperparameters are
@@ -478,7 +479,7 @@ def train_fold(fold_params):
 # ==============================================================================
 if __name__ == "__main__":
     # ------------------------------------------------------------------
-    # 1. Load annotated positives from all patients (P1–P15), with patient tag
+    # 1. Load annotated positives from all patients, with patient tag
     # ------------------------------------------------------------------
     pos_with_meta: list[tuple[str, str]] = []   # (img_path, patient)
     summary: dict[str, dict] = {}
@@ -493,6 +494,8 @@ if __name__ == "__main__":
             if not os.path.exists(lbl):
                 continue
             classes = parse_classes_in_label(lbl)
+            if not classes:
+                continue # skip empty labels (confirmed BG tiles)
             verified.append(img)
             atyp_count += sum(1 for _ in open(lbl) if _.split() and _.split()[0] == "0")
             norm_count += sum(1 for _ in open(lbl) if _.split() and _.split()[0] == "1")
