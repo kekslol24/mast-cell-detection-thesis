@@ -599,11 +599,18 @@ if __name__ == "__main__":
 
             # Carve out a small in-train val set (15%) stratified by patient
             # so each train patient appears in val proportionally.
+            # Patients with only 1 image cannot be stratified — keep them in train.
             X = np.array([m[0] for m in train_pos_full])
             y = np.array([m[1] for m in train_pos_full])
+            unique_pats, pat_counts = np.unique(y, return_counts=True)
+            singleton_mask = np.isin(y, unique_pats[pat_counts < 2])
+            X_single, y_single = X[singleton_mask], y[singleton_mask]
+            X_multi,  y_multi  = X[~singleton_mask], y[~singleton_mask]
             X_tr, X_va, y_tr, y_va = train_test_split(
-                X, y, test_size=0.15, stratify=y, random_state=42,
+                X_multi, y_multi, test_size=0.15, stratify=y_multi, random_state=42,
             )
+            X_tr = np.concatenate([X_tr, X_single])
+            y_tr = np.concatenate([y_tr, y_single])
             train_pos = list(zip(X_tr.tolist(), y_tr.tolist()))
             val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
 

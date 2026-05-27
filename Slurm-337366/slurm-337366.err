@@ -133,3 +133,4 @@
     Setting websocket_ping_timeout=30000
 [W 2026-05-25 11:41:46.180 ServerApp] 404 GET /nbextensions/jupyter-js-widgets/extension.js (@192.168.32.71) 2.20ms referer=None
 [W 2026-05-25 11:41:46.181 ServerApp] 404 GET /nbextensions/jupyter-js-widgets/extension.js (@192.168.32.71) 0.72ms referer=None
+slurmstepd: error: *** JOB 337366 ON node301 CANCELLED AT 2026-05-25T12:11:32 ***

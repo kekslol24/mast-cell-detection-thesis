@@ -1570,20 +1570,203 @@ A full 24-cell re-grid on P1–P15 would cost approximately 24 × 12h = 288 GPU-
 ### Run P4-B — degrees=5, freeze=10 baseline on P1–P15
 **SLURM:** 337215 (`yolo_new_v3_freeze10`)
 **Results dir:** `yolo_new_v3_freeze10/`
-**Status:** queued (pending QOSMaxCpuPerUserLimit — will start after P4-C finishes)
+**Status:** complete
 
 #### Motivation
-P4-A ran with degrees=0 (YOLO default, not explicitly set). The P3-B matrix showed degrees=5 added +4 pp R_Normal on P1–P8. Whether that gain transfers to the larger P1–P15 corpus is unknown. P4-B establishes the degrees=5 baseline on P1–P15 before the freeze comparison — without it, any freeze=0 run would differ from P4-A in two knobs simultaneously (degrees and freeze), confounding the interpretation.
+P4-A ran with degrees=0 (YOLO default, not explicitly set). The P3-B matrix showed degrees=5 added +4 pp R_Normal on P1–P8. P4-B establishes the degrees=5 baseline on P1–P15 before the freeze comparison.
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50  | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|--------|------------|----------|
+| 1    | P1      | 0.5835 | 0.5755 | 0.8653     | 0.2857   |
+| 2    | P10     | 0.9771 | 0.9942 | 1.0000     | 0.9883   |
+| 3    | P11     | 0.8914 | 0.8374 | 0.9412     | 0.7335   |
+| 4    | P12     | 0.9344 | 0.9306 | 0.8612     | 1.0000   |
+| 5    | P13     | 0.9007 | 1.0000 | 1.0000     | NaN*     |
+| 6    | P14     | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 7    | P15     | 0.9542 | 0.9358 | 1.0000     | 0.8716   |
+| 8    | P2      | 0.8641 | 0.8587 | 0.9174     | 0.8000   |
+| 9    | P3      | 0.9167 | 0.9808 | 0.9804     | 0.9811   |
+| 10   | P4      | 0.9333 | 0.9127 | 0.8255     | 1.0000   |
+| 11   | P5      | 0.6613 | 0.6310 | 0.3333     | 0.9286   |
+| 12   | P6      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 13   | P7      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 14   | P8      | 0.8802 | 0.9118 | 1.0000     | 0.8235   |
+| 15   | P9      | 0.8175 | 0.8498 | 0.7692     | 0.9303   |
+| **mean** | — | **0.8866** | **0.8945** | **0.8996** | **0.8816** |
+
+*P13 NaN: see `per_class` positional indexing bug. True R_Normal = 1.0000 (in R_Atypisch column). Excluded from R_Normal mean (n=14).
+
+---
 
 ### Run P4-C — degrees=5, freeze=0 comparison on P1–P15
 **SLURM:** 337214 (`yolo_new_v3_freeze0`)
 **Results dir:** `yolo_new_v3_freeze0/`
-**Status:** running (started first — freeze=10 job queued behind it)
+**Status:** complete
 
 #### Motivation
 Clean freeze=0 vs freeze=10 comparison, both with degrees=5. P4-B is the reference; P4-C is the test.
 
-#### Decision rule (applies to P4-B vs P4-C comparison)
-- P4-C test Recall ≥ P4-B + 2 pp → adopt freeze=0 as deployment recipe
-- P4-C test Recall within ±2 pp of P4-B → keep freeze=10; document negative result
-- P4-C test Recall < P4-B − 2 pp → freeze=10 confirmed correct even at P1–P15 scale
+#### Test results — per fold
+
+| Fold | Holdout | mAP50  | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|--------|------------|----------|
+| 1    | P1      | 0.5754 | 0.5751 | 0.8645     | 0.2857   |
+| 2    | P10     | 0.9525 | 1.0000 | 1.0000     | 1.0000   |
+| 3    | P11     | 0.9195 | 0.8029 | 0.8824     | 0.7235   |
+| 4    | P12     | 0.9487 | 0.9756 | 0.9513     | 1.0000   |
+| 5    | P13     | 0.8764 | 1.0000 | 1.0000     | NaN*     |
+| 6    | P14     | 0.9950 | 0.9897 | 0.9795     | 1.0000   |
+| 7    | P15     | 0.9732 | 0.9409 | 0.9388     | 0.9431   |
+| 8    | P2      | 0.9264 | 0.9118 | 0.9683     | 0.8554   |
+| 9    | P3      | 0.8187 | 0.8343 | 0.8686     | 0.8000   |
+| 10   | P4      | 0.9288 | 0.9562 | 0.9123     | 1.0000   |
+| 11   | P5      | 0.6716 | 0.6310 | 0.3333     | 0.9286   |
+| 12   | P6      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 13   | P7      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 14   | P8      | 0.8706 | 0.9308 | 1.0000     | 0.8616   |
+| 15   | P9      | 0.8023 | 0.8442 | 0.7417     | 0.9467   |
+| **mean** | — | **0.8833** | **0.8928** | **0.8960** | **0.8818** |
+
+*P13 NaN: same per_class bug. Excluded from R_Normal mean (n=14).
+
+#### P4-B vs P4-C comparison
+
+| Metric      | P4-B freeze=10 | P4-C freeze=0 | Delta       |
+|-------------|----------------|---------------|-------------|
+| mAP50       | 0.8866         | 0.8833        | −0.33 pp    |
+| Recall      | 0.8945         | 0.8928        | −0.17 pp    |
+| R_Atypisch  | 0.8996         | 0.8960        | −0.36 pp    |
+| R_Normal    | 0.8816         | 0.8818        | +0.02 pp    |
+
+**Decision: freeze=10 confirmed.** All deltas are within ±0.4 pp — far inside the ±2 pp threshold. Unfreezing the full backbone on P1–P15 provides no benefit. The "corpus too small to unfreeze" intuition holds even at ~1000–1300 training images per fold.
+
+**Implication for P1–P53:** No freeze comparison run is needed at the larger corpus scale. The P3-B winner recipe (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0`) is confirmed as the deployment recipe and will be used as-is for the P1–P53 baseline run.
+
+---
+
+## Phase 5 — Full corpus P1–P53 (added 2026-05-25)
+
+### Dataset additions
+
+38 new patients (P16–P53) acquired from USZ. All follow the same structure as P9–P15: images under `new/P{N}/images/Train/`, labels under `new/P{N}/labels/Train/`. Data was uploaded as task-numbered ZIPs, extracted on the HPC, and source ZIPs deleted. Setup documented in `testing.ipynb`.
+
+**FP-negative Excel files (all confirmed present on disk):**
+
+| Patient | Excel               | Patient | Excel               |
+|---------|---------------------|---------|---------------------|
+| P16     | Task19_V2.xlsx      | P35     | Task56_V2.xlsx      |
+| P17     | Task20_V2.xlsx      | P36     | Task57_V2.xlsx      |
+| P18     | Task22_V2.xlsx      | P37     | Task58_V2.xlsx      |
+| P19     | Task40_V2.xlsx      | P38     | Task59_V2.xlsx      |
+| P20     | Task41_V2.xlsx      | P39     | Task60_V2xlsx.xlsx† |
+| P21     | Task42_V2.xlsx      | P40     | Task61_V2.xlsx      |
+| P22     | Task43_V2.xlsx      | P41     | Task62_V2.xlsx      |
+| P23     | Task44_V2.xlsx      | P42     | Task63_V2.xlsx      |
+| P24     | Task45_V2.xlsx      | P43     | Task64_V2.xlsx      |
+| P25     | Task46_V2.xlsx      | P44     | Task65_V2xlsx.xlsx† |
+| P26     | Task47_V2.xlsx      | P45     | Task66_V2.xlsx      |
+| P27     | Task48_V2.xlsx      | P46     | Task67_V2.xlsx      |
+| P28     | Task49_V2.xlsx      | P47     | Task68_V2.xlsx      |
+| P29     | Task50_V2.xlsx      | P48     | Task69_V2.xlsx      |
+| P30     | Task51_V2.xlsx      | P49     | Task70_V2.xlsx      |
+| P31     | Tas52_V2.xlsx†      | P50     | Task71_V2.xlsx      |
+| P32     | Task53_V2.xlsx      | P51     | Task73_V2.xlsx      |
+| P33     | Task54_V2.xlsx      | P52     | Task74_V2.xlsx      |
+| P34     | Task55_V2.xlsx      | P53     | Task75_V2.xlsx      |
+
+† Filename typo in the actual on-disk file; `patient_dir.py` matches the typo exactly. Task numbers 21, 28–38, 52, 60, 65, 72 are absent — those annotation tasks were not assigned to new patients in this batch.
+
+**Annotation counts for P16–P53 (testing.ipynb, 2026-05-25):**
+
+Patients without a `labels/` folder contain **no mast cells** — they are pure-FP slides (only confirmed false-positive detections). They contribute zero positive training examples but their Excel FP entries are loaded normally via `PATIENT_FP_EXCELS`. The pipeline handles this correctly: `load_patient_images` returns empty → 0 positives; `build_disk_index` still globs the images dir for FP resolution.
+
+| Patient | Files | Atypisch | Normal | Notes |
+|---------|-------|----------|--------|-------|
+| P16 | 23 | 22 | 1 | |
+| P17 | 69 | 69 | 0 | |
+| P18 | 82 | 81 | 1 | |
+| P19 | — | — | — | pure-FP (no mast cells) |
+| P20 | — | — | — | pure-FP |
+| P21 | — | — | — | pure-FP |
+| P22 | — | — | — | pure-FP |
+| P23 | — | — | — | pure-FP |
+| P24 | 1 | 1 | 0 | |
+| P25 | — | — | — | pure-FP |
+| P26 | — | — | — | pure-FP |
+| P27 | — | — | — | pure-FP |
+| P28 | 1 | 1 | 0 | |
+| P29 | 1 | 1 | 0 | |
+| P30 | — | — | — | pure-FP |
+| P31 | 1 | 0 | 1 | |
+| P32 | — | — | — | pure-FP |
+| P33 | — | — | — | pure-FP |
+| P34 | — | — | — | pure-FP |
+| P35 | — | — | — | pure-FP |
+| P36 | — | — | — | pure-FP |
+| P37 | 2 | 0 | 2 | |
+| P38 | — | — | — | pure-FP |
+| P39 | 1 | 0 | 1 | |
+| P40 | 1 | 0 | 1 | |
+| P41 | — | — | — | pure-FP |
+| P42 | — | — | — | pure-FP |
+| P43 | 3 | 0 | 3 | |
+| P44 | 2 | 0 | 2 | |
+| P45 | 1 | 0 | 1 | |
+| P46 | 4 | 0 | 4 | |
+| P47 | 3 | 0 | 3 | |
+| P48 | 7 | 7 | 0 | |
+| P49 | — | — | — | pure-FP |
+| P50 | 1 | 0 | 1 | |
+| P51 | 92 | 5 | 90 | |
+| P52 | 5 | 1 | 4 | |
+| P53 | 5 | 0 | 5 | |
+
+**Updated full corpus totals (P1–P53, annotated patients only):**
+Files: 1869 | Atypisch: 1476 | Normal: 511 | Raw ratio: 2.9:1
+(vs P1–P15: 1564 files, 1288/391, 3.3:1 — Normal share growing with new data)
+
+**FP-negative Excel row counts (testing.ipynb cell 42, 2026-05-25):**
+
+| P | FP  | P | FP  | P | FP  | P | FP  |
+|---|-----|---|-----|---|-----|---|-----|
+| P9  | 729 | P20 | 18  | P31 | 66  | P42 | 142 |
+| P10 | 75  | P21 | 40  | P32 | 136 | P43 | 198 |
+| P11 | 28  | P22 | 79  | P33 | 102 | P44 | 46  |
+| P12 | 89  | P23 | 59  | P34 | 43  | P45 | 35  |
+| P13 | 72  | P24 | 13  | P35 | 21  | P46 | 56  |
+| P14 | 56  | P25 | 53  | P36 | 6   | P47 | 60  |
+| P15 | 48  | P26 | 38  | P37 | 14  | P48 | 65  |
+| P16 | 101 | P27 | 160 | P38 | 10  | P49 | 30  |
+| P17 | 92  | P28 | 72  | P39 | 6   | P50 | 106 |
+| P18 | 42  | P29 | 87  | P40 | 47  | P51 | 122 |
+| P19 | 142 | P30 | 10  | P41 | 94  | P52 | 56  |
+|     |     |     |     |     |     | P53 | 73  |
+
+Total P9–P53 FP entries: 3637. Largest pools: P43 (198), P27 (160), P9 (729 — confirmed systematic misclassification on that patient's slide texture), P19 (142), P42 (142).
+
+### Code changes (2026-05-25)
+
+1. **`patient_dir.py` — FP Excel filenames filled in.** All 38 entries for P16–P53 in `PATIENT_FP_EXCELS` updated from empty strings to the correct filenames.
+
+2. **`ba_improved_comb.py` — `PATIENT_FP_EXCELS` import added.** The symbol was used at line 567 but never imported — a latent `NameError` that would have crashed the FP-loading block at runtime.
+
+3. **`ba_improved_comb.py` — `PATIENT_OVERSAMPLE_FIXED` emptied.** The previously pinned P1–P8 factors (×1–×15) were validated for the 8–15 patient corpus. With 53 patients the global class balance shifts substantially; `compute_oversample_factors()` now handles all patients. The printed corpus summary will show the computed factors and resulting effective ratio. To restore a pin, add the patient to the dict.
+
+### On oversampling necessity at P1–P53 scale
+
+The raw ratio improved from 3.3:1 (P1–P15) to 2.9:1 (P1–P53 annotated patients), closer to the 2.0:1 target. The question of whether oversampling is still needed is addressed below.
+
+**Still beneficial, but effect is smaller.** The global ratio has improved but per-patient distribution remains highly uneven: P17 has 69 Atypisch / 0 Normal, P16/P18 are nearly pure-Atypisch, while P51 (5/90), P9 (4/195) are Normal-dominant. Within each LOPO fold the effective ratio depends on which patient is held out — oversampling stabilises this variance.
+
+**In practice, most factors will be 1.** The same dynamic observed in P4-A will repeat: the existing Normal-heavy patients (P5, P6, P8, P9, P51) and the larger corpus pull the global ratio close to or below 2.0:1 before the auto-solver even reaches the Atypisch-dominant patients. `compute_oversample_factors()` will assign k=1 to the majority and boost only the most Normal-rich patients. The mechanism is correct and harmless to keep; the printed corpus summary will show the actual factors.
+
+**Secondary open question:** with a 2.9:1 raw ratio, `cls=1.0` (double class-loss weight, set when P1–P8 was 14:1) may be less necessary. Not tested at P1–P53 scale — would require a separate run and is a lower priority than establishing the baseline result.
+
+### Next run — P1–P53 baseline
+
+**Recipe:** P3-B winner confirmed by P4-B/P4-C — `FREEZE=10, DEGREES=5, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5`.
+**CV:** LOPO, 53 folds.
+**Oversampling:** fully auto-computed for all patients (`PATIENT_OVERSAMPLE_FIXED = {}`).
+**FP negatives:** all patients where an Excel exists (P2 + P9–P53), totalling 3637 entries.
