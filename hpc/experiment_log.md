@@ -1770,3 +1770,36 @@ The raw ratio improved from 3.3:1 (P1–P15) to 2.9:1 (P1–P53 annotated patien
 **CV:** LOPO, 53 folds.
 **Oversampling:** fully auto-computed for all patients (`PATIENT_OVERSAMPLE_FIXED = {}`).
 **FP negatives:** all patients where an Excel exists (P2 + P9–P53), totalling 3637 entries.
+
+---
+
+### Code fix — empty-label images incorrectly included as positives (2026-05-27)
+
+#### Bug
+
+In the main loading loop of `ba_improved_comb.py`, an image was added to `pos_with_meta` (and therefore to LOPO fold test sets) as long as its label file **existed on disk**, regardless of whether it contained any annotations:
+
+```python
+classes = parse_classes_in_label(lbl)   # result was computed but never used to filter
+verified.append(img)                     # added even if classes == set()
+```
+
+A patient whose images all have empty `.txt` label files (= confirmed negatives, no mast cells) would still appear in `pos_with_meta`, receive its own LOPO fold, and produce a test set with **zero ground-truth boxes**. Metrics for that fold are undefined (recall = NaN or vacuous) and mislead the aggregate mean.
+
+This differs from patients whose `labels/` folder is entirely absent — those were already handled correctly because `os.path.exists(lbl)` returns False and the images are skipped. The bug only affected patients with a labels directory present but all files empty.
+
+#### Fix
+
+Added a one-line guard after parsing classes:
+
+```python
+if not classes:
+    continue   # empty label = no mast cells; skip from positives and LOPO folds
+```
+
+#### Implications
+
+- **Pure-FP patients with empty label files no longer get a LOPO fold.** Their `verified` list stays empty → they are absent from `pos_with_meta` → `patients = sorted({m[1] for m in pos_with_meta})` excludes them automatically.
+- **Their FP-negative Excel entries are unaffected.** `neg_with_meta` is populated separately via `PATIENT_FP_EXCELS`; those images still appear in `train_neg` for every other patient's fold.
+- **Images from `PATIENT_IMAGE_DIRS` with empty labels are now silently dropped** — they do not enter `pos_with_meta` and do not enter `neg_with_meta`. If any patient has images with empty labels that should be treated as hard negatives (not just as annotation absences), they would need to be explicitly added to `neg_with_meta`. At P1–P53 scale this is not known to be an issue — the FP Excel files are the authoritative source of confirmed negatives.
+- The P1–P53 summary printout will now show `files=0, Atypisch=0, Normal=0` for pure-FP patients, making their status explicit at a glance.
