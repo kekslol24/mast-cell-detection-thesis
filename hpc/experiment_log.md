@@ -119,6 +119,36 @@ A fresh `DetectionModel` is built with nc=2, then `intersect_dicts` loads checkp
 
 `BG_RATIO` and `FP_NEG_OVERSAMPLE` are now read from environment variables with fallback defaults. `submit_grid.sh` submits all 12 combinations (fp∈{1,2,3} × bgr∈{0,1,2,3}) as independent SLURM jobs in one command. `PROJECT_DIR` auto-names from the job name, so results land in `train_p2_fp1_bgr0/`, etc.
 
+### HPC inode (file-count) quota — jobs silently stuck (diagnosed 2026-06-03)
+
+**Symptom:** SLURM jobs appeared to start (allocated, running status) but produced no `.out` output and no model artefacts. The jobs were not failing with an error — they were silently hanging or dying immediately without any log output. Resubmitting did not help.
+
+**Root cause:** ZHAW's HPC enforces **two independent storage quotas** per user:
+
+1. **Block quota** — total bytes used (familiar, visible in `quota` output).
+2. **Inode quota** — total number of files and directories (less obvious, also reported by `quota`).
+
+A 53-fold LOPO run on P1–P53 creates an enormous number of files per job: each fold generates a temporary workspace (`cv_temp_<JOBID>/fold_N/`), a processed-data directory (`processed_data_<JOBID>/`), symlinks for every training image, YOLO output directories with per-epoch `weights/`, `results.csv`, validation runs, and `.cache` files. Across 53 folds on a corpus of ~1900 annotated images with oversampling, a single job can create **tens of thousands of inodes**. Multiple queued re-submissions compounded this.
+
+Once the inode quota was exhausted, new file creation silently failed at the OS level. Python's `open()` and `os.makedirs()` returned EDQUOT errors which — depending on where in the YOLO pipeline they occurred — manifested as silent hangs rather than visible exceptions (e.g. YOLO's internal caching or symlink creation failing and the process blocking on a subsequent write).
+
+**How it was diagnosed:** `quota -s` on the cluster showed inode usage at or above limit while block usage was fine. The symptom was invisible in SLURM logs because the failure happened before Python could write to the `.out` file.
+
+**Fix applied:**
+
+1. **Deleted stale workspace directories** from failed and completed jobs (`cv_temp_*`, `processed_data_*`) that had accumulated under `/cfs/earth/scratch/vollmflo/BA/hpc/`. These alone accounted for the bulk of excess inodes.
+2. **Added explicit cleanup in `ba_improved_comb.py`:** each fold worker now deletes its own `cv_temp` workspace on completion (success or exception). `processed_data_<JOBID>` is deleted after all folds in a job finish.
+3. **Checked inode usage before each submission** with `quota -s`; a healthy margin (~50k free inodes) is required before submitting a 53-fold job.
+
+**Time cost:** ~2 weeks of failed submissions and attempted debugging before identifying the inode limit as the cause.
+
+**Lessons:**
+- Always run `quota -s` (not just `df` or block-quota checks) before submitting large array jobs.
+- Workspaces namespaced by `$SLURM_JOB_ID` prevent data collisions but accumulate silently after job completion — explicit cleanup is mandatory.
+- SLURM's job output (`.out`) is itself a file; if the inode quota is hit before SLURM writes the initial output, the job appears to run but produces zero output with no visible error.
+
+---
+
 ### Augmentation: pre-applied vs. on-the-fly (analysed 2026-05-07)
 
 **Pre-applied augmentation does not increase the dataset.** `preprocess_image()` reads each image once, applies a single random transform, and saves one output image. The PROCESSED_DIR contains the same number of images as the source directories — no duplication, no size change (all images stay at their original resolution). Every training epoch sees exactly the same augmented copies; the transforms are frozen at preprocessing time, not re-sampled.
@@ -1764,9 +1794,328 @@ The raw ratio improved from 3.3:1 (P1–P15) to 2.9:1 (P1–P53 annotated patien
 
 **Secondary open question:** with a 2.9:1 raw ratio, `cls=1.0` (double class-loss weight, set when P1–P8 was 14:1) may be less necessary. Not tested at P1–P53 scale — would require a separate run and is a lower priority than establishing the baseline result.
 
+4. **`ba_improved_comb.py` — LOPO val-split crash on singleton patients fixed (2026-05-25).** When
+   carving the 15% in-fold validation split in the LOPO branch, `train_test_split(..., stratify=y)`
+   requires at least 2 samples per stratum (patient). Patients P24, P28, P29, P31, P39, P40, P45,
+   P50 each contribute only 1 annotated image to the corpus and appear in a fold's `train_pos_full`
+   list as a singleton. The stratified split crashed with `ValueError: The least populated classes
+   in y have only 1 member`.
+
+   Fix: before the split, identify singleton patients (`np.unique` + `return_counts=True`), pull
+   their images out of the stratified pool, run the split on multi-sample patients only, then
+   concatenate singletons back into the train portion. The val set is unaffected: a singleton would
+   have contributed at most 0.15 of one image to val; keeping it in train is both correct and
+   maximises training signal.
+
+---
+
 ### Next run — P1–P53 baseline
 
 **Recipe:** P3-B winner confirmed by P4-B/P4-C — `FREEZE=10, DEGREES=5, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5`.
 **CV:** LOPO, 53 folds.
 **Oversampling:** fully auto-computed for all patients (`PATIENT_OVERSAMPLE_FIXED = {}`).
 **FP negatives:** all patients where an Excel exists (P2 + P9–P53), totalling 3637 entries.
+
+---
+
+### Code fix — empty-label images incorrectly included as positives (2026-05-27)
+
+#### Bug
+
+In the main loading loop of `ba_improved_comb.py`, an image was added to `pos_with_meta` (and therefore to LOPO fold test sets) as long as its label file **existed on disk**, regardless of whether it contained any annotations:
+
+```python
+classes = parse_classes_in_label(lbl)   # result was computed but never used to filter
+verified.append(img)                     # added even if classes == set()
+```
+
+A patient whose images all have empty `.txt` label files (= confirmed negatives, no mast cells) would still appear in `pos_with_meta`, receive its own LOPO fold, and produce a test set with **zero ground-truth boxes**. Metrics for that fold are undefined (recall = NaN or vacuous) and mislead the aggregate mean.
+
+This differs from patients whose `labels/` folder is entirely absent — those were already handled correctly because `os.path.exists(lbl)` returns False and the images are skipped. The bug only affected patients with a labels directory present but all files empty.
+
+#### Fix
+
+Added a one-line guard after parsing classes:
+
+```python
+if not classes:
+    continue   # empty label = no mast cells; skip from positives and LOPO folds
+```
+
+#### Implications
+
+- **Pure-FP patients with empty label files no longer get a LOPO fold.** Their `verified` list stays empty → they are absent from `pos_with_meta` → `patients = sorted({m[1] for m in pos_with_meta})` excludes them automatically.
+- **Their FP-negative Excel entries are unaffected.** `neg_with_meta` is populated separately via `PATIENT_FP_EXCELS`; those images still appear in `train_neg` for every other patient's fold.
+- **Images from `PATIENT_IMAGE_DIRS` with empty labels are now silently dropped** — they do not enter `pos_with_meta` and do not enter `neg_with_meta`. If any patient has images with empty labels that should be treated as hard negatives (not just as annotation absences), they would need to be explicitly added to `neg_with_meta`. At P1–P53 scale this is not known to be an issue — the FP Excel files are the authoritative source of confirmed negatives.
+- The P1–P53 summary printout will now show `files=0, Atypisch=0, Normal=0` for pure-FP patients, making their status explicit at a glance.
+
+---
+
+### CV strategy change — LOPO replaced by grouped 5-fold CV (2026-06-05)
+
+#### Problem
+
+The planned P1–P53 baseline used 53-fold LOPO. Of the 53 patients, 35 have at least one annotated positive image (the rest are pure-FP patients contributing only negatives). LOPO on 35 patients requires running 35 folds, which hits two hard constraints simultaneously:
+
+**1. System RAM.** Each fold spawns an independent process loading a YOLO model, dataset, and DataLoader state into memory. The HPC node cannot sustain more than 2 simultaneous fold processes before exhausting system RAM (not GPU VRAM). `MAX_PARALLEL=2` is the empirically observed ceiling.
+
+**2. Job time limit.** The HPC earth-4 partition enforces a 4-day (96 h) wall-clock limit per job. One epoch takes approximately 0.01709 h. At 700 epochs per fold:
+
+```
+single fold wall time = 700 × 0.01709 h ≈ 11.97 h
+
+MAX_PARALLEL=2 → ceil(35 / 2) = 18 sequential batches
+wall time = 18 × 11.97 h ≈ 215 h  (> 4-day limit)
+```
+
+Any sequential or lightly parallel scheme fails. Running all 35 folds simultaneously solves the time problem but crashes on RAM. The constraint is unsolvable within LOPO at this corpus size.
+
+#### Decision
+
+Replace LOPO with **grouped 5-fold CV**: the 35 annotated patients are partitioned into 5 fixed groups, each group serving as the test holdout exactly once. Wall time at `MAX_PARALLEL=2`:
+
+```
+ceil(5 / 2) = 3 sequential batches → 3 × 11.97 h ≈ 35.9 h  (< 4-day limit)
+```
+
+This fits comfortably within the time limit and requires at most 2 fold processes in RAM simultaneously.
+
+#### Patient grouping design
+
+Groups were constructed to satisfy three constraints:
+1. Every group's test set contains at least one patient with Atypisch > 0 **and** at least one with Normal > 0 — required for per-class recall to be computable in every fold.
+2. The two dominant patients (P1: 428 files, P2: 417 files) each anchor their own group; combining either with another large patient would create an unbalanced file distribution.
+3. Pure-Atypisch patients and pure-Normal patients are paired within the same group, not isolated.
+
+| Group | Patients | Test files | Test Atypisch | Test Normal |
+|-------|----------|-----------|---------------|-------------|
+| G1 | P1, P13, P31 | 436 | 482 | 10 |
+| G2 | P2, P8, P37 | 443 | 449 | 32 |
+| G3 | P9, P12, P53 | 323 | 137 | 200 |
+| G4 | P3, P6, P15, P16, P17, P18, P48 | 315 | 239 | 80 |
+| G5 | P4, P5, P7, P10, P11, P14, P24, P28, P29, P39, P40, P43, P44, P45, P46, P47, P50, P51, P52 | 352 | 169 | 189 |
+| **Total** | 35 patients | 1869 | 1476 | 511 |
+
+File range: 315–443 per group (target 374). All groups have both classes present in the test set.
+
+**Known limitation:** G1's test set has only 10 Normal annotations (2 from P1, 7 from P13, 1 from P31). R_Normal for fold G1 is directional, not reliable. This is structural — P1 is heavily Atypisch-skewed and unavoidable at this data scale.
+
+**FP-negative handling:** The 18 pure-FP patients (P19–P23, P25–P27, P30, P32–P36, P38, P41–P42, P49) are not in any group and not in any holdout set. Their FP negatives are therefore present in the training set for **every** fold — correct behaviour. When a group is held out, FP negatives tagged to patients in that group are excluded from training (same strict per-patient logic as LOPO). The largest exclusion occurs when G3 is held out: P9 (730 FP) + P12 (90 FP) + P53 (74 FP) = 894 FPs excluded, reducing the training negative pool from 3910 to 3016.
+
+**Single-image patients** (P24, P28, P29, P31, P39, P40, P45, P50 — each with 1 annotated file) are all in G5. When G5 is held out they contribute 1 image each to the test set, which is valid. When any other group is held out they appear in the training set; the `_carve_val` singleton-protection logic (introduced in the P1-P53 fix, 2026-05-25) ensures they are kept in the train split only and never passed to `train_test_split`.
+
+#### Methodological note for thesis
+
+Grouped 5-fold CV is not identical to LOPO. LOPO tests generalisation to one specific patient at a time; grouped CV tests generalisation to a set of patients. The variance across folds still reflects inter-patient biological heterogeneity (not split luck), since group membership is fixed by patient identity. The grouped approach is a tractable approximation of LOPO that preserves the patient-level evaluation property at 1/7 the wall-clock cost.
+
+The choice of 5 groups is pragmatic (fits the time limit) but not arbitrary — 5 folds is standard in CV literature and gives a mean ± std estimate across biologically distinct patient cohorts.
+
+#### Code changes (`ba_improved_comb.py`, 2026-06-05)
+
+1. **`CV_MODE` env var** replaces `LOPO_CV`. Default: `"grouped"`. Options: `"grouped"`, `"lopo"`, `"kfold"`. `LOPO_CV=1` still works as a backwards-compat shim (maps to `CV_MODE=lopo`).
+
+2. **`PATIENT_GROUPS` dict** defined at module level with the G1–G5 assignment above.
+
+3. **`_carve_val()` helper** extracted from the fold-building block — the 85/15 stratified val split with singleton protection, previously duplicated inside the LOPO loop, is now a shared function called by all three CV modes.
+
+4. **Grouped fold-building loop** (`CV_MODE == "grouped"`): iterates over `PATIENT_GROUPS`, filters `pos_with_meta` and `neg_with_meta` by `holdout_set` (a Python `set`), and prints per-fold Atypisch/Normal test counts from the precomputed `summary` dict for immediate verification at job start.
+
+No changes to `train_fold`, workspace linking, oversample factors, or the results aggregation block.
+
+---
+
+### Run P5-A — P1–P53 LOPO baseline, P3-B winner recipe (2026-06-05)
+**SLURM:** 339036 (`yolo_new_v4_freeze10`)
+**Results dir:** `yolo_new_v4_freeze10/fold_{1..35}_{P*}/`
+**Script:** `ba_improved_comb.py` (`CV_MODE=lopo`, `FREEZE=10`, `DEGREES=5`, `DFL=1.5`,
+`lr0=0.001`, `cls=1.0`, `mosaic=0.0`, `flipud=0.5`, `augment=True`, `epochs=700`, `patience=50`)
+**Status:** 34/35 folds complete — fold_17_P37 killed by wall time (see below)
+
+#### Setup
+- `MAX_PARALLEL=2`, `N_GPUS=2`, `--mem=128GB`, `--time=02-00:00:00` (48 h)
+- Recipe: P3-B winner confirmed by P4-B/P4-C on P1–P15
+- Full P1–P53 corpus (35 patients with positives, 18 pure-FP patients)
+- Oversampling: all auto-computed via `compute_oversample_factors()` (`PATIENT_OVERSAMPLE_FIXED={}`)
+- FP negatives: 3910 resolved across P2 + P9–P53
+
+#### fold_17_P37 — wall-time casualty
+
+`fold_17_P37` ran for **1 epoch** before the job was killed. Root cause: with 35 LOPO folds,
+`MAX_PARALLEL=2`, and variable early-stopping across folds, Worker 0 exhausted its
+48 h budget just as fold_17 (fold index 16, the 9th task for Worker 0) was starting.
+The training workspace had already been set up and epoch 1 completed before SLURM
+sent SIGTERM. YOLO saved `best.pt` from that single epoch (val mAP50 = 0.776 at epoch 1 —
+not a valid result).
+
+This is exactly the timing problem documented in the CV strategy change entry above:
+35-fold LOPO at `MAX_PARALLEL=2` requires ~215 h; the 48 h time limit makes
+the last few folds a race condition. The grouped 5-fold CV (35.9 h) was designed
+specifically to prevent this.
+
+**Recovery plan:** retrain fold_17_P37 in isolation with `retrain_single_fold.py`
+(1 GPU, 1 day time limit). The retrain overwrites `yolo_new_v4_freeze10/fold_17_P37/`
+in place so the full results table remains consistent.
+
+#### Val metrics extracted from per-fold results.csv (best epoch, training val pass)
+
+`fold_results.csv` was not written — the `val_model.val()` evaluation calls inside
+`train_fold()` never completed for all folds before the job died. The in-training
+val metrics (from YOLO's own val pass at each epoch, used for early stopping) were
+extracted post-hoc from each fold's `results.csv`.
+
+| Fold | Holdout | Best Ep | Val mAP50 | Val mAP50-95 | Val Prec | Val Recall |
+|------|---------|---------|-----------|--------------|----------|------------|
+| 1 | P1 | 139 | 0.9818 | 0.8406 | 0.9657 | 0.9326 |
+| 2 | P10 | 504 | 0.9328 | 0.8139 | 0.8897 | 0.9333 |
+| 3 | P11 | 614 | 0.9447 | 0.8233 | 0.9040 | 0.9068 |
+| 4 | P12 | 486 | 0.9098 | 0.7984 | 0.8958 | 0.9065 |
+| 5 | P13 | 622 | 0.9356 | 0.8382 | 0.9124 | 0.9283 |
+| 6 | P14 | 679 | 0.9421 | 0.8388 | 0.8945 | 0.9405 |
+| 7 | P15 | 344 | 0.9248 | 0.8022 | 0.8979 | 0.9003 |
+| 8 | P16 | 208 | 0.9364 | 0.8082 | 0.8517 | 0.9479 |
+| 9 | P17 | 169 | 0.9336 | 0.8155 | 0.8659 | 0.9173 |
+| 10 | P18 | 432 | 0.9344 | 0.8196 | 0.9083 | 0.9198 |
+| 11 | P2 | 562 | 0.8934 | 0.7903 | 0.8465 | 0.9060 |
+| 12 | P24 | 614 | 0.9386 | 0.8306 | 0.9348 | 0.9089 |
+| 13 | P28 | 875 | 0.9455 | 0.8494 | 0.9012 | 0.9407 |
+| 14 | P29 | 462 | 0.9408 | 0.8292 | 0.8954 | 0.9287 |
+| 15 | P3 | 774 | 0.9636 | 0.8576 | 0.9289 | 0.9541 |
+| 16 | P31 | 589 | 0.9397 | 0.8311 | 0.9208 | 0.9128 |
+| 17 | P37 | 1 | 0.7763 | 0.4469 | 0.7345 | 0.7380 | ⚠ killed |
+| 18 | P39 | 469 | 0.9449 | 0.8314 | 0.9080 | 0.9233 |
+| 19 | P4 | 693 | 0.9341 | 0.8248 | 0.8692 | 0.9555 |
+| 20 | P40 | 476 | 0.9439 | 0.8365 | 0.8898 | 0.9302 |
+| 21 | P43 | 694 | 0.9378 | 0.8365 | 0.9128 | 0.9268 |
+| 22 | P44 | 505 | 0.9458 | 0.8382 | 0.9331 | 0.9145 |
+| 23 | P45 | 777 | 0.9455 | 0.8419 | 0.8861 | 0.9660 |
+| 24 | P46 | 825 | 0.9501 | 0.8482 | 0.9160 | 0.9457 |
+| 25 | P47 | 678 | 0.9381 | 0.8380 | 0.9330 | 0.9071 |
+| 26 | P48 | 535 | 0.9394 | 0.8332 | 0.9350 | 0.8998 |
+| 27 | P5 | 575 | 0.9432 | 0.8328 | 0.9164 | 0.9158 |
+| 28 | P50 | 701 | 0.9426 | 0.8368 | 0.9169 | 0.9223 |
+| 29 | P51 | 303 | 0.9365 | 0.8094 | 0.8422 | 0.9482 |
+| 30 | P52 | 353 | 0.9338 | 0.8194 | 0.8875 | 0.9207 |
+| 31 | P53 | 837 | 0.9382 | 0.8376 | 0.8963 | 0.9345 |
+| 32 | P6 | 1038 | 0.9381 | 0.8408 | 0.9101 | 0.8937 |
+| 33 | P7 | 365 | 0.9441 | 0.8240 | 0.8983 | 0.9311 |
+| 34 | P8 | 448 | 0.9452 | 0.8321 | 0.9244 | 0.9124 |
+| 35 | P9 | 653 | 0.9499 | 0.8330 | 0.9113 | 0.9146 |
+| **mean (n=34)** | | | **0.9376** | | | **0.9219** |
+| **std** | | | **0.0262** | | | **0.0310** |
+
+*These are in-training val metrics (YOLO's own val pass, used for early stopping selection
+of best.pt), NOT the held-out test metrics. They indicate training quality and convergence
+stability but cannot be used for generalisation reporting.*
+
+Observations from val metrics:
+- Low variance (std=0.026 on mAP50) — stable training across all 34 completed folds
+- P37 excluded from mean (1 epoch, not converged)
+- P2 and P12 are the weakest folds (mAP50 0.893 and 0.910) — large patients whose
+  full data is removed from training creates a harder generalisation problem
+
+#### New tooling added (2026-06-05)
+
+Two new scripts to handle incomplete runs going forward:
+
+**`eval_folds.py`** — inference-only evaluation of all fold `best.pt` weights.
+Rebuilds fold splits deterministically (same `random_state=42`) without retraining,
+runs `val_model.val()` on held-out test and val splits for each fold, and writes
+`fold_results.csv` to `RESULTS_DIR`. Uses the fixed `per_class()` implementation
+(via `ap_class_index`) rather than the positional-indexing bug in the original script.
+`MAX_PARALLEL=4` default (eval is ~20× lighter than training; 4 concurrent processes
+stay well within 64 GB RAM). Configurable via `RESULTS_DIR`, `CV_MODE`, `N_GPUS`,
+`MAX_PARALLEL`, `BATCH_SIZE_VAL` env vars.
+
+**`retrain_single_fold.py`** — retrains exactly one LOPO fold specified by
+`HOLDOUT_PATIENT` env var. Rebuilds the fold split, calls `train_fold()` from
+`ba_improved_comb.py` directly, and overwrites the existing fold directory in
+`RESULTS_DIR`. Designed for wall-time casualties. Requires 1 GPU and ~18 h.
+
+#### Next steps
+
+1. Submit `retrain_single_fold.py` for P37 (`HOLDOUT_PATIENT=P37`, 1 GPU, 1-day limit)
+2. Once P37 `best.pt` is valid, run `eval_folds.py` (`CV_MODE=lopo`) to produce
+   `fold_results.csv` with proper held-out test metrics for all 35 folds
+3. Submit first grouped 5-fold run (`ba_improved_comb.py`, `CV_MODE=grouped`,
+   `MAX_PARALLEL=2`, 64 GB, 2-day limit)
+
+---
+
+### `per_class` bug confirmed in LOPO run 342270 — fix applied to `eval_lopo_folds.py` (2026-06-07)
+
+SLURM job 342270 (`eval_lopo_folds.py`, 35 LOPO folds, `yolo_new_v4_freeze10_copy`) confirmed
+the positional-indexing bug for fold 34 (P8 holdout). P8 has **24 Normal / 0 Atypisch** GT
+instances. The output showed:
+
+```
+34   P8   0.815737  0.985616  0.914266  0.958333  0.958333  NaN
+```
+
+`R_Atypisch = 0.958333` is actually Normal recall; `R_Normal = NaN` is wrong.
+The root cause: Ultralytics returns `metrics.box.r` as a **length-1 array** and sets
+`ap_class_index = [0]` when only class 1 (Normal) has GT — both wrong. The existing
+bounds-check (`arr[idx] if idx < len(arr)`) blindly returns `arr[0]` as Atypisch recall.
+The `ap_class_index` lookup tried in `eval_folds.py` also fails because the index itself is wrong.
+
+**Fix applied to `eval_lopo_folds.py`:** count GT instances per class directly from the
+label files before calling `val()`, then use that ground truth to mask and route:
+
+```python
+gt_counts = {c: 0 for c in range(NC)}
+for src in test_imgs:
+    lbl = image_to_label_path(src, patient=holdout)
+    if os.path.exists(lbl):
+        for ln in open(lbl):
+            parts = ln.strip().split()
+            if parts:
+                c = int(parts[0])
+                if c in gt_counts:
+                    gt_counts[c] += 1
+
+def per_class(idx):
+    if gt_counts.get(idx, 0) == 0:
+        return float("nan")
+    try:
+        idx_map = list(metrics.box.ap_class_index)
+        if idx in idx_map:
+            pos = idx_map.index(idx)
+        else:
+            # ap_class_index is wrong; derive position from sorted GT classes
+            gt_classes = sorted(c for c, n in gt_counts.items() if n > 0)
+            pos = gt_classes.index(idx)
+        arr = metrics.box.r
+        return float(arr[pos]) if pos < len(arr) else float("nan")
+    except (AttributeError, IndexError, TypeError):
+        return float("nan")
+```
+
+This handles all four cases correctly: both classes present; only Normal (Ultralytics bug
+or correct `ap_class_index`); only Atypisch. The aggregate stats from run 342270 are
+therefore slightly wrong for fold 34 and should be re-derived once the fixed script is re-run.
+
+---
+
+### Final model confidence threshold selection (2026-06-07)
+
+When training the final model on all data (no holdout), YOLO still generates threshold
+diagnostic plots in the run directory from the val split used during training:
+
+- `F1_curve.png` — F1 vs confidence with the best conf marked by a vertical dashed line
+- `R_curve.png` / `P_curve.png` — per-class and overall recall/precision vs confidence
+- `PR_curve.png` — precision-recall operating curve
+
+The F1 curve marks `argmax F1` automatically, so it does indicate the best conf for F1.
+**However, this is the wrong objective for this task.** High recall matters more than
+balanced F1 (missing a mast cell is worse than a false alarm). The correct operating
+point is the conf where recall stays at or above the clinical floor (e.g. ≥0.95) while
+precision remains acceptable.
+
+**More importantly**, the val split used to generate those curves during final training is
+in-sample: the model has already seen those images. The optimal conf derived from in-sample
+curves is optimistically biased and will not generalise.
+
+**Correct approach:** use the threshold determined from LOPO cross-validation, where every
+evaluation was on a truly held-out patient. Concretely: pick the conf where recall on the
+LOPO test folds stays at or above the clinical floor, read off the `R_curve.png` or from
+the per-fold recall table. The final all-data model should inherit that threshold. A
+separate held-out calibration set would give an even cleaner estimate.

@@ -98,7 +98,7 @@ The overall system was designed as an end-to-end pipeline including data acquisi
 
 The intersection of deep learning and hematological image analysis has produced noteworthy progress over the past years. Traditionally, the detection and classification of blood cells involved manual microscopic examination by pathologists, a process that is labor-intensive, subjective, and error-prone. The increasing range of diagnostic tests has driven demand for automated, high-throughput solutions that are cost-effective, require a rapid turnaround time, and provide reliable results. Convolutional neural networks (CNNs) and, more recently, transformer-based architectures have addressed this demand by learning to identify and categorize morphological features directly from raw pixel data @Choudhary2025.
 
-Among the detection frameworks applied in this domain, the YOLO (You Only Look Once) family of models has proven particularly effective. Studies applying YOLOv10 and YOLOv11 to the detection and classification of red blood cells, white blood cells, and platelets in microscopic images have demonstrated mean Average Precision scores of up to 93.8%, underscoring the potential of these architectures in supporting hematological analysis and clinical diagnosis @diagnostics15010022. A feature of YOLO-based pipelines is their ability to perform detection and classification in a single forward pass, hence their name "... Look Once", making them computationally suitable for integration into clinical workflows where inference speed matters. For further information about the mechanisms for YOLO-models see [PA2-FV].
+Among the detection frameworks applied in this domain, the YOLO (You Only Look Once) family of models has proven particularly effective. Studies applying YOLOv10 and YOLOv11 to the detection and classification of red blood cells, white blood cells, and platelets in microscopic images have demonstrated mean Average Precision scores of up to 93.8%, underscoring the potential of these architectures in supporting hematological analysis and clinical diagnosis @diagnostics15010022. A feature of YOLO-based pipelines is their ability to perform detection and classification in a single forward pass, hence their name "... Look Once", making them computationally suitable for integration into clinical workflows where inference speed matters. For further information about the mechanisms for YOLO-models see [@PA2_FV].
 
 A meta-analysis of over 400 peer-reviewed studies on deep learning in peripheral blood smear analysis confirmed significant advances in automated diagnostic tools, particularly for disease identification in blood cells, while also identifying critical gaps including the limited exploration of differential white blood cell counting, the underdevelopment of automated morphological analysis, and the absence of standardized evaluation criteria @Margret2025.  
 These gaps are directly relevant to the present thesis, which addresses an underexplored subtype of rare hematological cell analysis.
@@ -217,7 +217,7 @@ No core scientific content, model selection decisions, hyperparameter choices, o
 
 [10] DeepL Translate: The world’s most accurate translator. (n.d.). <https://www.deepl.com/>
 
-[11] F. Vollmer, „GitHub Repository: Glass Defect Detection-Evaluating-Object-Models“, GitHub, 1. December 2025. <https://github.zhaw.ch/vollmflo/Glass-Defect-Detection-Evaluating-Object-Detection-Models>
+
 
 # Lists
 

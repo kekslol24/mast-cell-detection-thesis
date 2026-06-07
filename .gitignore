@@ -8,4 +8,9 @@ CLAUDE.md
 desktop_app/
 graphify*/
 hpc/jobs/Slurm-339036/slurm-339036.out
+<<<<<<< HEAD
 hpc/runs
+=======
+ultralytics/
+hpc/runs/*
+>>>>>>> 15775730774c14df58e151f7b6eb72022f2a6fe9
