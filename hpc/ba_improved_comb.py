@@ -58,17 +58,39 @@ from patient_dir import PATIENT_IMAGE_DIRS, PATIENT_FP_EXCELS
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-# CV strategy — LOPO is the recommended setting for the full P1–P8 corpus.
-# Set LOPO_CV=False to fall back to stratified random k-fold (legacy behaviour).
-LOPO_CV            = os.environ.get("LOPO_CV", "1") == "1"
-N_SPLITS_FALLBACK  = 5   # only used when LOPO_CV=False
+# CV strategy — CV_MODE env var selects the fold-building approach:
+#   "grouped" (default) — 5 patient-grouped folds; fits the 4-day HPC limit at
+#                         MAX_PARALLEL=2 (~36 h wall time).
+#   "lopo"              — one fold per patient (35 folds); requires all 35 in
+#                         parallel, which exceeds system RAM.
+#   "kfold"             — legacy stratified random k-fold (N_SPLITS_FALLBACK folds).
+CV_MODE            = os.environ.get("CV_MODE", "grouped")
+if os.environ.get("LOPO_CV", "0") == "1":   # backwards-compat shim
+    CV_MODE = "lopo"
+N_SPLITS_FALLBACK  = 5   # only used when CV_MODE="kfold"
+
+# Patient groups for CV_MODE="grouped".
+# Rule: every group must contain both Atypisch>0 and Normal>0 patients so that
+# per-class recall is computable for both classes in every test fold.
+# P1 and P2 each anchor their own group (428/417 files — too large to share).
+# P9+P12 complement each other (Normal-dominant vs Atypisch-only).
+# G4 pairs the pure-Atypisch medium patients with the pure-Normal ones.
+# G5 holds all remaining patients (well-mixed via P4, P51).
+PATIENT_GROUPS = {
+    "G1": ["P1",  "P13", "P31"],
+    "G2": ["P2",  "P8",  "P37"],
+    "G3": ["P9",  "P12", "P53"],
+    "G4": ["P3",  "P6",  "P15", "P16", "P17", "P18", "P48"],
+    "G5": ["P4",  "P5",  "P7",  "P10", "P11", "P14", "P24", "P28", "P29",
+           "P39", "P40", "P43", "P44", "P45", "P46", "P47", "P50", "P51", "P52"],
+}
 
 # Pretrained weights — domain-specific FV model is the established baseline (P2-H).
 PRETRAINED_WEIGHTS = "yolo11n.pt"
 
 # Fine-tuning hyperparameters from P2-H baseline.
-EPOCHS_PER_FOLD    = 5000
-PATIENCE           = 100
+EPOCHS_PER_FOLD    = 700
+PATIENCE           = 50
 BATCH_SIZE         = 32
 BATCH_SIZE_VAL     = 16
 IMGSZ              = 512
@@ -588,7 +610,46 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------
     # 3. Build CV folds
     # ------------------------------------------------------------------
-    if LOPO_CV:
+    def _carve_val(train_pos_full):
+        """Split train positives into train/val (85/15), stratified by patient.
+
+        Patients with only one image cannot be stratified — they are kept in
+        train only so that train_test_split does not raise.
+        """
+        X = np.array([m[0] for m in train_pos_full])
+        y = np.array([m[1] for m in train_pos_full])
+        unique_pats, pat_counts = np.unique(y, return_counts=True)
+        singleton_mask = np.isin(y, unique_pats[pat_counts < 2])
+        X_single, y_single = X[singleton_mask],  y[singleton_mask]
+        X_multi,  y_multi  = X[~singleton_mask], y[~singleton_mask]
+        X_tr, X_va, y_tr, y_va = train_test_split(
+            X_multi, y_multi, test_size=0.15, stratify=y_multi, random_state=42,
+        )
+        X_tr = np.concatenate([X_tr, X_single])
+        y_tr = np.concatenate([y_tr, y_single])
+        return (list(zip(X_tr.tolist(), y_tr.tolist())),
+                list(zip(X_va.tolist(), y_va.tolist())))
+
+    if CV_MODE == "grouped":
+        fold_tasks = []
+        print(f"\n=== Grouped {len(PATIENT_GROUPS)}-Fold CV ===")
+        for fold_idx, (group_label, holdout_patients) in enumerate(PATIENT_GROUPS.items()):
+            holdout_set    = set(holdout_patients)
+            train_pos_full = [m for m in pos_with_meta if m[1] not in holdout_set]
+            test_pos       = [m for m in pos_with_meta if m[1] in holdout_set]
+            train_neg      = [m for m in neg_with_meta if m[1] not in holdout_set]
+            train_pos, val_pos = _carve_val(train_pos_full)
+            fold_tasks.append((fold_idx, group_label,
+                               train_pos, val_pos, test_pos, train_neg,
+                               oversample_factors))
+            test_atyp = sum(summary[p]["atypisch"] for p in holdout_patients if p in summary)
+            test_norm = sum(summary[p]["normal"]   for p in holdout_patients if p in summary)
+            print(f"  Fold {fold_idx+1} ({group_label}): holdout={holdout_patients}, "
+                  f"train={len(train_pos)} pos / {len(train_neg)} neg, "
+                  f"val={len(val_pos)}, test={len(test_pos)} "
+                  f"[Atyp={test_atyp} Norm={test_norm}]")
+
+    elif CV_MODE == "lopo":
         # One fold per patient. The test set is everything from the held-out
         # patient. Train set is the union of the other patients (positives) plus
         # all negatives whose patient is also in train.
@@ -599,30 +660,14 @@ if __name__ == "__main__":
             train_pos_full = [m for m in pos_with_meta if m[1] != holdout]
             test_pos       = [m for m in pos_with_meta if m[1] == holdout]
             train_neg      = [m for m in neg_with_meta if m[1] != holdout]
-
-            # Carve out a small in-train val set (15%) stratified by patient
-            # so each train patient appears in val proportionally.
-            # Patients with only 1 image cannot be stratified — keep them in train.
-            X = np.array([m[0] for m in train_pos_full])
-            y = np.array([m[1] for m in train_pos_full])
-            unique_pats, pat_counts = np.unique(y, return_counts=True)
-            singleton_mask = np.isin(y, unique_pats[pat_counts < 2])
-            X_single, y_single = X[singleton_mask], y[singleton_mask]
-            X_multi,  y_multi  = X[~singleton_mask], y[~singleton_mask]
-            X_tr, X_va, y_tr, y_va = train_test_split(
-                X_multi, y_multi, test_size=0.15, stratify=y_multi, random_state=42,
-            )
-            X_tr = np.concatenate([X_tr, X_single])
-            y_tr = np.concatenate([y_tr, y_single])
-            train_pos = list(zip(X_tr.tolist(), y_tr.tolist()))
-            val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
-
+            train_pos, val_pos = _carve_val(train_pos_full)
             fold_tasks.append((fold_idx, holdout,
                                train_pos, val_pos, test_pos, train_neg,
                                oversample_factors))
             print(f"  Fold {fold_idx+1}: holdout={holdout}, "
                   f"train={len(train_pos)} pos / {len(train_neg)} neg, "
                   f"val={len(val_pos)}, test={len(test_pos)}")
+
     else:
         # Legacy stratified k-fold on positive/negative class. Patient
         # identities collapse into 'positive' (0) vs 'negative' (1) strata.
@@ -637,14 +682,7 @@ if __name__ == "__main__":
             tr_pos = [(all_paths[i], all_pat[i]) for i in tr_idx if all_strat[i] == 0]
             te_pos = [(all_paths[i], all_pat[i]) for i in te_idx if all_strat[i] == 0]
             tr_neg = [(all_paths[i], all_pat[i]) for i in tr_idx if all_strat[i] == 1]
-
-            X_tr, X_va, y_tr, y_va = train_test_split(
-                np.array([m[0] for m in tr_pos]),
-                np.array([m[1] for m in tr_pos]),
-                test_size=0.15, random_state=42,
-            )
-            train_pos = list(zip(X_tr.tolist(), y_tr.tolist()))
-            val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
+            train_pos, val_pos = _carve_val(tr_pos)
             fold_tasks.append((fold_idx, f"fold{fold_idx+1}",
                                train_pos, val_pos, te_pos, tr_neg,
                                oversample_factors))

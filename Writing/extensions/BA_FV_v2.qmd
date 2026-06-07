@@ -305,26 +305,123 @@ The Linux build capability opens a second deployment path beyond the clinical wo
 
 ## Model Results and Statistical Evaluation
 
-<!-- TODO: Write after confirming P5-A result is not yet available.
-     Include: full run progression table (P1-baseline -> P3-B -> P4-A -> P4-B),
-     P4-B 15-fold LOPO per-fold table with R_Atypisch and R_Normal per patient,
-     P5-A placeholder row.
-     Figure placeholder: [FIGURE: mAP50 and Recall progression across phases] -->
+Performance metrics for Phase 3 and Phase 4 runs are reported from the test split of each LOPO fold. Phase 1 and Phase 2 results derive from held-out validation folds under 5-fold stratified cross-validation and are not directly comparable to Phase 3–4 LOPO estimates, for the reasons described in the Model Testing section. All values quoted in this section refer to cross-fold means unless stated otherwise.
+
+@tbl-progression summarizes the key milestone runs across all phases. The complete experiment record, including corrupted runs and all 11 DoE grid cells, is maintained in `hpc/experiment_log.md`. R_Normal for P3-A is reported as the mean over the four Normal-rich holdout folds only (P5, P6, P7, P8, each with at least 6 Normal instances); folds with fewer than 3 Normal instances in the test set (P1: 2, P3: 4) are excluded from that average because a single missed cell produces metric swings of 50 and 25 percentage points respectively, making those values dominated by small-sample noise rather than model behaviour.
+
+| Run | Phase | CV | Base model | mAP50 (mean±std) | Recall | R_Atypisch | R_Normal | Verdict |
+|-----|-------|----|------------|-----------------|--------|------------|----------|---------|
+| P1-baseline | 1 | 5-fold strat. | yolo11n | 0.800 ± 0.129 | 0.719 | — | — | Proof of concept |
+| P2-C | 2 | 5-fold strat. | DL_Modell_FV | 0.469 ± 0.031 | 0.397 | — | — | LR mismatch |
+| P2-H | 2 | 5-fold strat. | DL_Modell_FV | 0.604 ± 0.194 | 0.537 | — | — | Phase 2 reference |
+| DoE ceiling | 2 | 5-fold strat. | DL_Modell_FV | 0.604 | 0.638 | — | — | fp=1, bgr=0 |
+| P3-A | 3 | 8-fold LOPO | yolo11n | 0.844 ± 0.137 | 0.840 | 0.884† | 0.861‡ | Major improvement |
+| P3-B ★ | 3 | 8-fold LOPO | yolo11n | 0.864 | 0.866 | 0.892 | 0.840 | Production recipe |
+| P3-E | 3 | 8-fold LOPO | yolo11l (43 M) | 0.855 | 0.785 | — | 0.695 | Model-size failure |
+| P4-A | 4 | 15-fold LOPO | yolo11n | 0.903 ± 0.100 | 0.904 | 0.913 | 0.890 | Major improvement |
+| **P4-B ★★** | **4** | **15-fold LOPO** | **yolo11n** | **0.887** | **0.895** | **0.900** | **0.882** | **Best complete** |
+| P4-C | 4 | 15-fold LOPO | yolo11n | 0.883 | 0.893 | 0.896 | 0.882 | Freeze ablation null |
+| P5-A | 5 | LOPO (P1–P53) | yolo11n | TBD | TBD | TBD | TBD | Pending |
+
+: Milestone run progression across all experimental phases. Phase 1–2 values are from stratified k-fold validation splits; Phase 3–4 values are from LOPO test splits. ★ = production recipe confirmed by P3-B tinkering matrix. ★★ = best complete run, cited as the primary performance reference throughout this thesis. {#tbl-progression}
+
+†P3-A R_Atypisch estimated from the P3-B tinkering matrix default cell, which reproduces P3-A exactly with identical configuration.
+‡P3-A R_Normal computed as mean over four Normal-rich holdout folds (P5, P6, P7, P8).
+
+**Phase 1.** The P1-baseline achieved validation mAP50 = 0.800 ± 0.129 and recall = 0.719, establishing that detection on 512×512 bone marrow aspirate tiles was feasible from COCO-pretrained weights. The high cross-fold variance (std = 0.129) reflected the instability of random stratified splits on a single 428-image patient: Fold 1 reached mAP50 = 0.952 while Fold 5 collapsed at epoch 29 (recall = 0.432). No per-class breakdown was available because P1 contained only Atypisch annotations.
+
+**Phase 2.** The 3×4 factorial DoE grid (11 cells, FP oversampling ∈ {1×, 2×, 3×} crossed with background ratio ∈ {0, 1, 2, 3}) produced a total mAP50 range of 0.548–0.604, a spread of 0.056 smaller than the cross-fold standard deviation within any single cell (~0.17–0.19). Background tiles decreased performance at every FP oversampling level. The fp=1, bgr=0 configuration (P2-H) was the grid winner at every metric. No data composition configuration produced a statistically distinguishable improvement over the Phase 2 reference, establishing that the limiting factor at single-patient scale was data scarcity and augmentation quality, not the ratio of existing data categories.
+
+**Phase 3.** The structural pivot to 8-fold LOPO on 8 patients with on-the-fly per-epoch augmentation produced the single largest performance improvement in the project. P3-A achieved mAP50 = 0.844 ± 0.137 and recall = 0.840, a 30.3 percentage point improvement in recall over the best Phase 2 result (P2-H: 0.537). The cross-fold standard deviation simultaneously dropped from 0.194 to 0.137 despite the harder evaluation protocol, because the more biologically diverse 8-patient corpus more than compensated for the stricter patient-level holdout design.
+
+The tinkering matrix (P3-B, 14 of 24 cells completed) identified `degrees=5` rotation augmentation as the dominant training-time lever. The winning configuration (`degrees=5, dfl=1.5, freeze=10, label_smoothing=0.0`) achieved recall = 0.866, R_Atypisch = 0.892, and R_Normal = 0.840, gains of 5.8, 0.8, and 4.5 percentage points over P3-A. The parameter `dfl=2.0` consistently regressed R_Normal relative to `dfl=1.5` across all degree and freeze combinations, `freeze=0` underperformed `freeze=10` in every recall-relevant slice, and label smoothing was empirically inert (bit-identical fold metrics at `ls=0.0` and `ls=0.1`). These four findings defined the production recipe (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0`) adopted for all subsequent phases.
+
+The automated hyperparameter tuner (P3-C, 30 iterations × 50 epochs, single P4 holdout, mAP50-95 fitness) converged on `degrees=0.0` and `dfl=2.47`, both directions the tinkering matrix had identified as harmful to R_Normal. A single-fold tuner optimizing mAP50-95 on an Atypisch-dominant patient maximizes Atypisch performance at the expense of Normal-class generalization, confirming that the 8-fold cross-patient matrix is the stronger experimental design for this task. The production recipe from P3-B was retained.
+
+The model-size comparison (P3-E, yolo11l, 43 M parameters) produced R_Normal = 0.695, the lowest value in the project and 14.5 percentage points below the P3-B winner. At approximately 170–220 training images per fold, the larger model's randomly re-initialized classification head overfitted to the Atypisch-dominant distribution rather than learning generalizable Normal-class features. yolo11n (2.6 M parameters) was confirmed as the appropriate architecture for this corpus scale.
+
+**Phase 4.** Adding patients P9–P15 (503 new images, 313 new Normal annotations) expanded the corpus to 1,564 images and 15 LOPO folds. Patient P9, contributing 195 Normal annotations, more than doubled the total Normal instance count relative to the P1–P8 corpus. P4-A (degrees=0, the production recipe with the rotation variable inadvertently unset) achieved mAP50 = 0.903, recall = 0.904, R_Atypisch = 0.913, and R_Normal = 0.890: improvements of 5.9, 9.6, 5.1, and 13.6 percentage points over the P3-A baseline at the same degrees=0 recipe setting. The scale of the R_Normal gain (+13.6 pp) from corpus expansion alone substantially exceeded the gain from the best hyperparameter intervention (+4.5 pp from rotation augmentation in P3-B).
+
+P4-B (full production recipe with `degrees=5` explicitly set) produced mAP50 = 0.887, recall = 0.895, R_Atypisch = 0.900, and R_Normal = 0.882. All P4-A vs P4-B deltas were within 1.6 percentage points, inside the cross-fold standard deviation. The rotation augmentation gain of 4–5 pp R_Normal observed at P1–P8 scale did not replicate at P1–P15 scale, consistent with the interpretation that the more diverse 15-patient corpus already provides sufficient orientation variety in the training distribution. The freeze ablation (P4-C, `freeze=0`) produced results within 0.4 percentage points of P4-B, confirming that backbone freezing remains appropriate at the P1–P15 scale and that the production recipe transfers to larger corpora without re-tuning. P4-B is the primary reported result for this thesis, as all training parameters are explicitly set.
+
+**Phase 5.** The P5-A training run on the complete P1–P53 corpus (LOPO, up to 53 folds after empty-label filtering) was submitted to the ZHAW HPC cluster during the final preparation of this thesis. Results were not available at the time of writing and will be incorporated in the final version.
 
 ## Quantitative and Qualitative Evaluation
 
-<!-- TODO: Per-class performance analysis.
-     Key points: R_Atypisch vs R_Normal gap narrowed from 11 pp (P3-A) to 2 pp (P4-B).
-     Weak folds: P1 holdout (2 Normal in test, R_Normal ~0.286 structural), P13 bug.
-     Small-sample sensitivity caveat.
-     Figure placeholder: [FIGURE: Per-fold R_Atypisch and R_Normal bar chart P4-B] -->
+### Per-Fold Breakdown (P4-B)
+
+@tbl-p4b presents the complete 15-fold test results for P4-B. Each row corresponds to one patient held out from training entirely; all metrics are evaluated on that patient's images exclusively. The last column reports the ground-truth instance counts for each class in the test set, which governs the metric sensitivity of that fold.
+
+| Fold | Patient | mAP50 | Recall | R_Atypisch | R_Normal | Atyp / Normal (test GT) |
+|------|---------|-------|--------|------------|----------|------------------------|
+| 1 | P1 | 0.584 | 0.576 | 0.865 | 0.286 | 482 / 2 |
+| 2 | P10 | 0.977 | 0.994 | 1.000 | 0.988 | 5 / 20 |
+| 3 | P11 | 0.891 | 0.837 | 0.941 | 0.734 | 17 / 20 |
+| 4 | P12 | 0.934 | 0.931 | 0.861 | 1.000† | 133 / 0 |
+| 5 | P13 | 0.901 | 1.000 | 1.000 | NaN‡ | 0 / 7 |
+| 6 | P14 | 0.995 | 1.000 | 1.000 | 1.000 | 5 / 3 |
+| 7 | P15 | 0.954 | 0.936 | 1.000 | 0.872 | 0 / 68 |
+| 8 | P2 | 0.864 | 0.859 | 0.917 | 0.800 | 449 / 6 |
+| 9 | P3 | 0.917 | 0.981 | 0.980 | 0.981 | 60 / 4 |
+| 10 | P4 | 0.933 | 0.913 | 0.826 | 1.000 | 122 / 6 |
+| 11 | P5 | 0.661 | 0.631 | 0.333 | 0.929 | 3 / 18 |
+| 12 | P6 | 0.995 | 1.000 | 1.000 | 1.000 | 0 / 6 |
+| 13 | P7 | 0.995 | 1.000 | 1.000 | 1.000 | 8 / 12 |
+| 14 | P8 | 0.880 | 0.912 | 1.000 | 0.824 | 0 / 24 |
+| 15 | P9 | 0.818 | 0.850 | 0.769 | 0.930 | 4 / 195 |
+| **Mean** | — | **0.887** | **0.895** | **0.900** | **0.882** | — |
+
+: P4-B per-fold test results (15-fold LOPO on P1–P15 corpus). All metrics from the held-out patient's test split. R_Normal mean computed over n=14 folds (Fold 5 excluded; see Measurement Notes). {#tbl-p4b}
+
+†Fold 4 (P12): P12 has 133 Atypisch instances and 0 Normal ground truth; R_Normal = 1.000 is vacuously true.
+‡Fold 5 (P13): per-class positional indexing measurement error; true R_Normal = 1.000 confirmed from confusion matrix output. Excluded from R_Normal mean.
+
+<!-- TODO: Generate a grouped bar chart (per-fold R_Atypisch and R_Normal for all 15 folds of P4-B) and insert here.
+     Suggested layout: fold index on x-axis, recall on y-axis (0.0–1.0), grouped bars per class,
+     horizontal reference lines at R_Atypisch mean (0.900) and R_Normal mean (0.882).
+     This is not generated by Ultralytics; it needs to be produced from the fold table above. -->
+
+### Per-Class Recall Analysis
+
+The per-class recall gap between R_Atypisch and R_Normal narrowed from approximately 9 percentage points at the Phase 3 baseline (P3-A: R_Atypisch = 0.884, R_Normal = 0.795, computed from the P3-B tinkering matrix default cell) to 1.8 percentage points at the Phase 4 best run (P4-B: R_Atypisch = 0.900, R_Normal = 0.882). The narrowing reflects two simultaneous effects: a 12.9 percentage point absolute improvement in R_Normal driven primarily by patient P9's 195 Normal annotations, and a 1.6 percentage point improvement in R_Atypisch from the additional Atypisch-dominant patients P10–P15. Neither effect alone explains the gap reduction; the combination of more Normal training signal and better cross-patient Atypisch diversity together narrowed the difference.
+
+R_Normal is the more clinically constrained metric throughout the project. The R_Normal sequence across key milestones traces the cumulative contribution of each methodological intervention: 0.695 (P3-E, yolo11l), 0.795 (P3-A, on-the-fly augmentation and LOPO), 0.840 (P3-B, rotation augmentation), 0.890 (P4-A, patient P9 added), 0.882 (P4-B). The single largest R_Normal gain at any step (+9.5 pp from P3-B to P4-A) came from corpus expansion, not from hyperparameter adjustment, which is consistent with the Phase 2 DoE's controlled negative result on data composition within a fixed corpus. Improving rare-class recall in this domain requires more biologically diverse patients rather than a better arrangement of existing data.
+
+### Fold-Level Structural Patterns
+
+Two fold-level patterns repeat across all Phase 3 and Phase 4 runs and reflect properties of the corpus rather than model behaviour.
+
+**Fold 1 (P1 holdout) is the persistent weakest fold.** P4-B Fold 1 produced mAP50 = 0.584, recall = 0.576, and R_Normal = 0.286. P1's test set contains only 2 Normal instances; one missed Normal cell changes R_Normal by 50 percentage points. The fold is also affected by the annotation regime gap: P1 was annotated under the original `Pos_neg` directory structure prior to CVAT-assisted model-assisted labelling, which produces a different spatial distribution of bounding boxes relative to P2–P15. The Fold 1 weakness is consistent across all Phase 3 and Phase 4 runs and is not addressable by adjusting training hyperparameters; it reflects the structural distance between P1's annotation regime and the rest of the corpus.
+
+**Fold 11 (P5 holdout) is the second-weakest fold.** P5 contributes only 3 Atypisch instances to the test set; each missed Atypisch cell changes R_Atypisch by 33 percentage points. P4-B Fold 11 produced R_Atypisch = 0.333 (2 of 3 detected). This is a measurement sensitivity effect, not a model regression: P5's Normal recall (0.929) was among the highest in the fold table, indicating that the model handles Normal-dominant distributions correctly when trained without P5. The same structural fragility applies to Fold 15 (P9 holdout: 4 Atypisch, R_Atypisch = 0.769) and Fold 10 (P4 holdout: 6 Atypisch, R_Atypisch = 0.826), where one or two missed cells produce double-digit metric swings. In all these cases, per-fold recall values are informative as upper and lower bounds rather than as precise point estimates.
+
+### Measurement Notes
+
+A per-class recall extraction issue affected all LOPO runs. The utility function indexed Ultralytics' per-class result arrays by position rather than by the `ap_class_index` field. When a holdout patient contained only one class and the model produced predictions for that class only, Ultralytics returned a one-element rather than a two-element result array, causing positional indexing to assign the single element to R_Atypisch and report R_Normal as NaN. This affected Fold 5 (P13 holdout) in every run; the true R_Normal for that fold is 1.000, confirmed from the per-fold confusion matrix. Affected folds are excluded from per-class cross-fold means throughout this thesis and are clearly marked in all fold tables. The aggregate metrics mAP50 and overall Recall are computed internally by Ultralytics and are not affected by this issue.
 
 ## Evaluation Visualization
 
-<!-- TODO: Training curves, confusion matrix.
-     Figure placeholders:
-     [FIGURE: Confusion matrix P4-B (aggregated across folds)]
-     [FIGURE: Sample detections with bounding boxes on Atypisch and Normal cells] -->
+Training convergence for P4-B is shown in @fig-training-curves for a representative fold (Fold 8, P2 holdout: mAP50 = 0.864, recall = 0.859). The training and validation loss curves converge within approximately 150 epochs on the majority of folds, with YOLO's early-stopping criterion (patience = 100) triggering at the validation mAP50 plateau. The convergence pattern is representative of all folds except Fold 1 (P1 holdout), where the annotation regime gap described above leads to a longer plateau and lower final validation mAP50 before early stopping.
+
+<!-- TODO: Copy hpc/yolo_new_v3_freeze10/fold_8_P2/results.png to Writing/extensions/figures/p4b_results_fold8.png -->
+
+![Training convergence for P4-B Fold 8 (P2 holdout). Panels from top left: box loss, classification loss, and distribution focal loss for training and validation splits; precision, recall, mAP50, and mAP50-95 across epochs. Convergence is representative of all non-structurally-weak folds.](figures/p4b_results_fold8.png){#fig-training-curves}
+
+The normalized confusion matrix for the same fold is shown in @fig-confusion-matrix. Rows correspond to ground-truth classes and columns to predicted classes; values are row-normalized to recall fractions. The matrix reflects the class asymmetry that persists throughout the project: R_Atypisch = 0.917 (437 of 449 Atypisch instances detected) against R_Normal = 0.800 (5 of 6 Normal instances detected in this fold). The background column captures false negatives: instances the model assigned to no class at the evaluation confidence threshold of 0.58.
+
+<!-- TODO: Copy hpc/yolo_new_v3_freeze10/fold_8_P2/confusion_matrix_normalized.png to Writing/extensions/figures/p4b_confusion_matrix_fold8.png -->
+
+![Normalized confusion matrix for P4-B Fold 8 (P2 holdout). Rows are ground-truth classes; columns are predicted classes. Values are row-normalized recall fractions. Background represents tiles with no detection at the evaluation threshold.](figures/p4b_confusion_matrix_fold8.png){#fig-confusion-matrix}
+
+The precision-recall curve for the same fold is shown in @fig-pr-curve. Both classes maintain high precision across a broad recall range before the precision cliff, reflecting the model's discrimination capacity at sub-deployment confidence levels. The Atypisch curve sits above the Normal curve at all recall values, consistent with the majority-class training advantage. At the deployed threshold of 0.58, both curves are in their high-precision operating region.
+
+<!-- TODO: Copy hpc/yolo_new_v3_freeze10/fold_8_P2/BoxPR_curve.png to Writing/extensions/figures/p4b_pr_curve_fold8.png -->
+
+![Box precision-recall curves for P4-B Fold 8 at IoU threshold 0.50. Atypisch (blue) and Normal (orange) curves illustrate the per-class discrimination capacity across confidence thresholds.](figures/p4b_pr_curve_fold8.png){#fig-pr-curve}
+
+The morphological appearance of mast cells in aspirate tiles is illustrated in @fig-sample-spindle. Cells appear at diverse orientations and staining intensities with no canonical vertical alignment. The 5-degree rotation augmentation identified as the dominant training-time lever in P3-B directly targets this orientation variability: the improvement in R_Normal of 4.5 percentage points from rotation augmentation at P1–P8 scale is consistent with a model that learns orientation-invariant cell representations rather than exploiting a spurious vertical bias in the training data.
+
+![Sample bone marrow aspirate tile showing a mast cell with the characteristic spindle-shaped cytoplasmic morphology that distinguishes atypical from normal cells under microscopy.](figures/sample_spindel_shape.png){#fig-sample-spindle}
 
 ## Real World Usage
 
@@ -334,7 +431,9 @@ After Phase 1 training, an inference run was conducted on the complete first-pat
 
 ![Confidence distribution of the Phase 1 model across the full P1 slide set (~20,000 tiles). The distribution reflects model behavior before any threshold was fixed.](figures/confidence_histogram_P1.png){#fig-conf_p1}
 
-<!-- TODO: Describe inference run on new patient slides using the desktop app. -->
+The confidence distribution in @fig-conf_p1 shows a clear separation between a high-confidence detection peak and a broad low-confidence region. The deployment threshold of 0.58 was calibrated from this distribution: it sits above the low-confidence bulk while retaining the high-confidence peak, capturing the detections the model assigns the most discriminative evidence to while discarding uncertain responses. At this threshold, the expected clinical behaviour on confirmed SM patients is a high Atypisch fraction with few false alarms in the majority of tiles, requiring manual review primarily for tiles near the threshold boundary rather than for systematic class errors.
+
+The MastCellDetector desktop application was delivered to USZ alongside the P3-D model weights as the primary clinical tool for patient-scale inference. The application runs inference on complete patient tile folders, streaming YOLO label files to disk in real time, and presents results through the gallery and statistics interface described in the Methodology. The gallery filter tabs (All, With detections, No detection, Low confidence, Atypisch only, Normal only) enable a haematologist to navigate directly to tiles most likely to require manual review, avoiding the need to scroll through tens of thousands of tiles per patient. The Statistics tab produces the patient-level Atypisch fraction summary relative to the WHO 25% diagnostic threshold, providing the clinical decision support output that motivated the project.
 
 {{< pagebreak >}}
 

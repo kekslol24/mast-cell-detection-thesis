@@ -9,3 +9,4 @@ desktop_app/
 graphify*/
 hpc/jobs/Slurm-339036/slurm-339036.out
 ultralytics/
+hpcc/runs
