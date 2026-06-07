@@ -1,0 +1,8 @@
+names:
+- Atypisch
+- Normal
+nc: 2
+path: /cfs/earth/scratch/vollmflo/BA/hpc/.cv_temp_341257/fold_24_workspace
+test: test.txt
+train: train.txt
+val: val.txt

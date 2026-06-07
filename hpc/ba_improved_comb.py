@@ -67,8 +67,8 @@ N_SPLITS_FALLBACK  = 5   # only used when LOPO_CV=False
 PRETRAINED_WEIGHTS = "yolo11n.pt"
 
 # Fine-tuning hyperparameters from P2-H baseline.
-EPOCHS_PER_FOLD    = 5000
-PATIENCE           = 100
+EPOCHS_PER_FOLD    = 700
+PATIENCE           = 50
 BATCH_SIZE         = 32
 BATCH_SIZE_VAL     = 16
 IMGSZ              = 512

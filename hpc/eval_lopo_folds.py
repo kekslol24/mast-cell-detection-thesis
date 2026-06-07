@@ -60,6 +60,20 @@ def eval_fold(args):
 
     np.savetxt(os.path.join(fold_workspace, "test.txt"), test_paths, fmt="%s")
 
+    # Count GT instances per class so we can correctly mask per-class recall.
+    # Ultralytics returns ap_class_index=[0] and r of length 1 when only class 1
+    # has GT — both are wrong. Counting GT ourselves is the only reliable fix.
+    gt_counts = {c: 0 for c in range(NC)}
+    for src in test_imgs:
+        lbl = image_to_label_path(src, patient=holdout)
+        if os.path.exists(lbl):
+            for ln in open(lbl):
+                parts = ln.strip().split()
+                if parts:
+                    c = int(parts[0])
+                    if c in gt_counts:
+                        gt_counts[c] += 1
+
     yaml_path = os.path.join(fold_workspace, "data.yaml")
     with open(yaml_path, "w") as f:
         yaml.dump({
@@ -80,9 +94,18 @@ def eval_fold(args):
     gc.collect()
 
     def per_class(idx):
+        if gt_counts.get(idx, 0) == 0:
+            return float("nan")
         try:
+            idx_map = list(metrics.box.ap_class_index)
+            if idx in idx_map:
+                pos = idx_map.index(idx)
+            else:
+                # ap_class_index is wrong; derive position from sorted GT classes
+                gt_classes = sorted(c for c, n in gt_counts.items() if n > 0)
+                pos = gt_classes.index(idx)
             arr = metrics.box.r
-            return float(arr[idx]) if idx < len(arr) else float("nan")
+            return float(arr[pos]) if pos < len(arr) else float("nan")
         except (AttributeError, IndexError, TypeError):
             return float("nan")
 

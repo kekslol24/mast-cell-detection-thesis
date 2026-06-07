@@ -1,0 +1,8 @@
+names:
+- Atypisch
+- Normal
+nc: 2
+path: /cfs/earth/scratch/vollmflo/BA/hpc/.eval_lopo_temp_342270/fold_25_eval
+test: test.txt
+train: test.txt
+val: test.txt
