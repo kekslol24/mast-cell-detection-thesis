@@ -2115,6 +2115,7 @@ in-sample: the model has already seen those images. The optimal conf derived fro
 curves is optimistically biased and will not generalise.
 
 **Correct approach:** use the threshold determined from LOPO cross-validation, where every
-evaluation was on a truly held-out patient. The currently deployed threshold (`conf=0.58`)
-was established this way and should be inherited by the final all-data model unless a
-separate held-out calibration set is available.
+evaluation was on a truly held-out patient. Concretely: pick the conf where recall on the
+LOPO test folds stays at or above the clinical floor, read off the `R_curve.png` or from
+the per-fold recall table. The final all-data model should inherit that threshold. A
+separate held-out calibration set would give an even cleaner estimate.
