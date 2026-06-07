@@ -2038,3 +2038,83 @@ stay well within 64 GB RAM). Configurable via `RESULTS_DIR`, `CV_MODE`, `N_GPUS`
    `fold_results.csv` with proper held-out test metrics for all 35 folds
 3. Submit first grouped 5-fold run (`ba_improved_comb.py`, `CV_MODE=grouped`,
    `MAX_PARALLEL=2`, 64 GB, 2-day limit)
+
+---
+
+### `per_class` bug confirmed in LOPO run 342270 — fix applied to `eval_lopo_folds.py` (2026-06-07)
+
+SLURM job 342270 (`eval_lopo_folds.py`, 35 LOPO folds, `yolo_new_v4_freeze10_copy`) confirmed
+the positional-indexing bug for fold 34 (P8 holdout). P8 has **24 Normal / 0 Atypisch** GT
+instances. The output showed:
+
+```
+34   P8   0.815737  0.985616  0.914266  0.958333  0.958333  NaN
+```
+
+`R_Atypisch = 0.958333` is actually Normal recall; `R_Normal = NaN` is wrong.
+The root cause: Ultralytics returns `metrics.box.r` as a **length-1 array** and sets
+`ap_class_index = [0]` when only class 1 (Normal) has GT — both wrong. The existing
+bounds-check (`arr[idx] if idx < len(arr)`) blindly returns `arr[0]` as Atypisch recall.
+The `ap_class_index` lookup tried in `eval_folds.py` also fails because the index itself is wrong.
+
+**Fix applied to `eval_lopo_folds.py`:** count GT instances per class directly from the
+label files before calling `val()`, then use that ground truth to mask and route:
+
+```python
+gt_counts = {c: 0 for c in range(NC)}
+for src in test_imgs:
+    lbl = image_to_label_path(src, patient=holdout)
+    if os.path.exists(lbl):
+        for ln in open(lbl):
+            parts = ln.strip().split()
+            if parts:
+                c = int(parts[0])
+                if c in gt_counts:
+                    gt_counts[c] += 1
+
+def per_class(idx):
+    if gt_counts.get(idx, 0) == 0:
+        return float("nan")
+    try:
+        idx_map = list(metrics.box.ap_class_index)
+        if idx in idx_map:
+            pos = idx_map.index(idx)
+        else:
+            # ap_class_index is wrong; derive position from sorted GT classes
+            gt_classes = sorted(c for c, n in gt_counts.items() if n > 0)
+            pos = gt_classes.index(idx)
+        arr = metrics.box.r
+        return float(arr[pos]) if pos < len(arr) else float("nan")
+    except (AttributeError, IndexError, TypeError):
+        return float("nan")
+```
+
+This handles all four cases correctly: both classes present; only Normal (Ultralytics bug
+or correct `ap_class_index`); only Atypisch. The aggregate stats from run 342270 are
+therefore slightly wrong for fold 34 and should be re-derived once the fixed script is re-run.
+
+---
+
+### Final model confidence threshold selection (2026-06-07)
+
+When training the final model on all data (no holdout), YOLO still generates threshold
+diagnostic plots in the run directory from the val split used during training:
+
+- `F1_curve.png` — F1 vs confidence with the best conf marked by a vertical dashed line
+- `R_curve.png` / `P_curve.png` — per-class and overall recall/precision vs confidence
+- `PR_curve.png` — precision-recall operating curve
+
+The F1 curve marks `argmax F1` automatically, so it does indicate the best conf for F1.
+**However, this is the wrong objective for this task.** High recall matters more than
+balanced F1 (missing a mast cell is worse than a false alarm). The correct operating
+point is the conf where recall stays at or above the clinical floor (e.g. ≥0.95) while
+precision remains acceptable.
+
+**More importantly**, the val split used to generate those curves during final training is
+in-sample: the model has already seen those images. The optimal conf derived from in-sample
+curves is optimistically biased and will not generalise.
+
+**Correct approach:** use the threshold determined from LOPO cross-validation, where every
+evaluation was on a truly held-out patient. The currently deployed threshold (`conf=0.58`)
+was established this way and should be inherited by the final all-data model unless a
+separate held-out calibration set is available.

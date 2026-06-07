@@ -1,2 +1,0 @@
-fitness,lr0,lrf,momentum,weight_decay,warmup_epochs,warmup_momentum,box,cls,dfl,hsv_h,hsv_s,hsv_v,degrees,translate,scale,shear,perspective,flipud,fliplr,bgr,mosaic,mixup,cutmix,copy_paste,close_mosaic
-0.0,0.0062,0.00798,0.79057,0.00052,3.74767,0.72038,5.01947,1.25282,1.75702,0.01581,0.86485,0.20094,0.0,0.08305,0.75709,0.0,0.0,0.0,0.38881,0.0,0.91639,0.0,0.0,0.0,8
