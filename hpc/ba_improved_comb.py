@@ -1,17 +1,15 @@
 """
-ba_improved_comb.py — Full P1–P15 corpus training with class-imbalance handling.
+ba_improved_comb.py — Full P1–P53 corpus training with class-imbalance handling.
 
 Strategy (see hpc/experiment_log.md for full rationale and run history):
 
   1. PER-PATIENT IMAGE OVERSAMPLING (the core fix).
      The raw corpus is heavily Atypisch-dominant. Normal cells are concentrated in
-     a minority of patients (P5–P8 from the original P1–P8 cohort; distribution for
-     P9–P15 determined at runtime). Image-level duplication of Normal-rich patients
-     via symlinks with `_dupK` suffix brings the effective per-epoch class ratio down
+     a minority of patients. Image-level duplication of Normal-rich patients via
+     symlinks with `_dupK` suffix brings the effective per-epoch class ratio down
      to ≈ 2:1. On-the-fly augmentation makes each duplicate visually distinct.
 
-     P1–P8 oversample factors are pinned in PATIENT_OVERSAMPLE_FIXED (manually
-     validated). P9–P15 factors are computed automatically at runtime by
+     All oversample factors are computed automatically at runtime by
      compute_oversample_factors(), which iterates patients from most Normal-heavy to
      least and solves for the factor k that brings the global weighted ratio closest
      to OVERSAMPLE_TARGET_RATIO=2.0. Factors are capped at OVERSAMPLE_CAP=25 to
@@ -36,7 +34,7 @@ Strategy (see hpc/experiment_log.md for full rationale and run history):
   5. NO BACKGROUND TILES, MINIMAL FP NEGATIVES.
      `BG_RATIO=0`, `FP_NEG_OVERSAMPLE=1`. BG tiles uniformly hurt in the DoE; FP
      oversampling plateaus above ×1. FP negatives are loaded from per-patient Excel
-     files (P2 and P9–P15 each have one) and added to train-only splits.
+     files (see PATIENT_FP_EXCELS in patient_dir.py) and added to train-only splits.
 
   6. PER-CLASS RECALL is the primary clinical metric, not aggregate mAP50.
      Atypisch recall and Normal recall are recorded separately. WHO uses a 25 %
