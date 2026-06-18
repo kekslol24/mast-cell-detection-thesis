@@ -106,8 +106,6 @@ BG_RATIO           = int(os.environ.get("BG_RATIO", "1"))
 FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE", "1"))
 
 # All patients use auto-computed oversample factors (see compute_oversample_factors).
-# The P1–P8 values were manually validated for the 15-patient corpus; with P1–P53
-# the global class balance changes enough that auto-computation is more appropriate.
 # To pin a specific patient's factor, add it here: {"P1": 1, "P5": 8, ...}
 PATIENT_OVERSAMPLE_FIXED = {}
 OVERSAMPLE_TARGET_RATIO = 2.0   # global effective Atypisch:Normal goal
