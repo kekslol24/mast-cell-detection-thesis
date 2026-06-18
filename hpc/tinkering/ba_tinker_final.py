@@ -1,15 +1,22 @@
 """
-ba_tinker_final.py — Single training run on the full P1–P15 corpus.
+ba_tinker_final.py — Single training run on the full P1–P53 corpus.
 
-Unlike ba_tinker.py, which runs LOPO folds for *evaluation* of the recipe,
-this script trains ONE model on all patients (with a small in-train val
-split for early-stopping) to produce the *deployment* artifact for USZ.
+Unlike ba_tinker.py, which runs folds for *evaluation* of the recipe,
+this script trains ONE model on all patients except P11 (with a small
+in-train val split for early-stopping) to produce the *deployment*
+artifact for USZ.
 
-LOPO cross-validation gave the unbiased generalization estimate.
-The model trained here is what we actually ship — every patient is in train,
-so it has strictly more data than any individual LOPO fold model.
+P11 (17 Atypisch / 20 Normal, 37 annotated files) is withheld as the
+out-of-sample calibration patient. After training, run inference.py on
+P11's full tile set (not just the 37 annotated files) to obtain the
+TP/FP confidence distribution for USZ threshold selection.
 
-Recipe defaults = LOPO matrix winner `tinker_ls0.0_deg5_dfl1.5_fr10`:
+Grouped 5-fold CV (P5-B) gave the unbiased generalization estimate.
+The model trained here is what we actually ship — 34 of 35 annotated
+patients are in train, so it has strictly more data than any individual
+CV fold model.
+
+Recipe defaults = P5-B grouped CV winner:
     FREEZE          = 10
     DEGREES         = 5.0
     DFL             = 1.5
@@ -17,9 +24,8 @@ Recipe defaults = LOPO matrix winner `tinker_ls0.0_deg5_dfl1.5_fr10`:
     + production constants (mosaic=0.0, flipud=0.5, augment=True, AdamW,
       lr0=0.001, cos_lr=True, imgsz=512, batch=32)
 
-All knobs are env-overridable so a different matrix cell can be reused
-without code changes. Per-patient image oversampling and negatives behave
-identically to ba_improved_comb.py.
+All knobs are env-overridable. Per-patient image oversampling and negatives
+behave identically to ba_improved_comb.py.
 
 Deliverable: `<PROJECT_DIR>/final/weights/best.pt`
 """
@@ -65,6 +71,8 @@ FP_NEG_OVERSAMPLE  = int(os.environ.get("FP_NEG_OVERSAMPLE",   "1"))
 VAL_FRACTION       = float(os.environ.get("VAL_FRACTION",      "0.15"))
 PRETRAINED_WEIGHTS = os.environ.get("PRETRAINED_WEIGHTS",      "yolo11n.pt")
 
+CALIBRATION_PATIENT = "P11"   # withheld permanently — do not add back
+
 PROJECT_DIR = f"./{os.environ.get('SLURM_JOB_NAME', 'tinker_final')}"
 _JOB_ID     = os.environ.get("SLURM_JOB_ID", "local")
 TEMP_DIR    = os.path.abspath(f".tinker_final_temp_{_JOB_ID}")
@@ -76,13 +84,15 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 # ==============================================================================
 if __name__ == "__main__":
     # ------------------------------------------------------------------
-    # 1. Load annotated positives from all patients (P1–P15)
+    # 1. Load annotated positives — all patients except P11 (calibration)
     # ------------------------------------------------------------------
     pos_with_meta: list[tuple[str, str]] = []
     summary: dict[str, dict] = {}
 
     all_patients = sorted(PATIENT_IMAGE_DIRS.keys(), key=lambda p: int(p[1:]))
     for patient in all_patients:
+        if patient == CALIBRATION_PATIENT:
+            continue
         candidates = load_patient_images(patient)
         verified, atyp_count, norm_count = [], 0, 0
         for img in candidates:
@@ -100,8 +110,6 @@ if __name__ == "__main__":
             "normal":   norm_count,
         }
 
-    # P1–P8 use pinned oversample factors; P9–P15 are solved automatically to
-    # target OVERSAMPLE_TARGET_RATIO globally (same logic as ba_improved_comb).
     oversample_factors = compute_oversample_factors(summary, PATIENT_OVERSAMPLE_FIXED)
 
     eff_atyp = sum(summary[p]["atypisch"] * oversample_factors[p] for p in summary)
@@ -127,7 +135,7 @@ if __name__ == "__main__":
         print(f"Effective ratio = {eff_atyp / eff_norm:.1f} : 1  (target {OVERSAMPLE_TARGET_RATIO:.0f}:1)")
 
     # ------------------------------------------------------------------
-    # 2. Load P1 backgrounds and per-patient FP negatives (P2, P9–P15)
+    # 2. Load P1 backgrounds and per-patient FP negatives (skip P11)
     # ------------------------------------------------------------------
     neg_with_meta: list[tuple[str, str]] = []
 
@@ -147,6 +155,8 @@ if __name__ == "__main__":
         print(f"\nLoading FP negatives (oversample={FP_NEG_OVERSAMPLE})...")
         total_fp_missing = []
         for fp_patient, excel_path in PATIENT_FP_EXCELS.items():
+            if fp_patient == CALIBRATION_PATIENT:
+                continue
             if not os.path.exists(excel_path):
                 print(f"  {fp_patient}: Excel not found, skipping ({excel_path})")
                 continue
@@ -299,8 +309,8 @@ if __name__ == "__main__":
     print(f"  Recall           : {metrics.box.mr:.4f}")
     print(f"  Recall (Atypisch): {per_class(0):.4f}")
     print(f"  Recall (Normal)  : {per_class(1):.4f}")
-    print(f"\nGeneralization estimate (from LOPO matrix winner):")
-    print(f"  Recall ≈ 0.866 | Recall_Normal ≈ 0.840 | Recall_Atypisch ≈ 0.892")
+    print(f"\nGeneralization estimate (P5-B grouped 5-fold CV, G1–G5):")
+    print(f"  Recall ≈ 0.853 | R_Atypisch ≈ 0.885 | R_Normal ≈ 0.821 (0.861 ex-G1)")
     print(f"\nShip this file to USZ:")
     print(f"  {best_pt}")
     print(f"  (last.pt also at {last_pt} for resume / debugging)")
