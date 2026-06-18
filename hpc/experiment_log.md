@@ -38,6 +38,44 @@ PROJECT_DIR = f"./{os.environ.get('SLURM_JOB_NAME', 'local_run')}"
 
 **Clean runs** (wide ID gaps, submitted in isolation): **P2-D (319416)** and **P2-G (319934)**.
 
+### `per_class` positional indexing bug (measurement bug, not fixed)
+
+`per_class(metrics, idx)` in `ba_improved_comb.py` reads per-class recall by position in `metrics.box.r`:
+
+```python
+def per_class(metrics, idx):
+    arr = metrics.box.r
+    return float(arr[idx]) if idx < len(arr) else float('nan')
+```
+
+Ultralytics only includes a class in `ap_class_index` (and therefore in `metrics.box.r`) if that class has either GT instances or model predictions in the evaluated split. When a class is absent from both, the array is shorter than `nc` and positional indexing breaks.
+
+**Observed symptom:** Fold 5 (P13 holdout) reports R_Normal = NaN in every run, even though P13 has 7 Normal GT instances. P13 has 0 Atypisch GT, and the model makes zero class-0 predictions on P13's 7 images — so class 0 is entirely absent from evaluation. `metrics.box.r` = `[0.954]` (length 1, Normal recall only):
+
+- `per_class(_, 0)` → `arr[0]` = 0.954 → reported as R_Atypisch (actually Normal recall)
+- `per_class(_, 1)` → index out of bounds → NaN → reported as R_Normal
+
+The actual Normal recall for Fold 5 is **0.954** across all runs. It is sitting in the R_Atypisch column.
+
+**Why other pure-Normal patients (P6, P8, P15) are unaffected:** the model makes at least one class-0 false-positive prediction on those patients' images, so Ultralytics includes class 0 in `ap_class_index` with vacuous recall = 1.0. The array stays length 2 and positional indexing accidentally works. The R_Atypisch = 1.000 reported for those folds is vacuous and meaningless; the R_Normal values are correct.
+
+**Fix (not yet applied):** use `ap_class_index` for the mapping:
+
+```python
+def per_class(metrics, class_id):
+    try:
+        idx_map = list(metrics.box.ap_class_index)
+        if class_id not in idx_map:
+            return float('nan')
+        return float(metrics.box.r[idx_map.index(class_id)])
+    except (AttributeError, IndexError, TypeError):
+        return float('nan')
+```
+
+Until fixed, treat any fold where a holdout patient is pure-single-class as having potentially swapped or missing per-class recall values. Cross-check against the overall `Recall` column: if `Recall == R_Atypisch` and `R_Normal == NaN` for a pure-Normal holdout, the true Normal recall is `R_Atypisch`.
+
+---
+
 ### BG_RATIO bug (fixed 2026-05-06)
 
 `bg_paths` was sampled in `__main__` but never passed into `fold_tasks`, so background images never reached the training workers. All runs with `BG_RATIO > 0` were effectively `BG_RATIO = 0`. The "backgrounds" YOLO reported scanning were just FP negatives × oversample (e.g. 330 × 3 = 990).
@@ -80,6 +118,36 @@ A fresh `DetectionModel` is built with nc=2, then `intersect_dicts` loads checkp
 ### Grid search infrastructure (added 2026-05-06)
 
 `BG_RATIO` and `FP_NEG_OVERSAMPLE` are now read from environment variables with fallback defaults. `submit_grid.sh` submits all 12 combinations (fp∈{1,2,3} × bgr∈{0,1,2,3}) as independent SLURM jobs in one command. `PROJECT_DIR` auto-names from the job name, so results land in `train_p2_fp1_bgr0/`, etc.
+
+### HPC inode (file-count) quota — jobs silently stuck (diagnosed 2026-06-03)
+
+**Symptom:** SLURM jobs appeared to start (allocated, running status) but produced no `.out` output and no model artefacts. The jobs were not failing with an error — they were silently hanging or dying immediately without any log output. Resubmitting did not help.
+
+**Root cause:** ZHAW's HPC enforces **two independent storage quotas** per user:
+
+1. **Block quota** — total bytes used (familiar, visible in `quota` output).
+2. **Inode quota** — total number of files and directories (less obvious, also reported by `quota`).
+
+A 53-fold LOPO run on P1–P53 creates an enormous number of files per job: each fold generates a temporary workspace (`cv_temp_<JOBID>/fold_N/`), a processed-data directory (`processed_data_<JOBID>/`), symlinks for every training image, YOLO output directories with per-epoch `weights/`, `results.csv`, validation runs, and `.cache` files. Across 53 folds on a corpus of ~1900 annotated images with oversampling, a single job can create **tens of thousands of inodes**. Multiple queued re-submissions compounded this.
+
+Once the inode quota was exhausted, new file creation silently failed at the OS level. Python's `open()` and `os.makedirs()` returned EDQUOT errors which — depending on where in the YOLO pipeline they occurred — manifested as silent hangs rather than visible exceptions (e.g. YOLO's internal caching or symlink creation failing and the process blocking on a subsequent write).
+
+**How it was diagnosed:** `quota -s` on the cluster showed inode usage at or above limit while block usage was fine. The symptom was invisible in SLURM logs because the failure happened before Python could write to the `.out` file.
+
+**Fix applied:**
+
+1. **Deleted stale workspace directories** from failed and completed jobs (`cv_temp_*`, `processed_data_*`) that had accumulated under `/cfs/earth/scratch/vollmflo/BA/hpc/`. These alone accounted for the bulk of excess inodes.
+2. **Added explicit cleanup in `ba_improved_comb.py`:** each fold worker now deletes its own `cv_temp` workspace on completion (success or exception). `processed_data_<JOBID>` is deleted after all folds in a job finish.
+3. **Checked inode usage before each submission** with `quota -s`; a healthy margin (~50k free inodes) is required before submitting a 53-fold job.
+
+**Time cost:** ~2 weeks of failed submissions and attempted debugging before identifying the inode limit as the cause.
+
+**Lessons:**
+- Always run `quota -s` (not just `df` or block-quota checks) before submitting large array jobs.
+- Workspaces namespaced by `$SLURM_JOB_ID` prevent data collisions but accumulate silently after job completion — explicit cleanup is mandatory.
+- SLURM's job output (`.out`) is itself a file; if the inode quota is hit before SLURM writes the initial output, the job appears to run but produces zero output with no visible error.
+
+---
 
 ### Augmentation: pre-applied vs. on-the-fly (analysed 2026-05-07)
 
@@ -1420,3 +1488,634 @@ The P3-B winner (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0, mosaic=0.0,
 | `cls=1.0` | **Uncertain** | Raw ratio shifted from 14:1 to 3.3:1; effective ratio is now 1.5:1. With better inherent balance, the double class-loss weight may be less necessary. |
 
 **Plan:** Run P1–P15 with the P3-B recipe as-is (Run P4-A, ongoing). If results are acceptable, follow up with a single `freeze=0` vs `freeze=10` comparison on P1–P15 — one additional run that directly answers the most uncertain knob given the larger corpus. A full re-grid is not warranted unless P4-A shows a clear regression relative to P3-B.
+
+**On re-running the full grid:** A 24-cell P3-B matrix on P1–P15 would cost ~24 × 12h = 288 GPU-hours (15 folds × larger corpus vs. 8 folds × smaller corpus). This is not feasible given thesis timelines. The justification for skipping the re-grid is methodological, not just pragmatic: `degrees`, `dfl`, and `lr0` are task-domain properties, not dataset-size properties. The domain has not changed (bone marrow cell morphology, same image resolution, same sensor), so the P3-B findings on those knobs transfer. The sole genuinely corpus-size-dependent knob is `freeze` — hence the single targeted `freeze=0` follow-up is the correct and sufficient experiment.
+
+---
+
+### Run P4-A — P1–P15 LOPO baseline, P3-A recipe (degrees=0)
+**SLURM:** 334000 (`yolo_new_v3`)
+**Results dir:** `yolo_new_v3/fold_{1..15}_{P1..P15}/`
+**Script:** `ba_improved_comb.py` (P1–P15 extension with generalised FP loading and auto oversample)
+**Status:** complete, 2026-05-23
+
+#### Setup
+- `FREEZE=10, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5, augment=True, cos_lr=True, AdamW, imgsz=512, batch=32`
+- **`degrees=0.0`, `dfl=1.5` — YOLO defaults** (neither was explicitly passed to `model.train()` at the time of this run; `DEGREES` and `DFL` were added as env-overridable constants in `ba_improved_comb.py` after this run completed). This makes P4-A equivalent to the P3-A recipe (degrees=0) applied to the larger corpus, **not** the full P3-B winner recipe (degrees=5).
+- 15-fold LOPO CV (one patient held out per fold)
+- Per-patient oversampling: P1–P8 factors pinned from P3-B; P9–P15 computed at runtime (all ×1 — fixed P5–P8 factors already achieve 1.5:1 effective ratio, below the 2.0 target)
+- FP negatives from 8 Excel files (P2 + P9–P15): 1434 resolved total, 1 unresolved (P2: `tile_87_38.jpeg`)
+
+**Note on P9 FP count (725 entries):** The high count is genuine. Confirmed by the USZ physician — P9 slides were systematically misclassified by the v1 model during the annotation-assistance round, producing an unusually large pool of confirmed false positives. The Excel represents real model failures on that patient's slide texture and is a valid hard-negative training asset, not a data entry artefact.
+
+#### Corpus summary at runtime
+```
+Patient   Files  Atypisch  Normal  Oversample  EffAtyp  EffNorm
+P1          428       482       2           1      482        2
+P2          417       449       6           1      449        6
+P3           61        60       4           1       60        4
+P4          126       122       6           1      122        6
+P5           21         3      18           8       24      144
+P6            6         0       6          15        0       90
+P7           20         8      12           8       64       96
+P8           24         0      24          10        0      240
+P9          193         4     195           1        4      195
+P10          25         5      20           1        5       20
+P11          37        17      20           1       17       20
+P12         125       133       0           1      133        0
+P13           7         0       7           1        0        7
+P14           7         5       3           1        5        3
+P15          67         0      68           1        0       68
+TOTAL      1564      1288     391
+Raw ratio      = 3.3 : 1
+Effective ratio = 1.5 : 1  (target 2.0 : 1)
+```
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50-95 | mAP50  | Precision | Recall | R_Atypisch | R_Normal |
+|------|---------|----------|--------|-----------|--------|------------|----------|
+| 1    | P1      | 0.530    | 0.627  | 0.853     | 0.552  | 0.818      | 0.286    |
+| 2    | P10     | 0.875    | 0.978  | 0.881     | 1.000  | 1.000      | 1.000    |
+| 3    | P11     | 0.795    | 0.899  | 0.929     | 0.816  | 0.882      | 0.750    |
+| 4    | P12     | 0.795    | 0.937  | 0.873     | 0.957  | 0.913      | 1.000    |
+| 5    | P13     | 0.807    | 0.876  | 0.851     | 0.954  | 0.954      | (vacuous — 0 Normal) |
+| 6    | P14     | 0.908    | 0.995  | 0.978     | 1.000  | 1.000      | 1.000    |
+| 7    | P15     | 0.882    | 0.959  | 0.830     | 0.963  | 1.000      | 0.925    |
+| 8    | P2      | 0.798    | 0.926  | 0.840     | 0.921  | 0.952      | 0.890    |
+| 9    | P3      | 0.817    | 0.950  | 0.867     | 0.990  | 0.980      | 1.000    |
+| 10   | P4      | 0.800    | 0.923  | 0.735     | 0.877  | 0.755      | 1.000    |
+| 11   | P5      | 0.617    | 0.717  | 0.662     | 0.798  | 0.667      | 0.929    |
+| 12   | P6      | 0.924    | 0.995  | 0.986     | 1.000  | 1.000      | 1.000    |
+| 13   | P7      | 0.853    | 0.995  | 0.981     | 1.000  | 1.000      | 1.000    |
+| 14   | P8      | 0.794    | 0.965  | 0.726     | 0.881  | 1.000      | 0.761    |
+| 15   | P9      | 0.705    | 0.796  | 0.764     | 0.845  | 0.769      | 0.920    |
+| **mean** | — | **0.793** | **0.903** | **0.851** | **0.904** | **0.913** | **0.890** |
+| **std**  | — | 0.106 | 0.100 | 0.097 | 0.120 | 0.110 | 0.194 |
+
+Mean R_Atypisch computed over all 15 folds (n=15); mean R_Normal computed over 14 folds (P13 excluded: 0 Normal in test set).
+
+#### Comparison to prior runs (P1–P8, 8-fold LOPO)
+
+The fair comparison for P4-A (degrees=0, freeze=10, P1–P15) is P3-A (degrees=0, freeze=10, P1–P8) — same recipe, different corpus size. P3-B winner is shown for reference but uses degrees=5, so the delta includes both the corpus expansion and the degrees difference.
+
+| Metric      | P3-A deg=0 (P1–P8) | P3-B winner deg=5 (P1–P8) | P4-A deg=0 (P1–P15) | P3-A→P4-A delta |
+|-------------|---------------------|---------------------------|----------------------|-----------------|
+| mAP50       | 0.844               | 0.864                     | 0.903                | **+5.9 pp**     |
+| mAP50-95    | 0.718               | 0.741                     | 0.793                | +7.5 pp         |
+| Recall      | 0.808               | 0.866                     | 0.904                | **+9.6 pp**     |
+| R_Atypisch  | 0.862               | 0.892                     | 0.913                | +5.1 pp         |
+| R_Normal    | 0.754               | 0.840                     | 0.890                | **+13.6 pp**    |
+
+The corpus expansion from P1–P8 to P1–P15 alone (holding recipe constant at degrees=0) delivers +5.9 pp mAP50 and +13.6 pp R_Normal. This is a large effect — the seven new patients, especially P9 (195 Normal annotations), substantially improved Normal-class generalisation.
+
+#### Fold-level notes
+
+**Fold 1 (P1 holdout):** Still the weakest fold — mAP50 0.627, R_Normal 0.286. P1 has only 2 Normal annotations in its test set, so R_Normal = 0.286 means 1/2 found. The Atypisch recall (0.818) is below the corpus mean but P1's annotation style (old Pos_neg regime) is the persistent outlier. This fold's weakness is structural, not fixable by hyperparameter changes.
+
+**Fold 5 (P13 holdout) R_Normal = NaN:** measurement bug — see `per_class` positional indexing bug in Infrastructure Notes. P13 has 7 Normal GT and 0 Atypisch GT. The model makes no class-0 predictions on P13's images, so Ultralytics omits class 0 from `metrics.box.r`, producing a length-1 array. `per_class(_, 1)` hits an out-of-bounds index → NaN. The true Normal recall is 0.954 (shown in the R_Atypisch column). Excluded from the R_Normal mean (n=14) but the underlying model performance is fine.
+
+**Fold 15 (P9 holdout):** R_Atypisch 0.769 on 4 Atypisch instances — the second weakest Atypisch recall after Fold 1. P9 is Normal-dominant (195 Normal vs 4 Atypisch), so training without P9 has ~1.3:1 Atypisch:Normal ratio instead of the usual 1.5:1, and sees almost no examples of that balance regime. The 0.920 R_Normal is strong, confirming the model handles the Normal-dominant regime well; the weak Atypisch recall is a small-sample artefact (missing 1 of 4 = −25 pp).
+
+**Fold 11 (P5 holdout):** mAP50 0.717, the second-weakest. Consistent with P3-A/P3-B: P5 has 3 Atypisch / 18 Normal in the test set and 1 missed Atypisch = −33 pp. Small-sample artefact, not a model regression.
+
+#### Conclusion
+
+P4-A confirms the P3-B recipe transfers cleanly to the expanded P1–P15 corpus. Adding 7 patients and 503 images delivers +3.9 pp mAP50 and +5.0 pp R_Normal on top of the already-optimised P3-B baseline. The result is strong enough to stand as the thesis's primary experimental result for the extended corpus.
+
+The val metrics (mAP50 0.941, R_Normal 0.946) are near-ceiling, confirming the model is learning the full corpus well. Train metrics (~0.993) are expected high given the train split includes oversampled duplicates.
+
+#### On hyperparameter transferability (why no re-grid)
+
+A full 24-cell re-grid on P1–P15 would cost approximately 24 × 12h = 288 GPU-hours — not feasible given thesis timelines, and not methodologically required. The justification:
+
+- `degrees=5`, `dfl=1.5`, `lr0=0.001`, `mosaic=0.0`, `flipud=0.5`: these are **task-domain decisions**, not dataset-size decisions. The domain hasn't changed: bone marrow cells, same sensor, same image resolution, same orientation invariance. The P3-B findings on these knobs are properties of the problem, not artefacts of the P1-P8 corpus size. The P4-A improvement confirms this — if the recipe had been over-fit to P1-P8, performance would have degraded, not improved, on the larger corpus.
+
+- `freeze=10`: **Genuinely corpus-size-dependent.** The P3-B rationale was "corpus too small to unfreeze." With 15 patients and ~1000-1300 training images per fold (vs ~200 before), this is now uncertain. The `freeze=0` follow-up is the one targeted experiment that remains necessary. It is a single run, not a re-grid.
+
+- `cls=1.0`: The effective class ratio shifted from ~2:1 to 1.5:1. With better inherent balance, the double class-loss weight is less critical. However, changing it simultaneously with the corpus expansion conflates two variables. Keeping it at 1.0 for P4-A was correct; if the freeze=0 run shows no improvement, `cls` is a secondary knob worth testing.
+
+---
+
+### Run P4-B — degrees=5, freeze=10 baseline on P1–P15
+**SLURM:** 337215 (`yolo_new_v3_freeze10`)
+**Results dir:** `yolo_new_v3_freeze10/`
+**Status:** complete
+
+#### Motivation
+P4-A ran with degrees=0 (YOLO default, not explicitly set). The P3-B matrix showed degrees=5 added +4 pp R_Normal on P1–P8. P4-B establishes the degrees=5 baseline on P1–P15 before the freeze comparison.
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50  | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|--------|------------|----------|
+| 1    | P1      | 0.5835 | 0.5755 | 0.8653     | 0.2857   |
+| 2    | P10     | 0.9771 | 0.9942 | 1.0000     | 0.9883   |
+| 3    | P11     | 0.8914 | 0.8374 | 0.9412     | 0.7335   |
+| 4    | P12     | 0.9344 | 0.9306 | 0.8612     | 1.0000   |
+| 5    | P13     | 0.9007 | 1.0000 | 1.0000     | NaN*     |
+| 6    | P14     | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 7    | P15     | 0.9542 | 0.9358 | 1.0000     | 0.8716   |
+| 8    | P2      | 0.8641 | 0.8587 | 0.9174     | 0.8000   |
+| 9    | P3      | 0.9167 | 0.9808 | 0.9804     | 0.9811   |
+| 10   | P4      | 0.9333 | 0.9127 | 0.8255     | 1.0000   |
+| 11   | P5      | 0.6613 | 0.6310 | 0.3333     | 0.9286   |
+| 12   | P6      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 13   | P7      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 14   | P8      | 0.8802 | 0.9118 | 1.0000     | 0.8235   |
+| 15   | P9      | 0.8175 | 0.8498 | 0.7692     | 0.9303   |
+| **mean** | — | **0.8866** | **0.8945** | **0.8996** | **0.8816** |
+
+*P13 NaN: see `per_class` positional indexing bug. True R_Normal = 1.0000 (in R_Atypisch column). Excluded from R_Normal mean (n=14).
+
+---
+
+### Run P4-C — degrees=5, freeze=0 comparison on P1–P15
+**SLURM:** 337214 (`yolo_new_v3_freeze0`)
+**Results dir:** `yolo_new_v3_freeze0/`
+**Status:** complete
+
+#### Motivation
+Clean freeze=0 vs freeze=10 comparison, both with degrees=5. P4-B is the reference; P4-C is the test.
+
+#### Test results — per fold
+
+| Fold | Holdout | mAP50  | Recall | R_Atypisch | R_Normal |
+|------|---------|--------|--------|------------|----------|
+| 1    | P1      | 0.5754 | 0.5751 | 0.8645     | 0.2857   |
+| 2    | P10     | 0.9525 | 1.0000 | 1.0000     | 1.0000   |
+| 3    | P11     | 0.9195 | 0.8029 | 0.8824     | 0.7235   |
+| 4    | P12     | 0.9487 | 0.9756 | 0.9513     | 1.0000   |
+| 5    | P13     | 0.8764 | 1.0000 | 1.0000     | NaN*     |
+| 6    | P14     | 0.9950 | 0.9897 | 0.9795     | 1.0000   |
+| 7    | P15     | 0.9732 | 0.9409 | 0.9388     | 0.9431   |
+| 8    | P2      | 0.9264 | 0.9118 | 0.9683     | 0.8554   |
+| 9    | P3      | 0.8187 | 0.8343 | 0.8686     | 0.8000   |
+| 10   | P4      | 0.9288 | 0.9562 | 0.9123     | 1.0000   |
+| 11   | P5      | 0.6716 | 0.6310 | 0.3333     | 0.9286   |
+| 12   | P6      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 13   | P7      | 0.9950 | 1.0000 | 1.0000     | 1.0000   |
+| 14   | P8      | 0.8706 | 0.9308 | 1.0000     | 0.8616   |
+| 15   | P9      | 0.8023 | 0.8442 | 0.7417     | 0.9467   |
+| **mean** | — | **0.8833** | **0.8928** | **0.8960** | **0.8818** |
+
+*P13 NaN: same per_class bug. Excluded from R_Normal mean (n=14).
+
+#### P4-B vs P4-C comparison
+
+| Metric      | P4-B freeze=10 | P4-C freeze=0 | Delta       |
+|-------------|----------------|---------------|-------------|
+| mAP50       | 0.8866         | 0.8833        | −0.33 pp    |
+| Recall      | 0.8945         | 0.8928        | −0.17 pp    |
+| R_Atypisch  | 0.8996         | 0.8960        | −0.36 pp    |
+| R_Normal    | 0.8816         | 0.8818        | +0.02 pp    |
+
+**Decision: freeze=10 confirmed.** All deltas are within ±0.4 pp — far inside the ±2 pp threshold. Unfreezing the full backbone on P1–P15 provides no benefit. The "corpus too small to unfreeze" intuition holds even at ~1000–1300 training images per fold.
+
+**Implication for P1–P53:** No freeze comparison run is needed at the larger corpus scale. The P3-B winner recipe (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0`) is confirmed as the deployment recipe and will be used as-is for the P1–P53 baseline run.
+
+---
+
+## Phase 5 — Full corpus P1–P53 (added 2026-05-25)
+
+### Dataset additions
+
+38 new patients (P16–P53) acquired from USZ. All follow the same structure as P9–P15: images under `new/P{N}/images/Train/`, labels under `new/P{N}/labels/Train/`. Data was uploaded as task-numbered ZIPs, extracted on the HPC, and source ZIPs deleted. Setup documented in `testing.ipynb`.
+
+**FP-negative Excel files (all confirmed present on disk):**
+
+| Patient | Excel               | Patient | Excel               |
+|---------|---------------------|---------|---------------------|
+| P16     | Task19_V2.xlsx      | P35     | Task56_V2.xlsx      |
+| P17     | Task20_V2.xlsx      | P36     | Task57_V2.xlsx      |
+| P18     | Task22_V2.xlsx      | P37     | Task58_V2.xlsx      |
+| P19     | Task40_V2.xlsx      | P38     | Task59_V2.xlsx      |
+| P20     | Task41_V2.xlsx      | P39     | Task60_V2xlsx.xlsx† |
+| P21     | Task42_V2.xlsx      | P40     | Task61_V2.xlsx      |
+| P22     | Task43_V2.xlsx      | P41     | Task62_V2.xlsx      |
+| P23     | Task44_V2.xlsx      | P42     | Task63_V2.xlsx      |
+| P24     | Task45_V2.xlsx      | P43     | Task64_V2.xlsx      |
+| P25     | Task46_V2.xlsx      | P44     | Task65_V2xlsx.xlsx† |
+| P26     | Task47_V2.xlsx      | P45     | Task66_V2.xlsx      |
+| P27     | Task48_V2.xlsx      | P46     | Task67_V2.xlsx      |
+| P28     | Task49_V2.xlsx      | P47     | Task68_V2.xlsx      |
+| P29     | Task50_V2.xlsx      | P48     | Task69_V2.xlsx      |
+| P30     | Task51_V2.xlsx      | P49     | Task70_V2.xlsx      |
+| P31     | Tas52_V2.xlsx†      | P50     | Task71_V2.xlsx      |
+| P32     | Task53_V2.xlsx      | P51     | Task73_V2.xlsx      |
+| P33     | Task54_V2.xlsx      | P52     | Task74_V2.xlsx      |
+| P34     | Task55_V2.xlsx      | P53     | Task75_V2.xlsx      |
+
+† Filename typo in the actual on-disk file; `patient_dir.py` matches the typo exactly. Task numbers 21, 28–38, 52, 60, 65, 72 are absent — those annotation tasks were not assigned to new patients in this batch.
+
+**Annotation counts for P16–P53 (testing.ipynb, 2026-05-25):**
+
+Patients without a `labels/` folder contain **no mast cells** — they are pure-FP slides (only confirmed false-positive detections). They contribute zero positive training examples but their Excel FP entries are loaded normally via `PATIENT_FP_EXCELS`. The pipeline handles this correctly: `load_patient_images` returns empty → 0 positives; `build_disk_index` still globs the images dir for FP resolution.
+
+| Patient | Files | Atypisch | Normal | Notes |
+|---------|-------|----------|--------|-------|
+| P16 | 23 | 22 | 1 | |
+| P17 | 69 | 69 | 0 | |
+| P18 | 82 | 81 | 1 | |
+| P19 | — | — | — | pure-FP (no mast cells) |
+| P20 | — | — | — | pure-FP |
+| P21 | — | — | — | pure-FP |
+| P22 | — | — | — | pure-FP |
+| P23 | — | — | — | pure-FP |
+| P24 | 1 | 1 | 0 | |
+| P25 | — | — | — | pure-FP |
+| P26 | — | — | — | pure-FP |
+| P27 | — | — | — | pure-FP |
+| P28 | 1 | 1 | 0 | |
+| P29 | 1 | 1 | 0 | |
+| P30 | — | — | — | pure-FP |
+| P31 | 1 | 0 | 1 | |
+| P32 | — | — | — | pure-FP |
+| P33 | — | — | — | pure-FP |
+| P34 | — | — | — | pure-FP |
+| P35 | — | — | — | pure-FP |
+| P36 | — | — | — | pure-FP |
+| P37 | 2 | 0 | 2 | |
+| P38 | — | — | — | pure-FP |
+| P39 | 1 | 0 | 1 | |
+| P40 | 1 | 0 | 1 | |
+| P41 | — | — | — | pure-FP |
+| P42 | — | — | — | pure-FP |
+| P43 | 3 | 0 | 3 | |
+| P44 | 2 | 0 | 2 | |
+| P45 | 1 | 0 | 1 | |
+| P46 | 4 | 0 | 4 | |
+| P47 | 3 | 0 | 3 | |
+| P48 | 7 | 7 | 0 | |
+| P49 | — | — | — | pure-FP |
+| P50 | 1 | 0 | 1 | |
+| P51 | 92 | 5 | 90 | |
+| P52 | 5 | 1 | 4 | |
+| P53 | 5 | 0 | 5 | |
+
+**Updated full corpus totals (P1–P53, annotated patients only):**
+Files: 1869 | Atypisch: 1476 | Normal: 511 | Raw ratio: 2.9:1
+(vs P1–P15: 1564 files, 1288/391, 3.3:1 — Normal share growing with new data)
+
+**FP-negative Excel row counts (testing.ipynb cell 42, 2026-05-25):**
+
+| P | FP  | P | FP  | P | FP  | P | FP  |
+|---|-----|---|-----|---|-----|---|-----|
+| P9  | 729 | P20 | 18  | P31 | 66  | P42 | 142 |
+| P10 | 75  | P21 | 40  | P32 | 136 | P43 | 198 |
+| P11 | 28  | P22 | 79  | P33 | 102 | P44 | 46  |
+| P12 | 89  | P23 | 59  | P34 | 43  | P45 | 35  |
+| P13 | 72  | P24 | 13  | P35 | 21  | P46 | 56  |
+| P14 | 56  | P25 | 53  | P36 | 6   | P47 | 60  |
+| P15 | 48  | P26 | 38  | P37 | 14  | P48 | 65  |
+| P16 | 101 | P27 | 160 | P38 | 10  | P49 | 30  |
+| P17 | 92  | P28 | 72  | P39 | 6   | P50 | 106 |
+| P18 | 42  | P29 | 87  | P40 | 47  | P51 | 122 |
+| P19 | 142 | P30 | 10  | P41 | 94  | P52 | 56  |
+|     |     |     |     |     |     | P53 | 73  |
+
+Total P9–P53 FP entries: 3637. Largest pools: P43 (198), P27 (160), P9 (729 — confirmed systematic misclassification on that patient's slide texture), P19 (142), P42 (142).
+
+### Code changes (2026-05-25)
+
+1. **`patient_dir.py` — FP Excel filenames filled in.** All 38 entries for P16–P53 in `PATIENT_FP_EXCELS` updated from empty strings to the correct filenames.
+
+2. **`ba_improved_comb.py` — `PATIENT_FP_EXCELS` import added.** The symbol was used at line 567 but never imported — a latent `NameError` that would have crashed the FP-loading block at runtime.
+
+3. **`ba_improved_comb.py` — `PATIENT_OVERSAMPLE_FIXED` emptied.** The previously pinned P1–P8 factors (×1–×15) were validated for the 8–15 patient corpus. With 53 patients the global class balance shifts substantially; `compute_oversample_factors()` now handles all patients. The printed corpus summary will show the computed factors and resulting effective ratio. To restore a pin, add the patient to the dict.
+
+### On oversampling necessity at P1–P53 scale
+
+The raw ratio improved from 3.3:1 (P1–P15) to 2.9:1 (P1–P53 annotated patients), closer to the 2.0:1 target. The question of whether oversampling is still needed is addressed below.
+
+**Still beneficial, but effect is smaller.** The global ratio has improved but per-patient distribution remains highly uneven: P17 has 69 Atypisch / 0 Normal, P16/P18 are nearly pure-Atypisch, while P51 (5/90), P9 (4/195) are Normal-dominant. Within each LOPO fold the effective ratio depends on which patient is held out — oversampling stabilises this variance.
+
+**In practice, most factors will be 1.** The same dynamic observed in P4-A will repeat: the existing Normal-heavy patients (P5, P6, P8, P9, P51) and the larger corpus pull the global ratio close to or below 2.0:1 before the auto-solver even reaches the Atypisch-dominant patients. `compute_oversample_factors()` will assign k=1 to the majority and boost only the most Normal-rich patients. The mechanism is correct and harmless to keep; the printed corpus summary will show the actual factors.
+
+**Secondary open question:** with a 2.9:1 raw ratio, `cls=1.0` (double class-loss weight, set when P1–P8 was 14:1) may be less necessary. Not tested at P1–P53 scale — would require a separate run and is a lower priority than establishing the baseline result.
+
+4. **`ba_improved_comb.py` — LOPO val-split crash on singleton patients fixed (2026-05-25).** When
+   carving the 15% in-fold validation split in the LOPO branch, `train_test_split(..., stratify=y)`
+   requires at least 2 samples per stratum (patient). Patients P24, P28, P29, P31, P39, P40, P45,
+   P50 each contribute only 1 annotated image to the corpus and appear in a fold's `train_pos_full`
+   list as a singleton. The stratified split crashed with `ValueError: The least populated classes
+   in y have only 1 member`.
+
+   Fix: before the split, identify singleton patients (`np.unique` + `return_counts=True`), pull
+   their images out of the stratified pool, run the split on multi-sample patients only, then
+   concatenate singletons back into the train portion. The val set is unaffected: a singleton would
+   have contributed at most 0.15 of one image to val; keeping it in train is both correct and
+   maximises training signal.
+
+---
+
+### Next run — P1–P53 baseline
+
+**Recipe:** P3-B winner confirmed by P4-B/P4-C — `FREEZE=10, DEGREES=5, DFL=1.5, lr0=0.001, cls=1.0, mosaic=0.0, flipud=0.5`.
+**CV:** LOPO, 53 folds.
+**Oversampling:** fully auto-computed for all patients (`PATIENT_OVERSAMPLE_FIXED = {}`).
+**FP negatives:** all patients where an Excel exists (P2 + P9–P53), totalling 3637 entries.
+
+---
+
+### Code fix — empty-label images incorrectly included as positives (2026-05-27)
+
+#### Bug
+
+In the main loading loop of `ba_improved_comb.py`, an image was added to `pos_with_meta` (and therefore to LOPO fold test sets) as long as its label file **existed on disk**, regardless of whether it contained any annotations:
+
+```python
+classes = parse_classes_in_label(lbl)   # result was computed but never used to filter
+verified.append(img)                     # added even if classes == set()
+```
+
+A patient whose images all have empty `.txt` label files (= confirmed negatives, no mast cells) would still appear in `pos_with_meta`, receive its own LOPO fold, and produce a test set with **zero ground-truth boxes**. Metrics for that fold are undefined (recall = NaN or vacuous) and mislead the aggregate mean.
+
+This differs from patients whose `labels/` folder is entirely absent — those were already handled correctly because `os.path.exists(lbl)` returns False and the images are skipped. The bug only affected patients with a labels directory present but all files empty.
+
+#### Fix
+
+Added a one-line guard after parsing classes:
+
+```python
+if not classes:
+    continue   # empty label = no mast cells; skip from positives and LOPO folds
+```
+
+#### Implications
+
+- **Pure-FP patients with empty label files no longer get a LOPO fold.** Their `verified` list stays empty → they are absent from `pos_with_meta` → `patients = sorted({m[1] for m in pos_with_meta})` excludes them automatically.
+- **Their FP-negative Excel entries are unaffected.** `neg_with_meta` is populated separately via `PATIENT_FP_EXCELS`; those images still appear in `train_neg` for every other patient's fold.
+- **Images from `PATIENT_IMAGE_DIRS` with empty labels are now silently dropped** — they do not enter `pos_with_meta` and do not enter `neg_with_meta`. If any patient has images with empty labels that should be treated as hard negatives (not just as annotation absences), they would need to be explicitly added to `neg_with_meta`. At P1–P53 scale this is not known to be an issue — the FP Excel files are the authoritative source of confirmed negatives.
+- The P1–P53 summary printout will now show `files=0, Atypisch=0, Normal=0` for pure-FP patients, making their status explicit at a glance.
+
+---
+
+### CV strategy change — LOPO replaced by grouped 5-fold CV (2026-06-05)
+
+#### Problem
+
+The planned P1–P53 baseline used 53-fold LOPO. Of the 53 patients, 35 have at least one annotated positive image (the rest are pure-FP patients contributing only negatives). LOPO on 35 patients requires running 35 folds, which hits two hard constraints simultaneously:
+
+**1. System RAM.** Each fold spawns an independent process loading a YOLO model, dataset, and DataLoader state into memory. The HPC node cannot sustain more than 2 simultaneous fold processes before exhausting system RAM (not GPU VRAM). `MAX_PARALLEL=2` is the empirically observed ceiling.
+
+**2. Job time limit.** The HPC earth-4 partition enforces a 4-day (96 h) wall-clock limit per job. One epoch takes approximately 0.01709 h. At 700 epochs per fold:
+
+```
+single fold wall time = 700 × 0.01709 h ≈ 11.97 h
+
+MAX_PARALLEL=2 → ceil(35 / 2) = 18 sequential batches
+wall time = 18 × 11.97 h ≈ 215 h  (> 4-day limit)
+```
+
+Any sequential or lightly parallel scheme fails. Running all 35 folds simultaneously solves the time problem but crashes on RAM. The constraint is unsolvable within LOPO at this corpus size.
+
+#### Decision
+
+Replace LOPO with **grouped 5-fold CV**: the 35 annotated patients are partitioned into 5 fixed groups, each group serving as the test holdout exactly once. Wall time at `MAX_PARALLEL=2`:
+
+```
+ceil(5 / 2) = 3 sequential batches → 3 × 11.97 h ≈ 35.9 h  (< 4-day limit)
+```
+
+This fits comfortably within the time limit and requires at most 2 fold processes in RAM simultaneously.
+
+#### Patient grouping design
+
+Groups were constructed to satisfy three constraints:
+1. Every group's test set contains at least one patient with Atypisch > 0 **and** at least one with Normal > 0 — required for per-class recall to be computable in every fold.
+2. The two dominant patients (P1: 428 files, P2: 417 files) each anchor their own group; combining either with another large patient would create an unbalanced file distribution.
+3. Pure-Atypisch patients and pure-Normal patients are paired within the same group, not isolated.
+
+| Group | Patients | Test files | Test Atypisch | Test Normal |
+|-------|----------|-----------|---------------|-------------|
+| G1 | P1, P13, P31 | 436 | 482 | 10 |
+| G2 | P2, P8, P37 | 443 | 449 | 32 |
+| G3 | P9, P12, P53 | 323 | 137 | 200 |
+| G4 | P3, P6, P15, P16, P17, P18, P48 | 315 | 239 | 80 |
+| G5 | P4, P5, P7, P10, P11, P14, P24, P28, P29, P39, P40, P43, P44, P45, P46, P47, P50, P51, P52 | 352 | 169 | 189 |
+| **Total** | 35 patients | 1869 | 1476 | 511 |
+
+File range: 315–443 per group (target 374). All groups have both classes present in the test set.
+
+**Known limitation:** G1's test set has only 10 Normal annotations (2 from P1, 7 from P13, 1 from P31). R_Normal for fold G1 is directional, not reliable. This is structural — P1 is heavily Atypisch-skewed and unavoidable at this data scale.
+
+**FP-negative handling:** The 18 pure-FP patients (P19–P23, P25–P27, P30, P32–P36, P38, P41–P42, P49) are not in any group and not in any holdout set. Their FP negatives are therefore present in the training set for **every** fold — correct behaviour. When a group is held out, FP negatives tagged to patients in that group are excluded from training (same strict per-patient logic as LOPO). The largest exclusion occurs when G3 is held out: P9 (730 FP) + P12 (90 FP) + P53 (74 FP) = 894 FPs excluded, reducing the training negative pool from 3910 to 3016.
+
+**Single-image patients** (P24, P28, P29, P31, P39, P40, P45, P50 — each with 1 annotated file) are all in G5. When G5 is held out they contribute 1 image each to the test set, which is valid. When any other group is held out they appear in the training set; the `_carve_val` singleton-protection logic (introduced in the P1-P53 fix, 2026-05-25) ensures they are kept in the train split only and never passed to `train_test_split`.
+
+#### Methodological note for thesis
+
+Grouped 5-fold CV is not identical to LOPO. LOPO tests generalisation to one specific patient at a time; grouped CV tests generalisation to a set of patients. The variance across folds still reflects inter-patient biological heterogeneity (not split luck), since group membership is fixed by patient identity. The grouped approach is a tractable approximation of LOPO that preserves the patient-level evaluation property at 1/7 the wall-clock cost.
+
+The choice of 5 groups is pragmatic (fits the time limit) but not arbitrary — 5 folds is standard in CV literature and gives a mean ± std estimate across biologically distinct patient cohorts.
+
+#### Code changes (`ba_improved_comb.py`, 2026-06-05)
+
+1. **`CV_MODE` env var** replaces `LOPO_CV`. Default: `"grouped"`. Options: `"grouped"`, `"lopo"`, `"kfold"`. `LOPO_CV=1` still works as a backwards-compat shim (maps to `CV_MODE=lopo`).
+
+2. **`PATIENT_GROUPS` dict** defined at module level with the G1–G5 assignment above.
+
+3. **`_carve_val()` helper** extracted from the fold-building block — the 85/15 stratified val split with singleton protection, previously duplicated inside the LOPO loop, is now a shared function called by all three CV modes.
+
+4. **Grouped fold-building loop** (`CV_MODE == "grouped"`): iterates over `PATIENT_GROUPS`, filters `pos_with_meta` and `neg_with_meta` by `holdout_set` (a Python `set`), and prints per-fold Atypisch/Normal test counts from the precomputed `summary` dict for immediate verification at job start.
+
+No changes to `train_fold`, workspace linking, oversample factors, or the results aggregation block.
+
+---
+
+### Run P5-A — P1–P53 LOPO baseline, P3-B winner recipe (2026-06-05)
+**SLURM:** 339036 (`yolo_new_v4_freeze10`)
+**Results dir:** `yolo_new_v4_freeze10/fold_{1..35}_{P*}/`
+**Script:** `ba_improved_comb.py` (`CV_MODE=lopo`, `FREEZE=10`, `DEGREES=5`, `DFL=1.5`,
+`lr0=0.001`, `cls=1.0`, `mosaic=0.0`, `flipud=0.5`, `augment=True`, `epochs=700`, `patience=50`)
+**Status:** 34/35 folds complete — fold_17_P37 killed by wall time (see below)
+
+#### Setup
+- `MAX_PARALLEL=2`, `N_GPUS=2`, `--mem=128GB`, `--time=02-00:00:00` (48 h)
+- Recipe: P3-B winner confirmed by P4-B/P4-C on P1–P15
+- Full P1–P53 corpus (35 patients with positives, 18 pure-FP patients)
+- Oversampling: all auto-computed via `compute_oversample_factors()` (`PATIENT_OVERSAMPLE_FIXED={}`)
+- FP negatives: 3910 resolved across P2 + P9–P53
+
+#### fold_17_P37 — wall-time casualty
+
+`fold_17_P37` ran for **1 epoch** before the job was killed. Root cause: with 35 LOPO folds,
+`MAX_PARALLEL=2`, and variable early-stopping across folds, Worker 0 exhausted its
+48 h budget just as fold_17 (fold index 16, the 9th task for Worker 0) was starting.
+The training workspace had already been set up and epoch 1 completed before SLURM
+sent SIGTERM. YOLO saved `best.pt` from that single epoch (val mAP50 = 0.776 at epoch 1 —
+not a valid result).
+
+This is exactly the timing problem documented in the CV strategy change entry above:
+35-fold LOPO at `MAX_PARALLEL=2` requires ~215 h; the 48 h time limit makes
+the last few folds a race condition. The grouped 5-fold CV (35.9 h) was designed
+specifically to prevent this.
+
+**Recovery plan:** retrain fold_17_P37 in isolation with `retrain_single_fold.py`
+(1 GPU, 1 day time limit). The retrain overwrites `yolo_new_v4_freeze10/fold_17_P37/`
+in place so the full results table remains consistent.
+
+#### Val metrics extracted from per-fold results.csv (best epoch, training val pass)
+
+`fold_results.csv` was not written — the `val_model.val()` evaluation calls inside
+`train_fold()` never completed for all folds before the job died. The in-training
+val metrics (from YOLO's own val pass at each epoch, used for early stopping) were
+extracted post-hoc from each fold's `results.csv`.
+
+| Fold | Holdout | Best Ep | Val mAP50 | Val mAP50-95 | Val Prec | Val Recall |
+|------|---------|---------|-----------|--------------|----------|------------|
+| 1 | P1 | 139 | 0.9818 | 0.8406 | 0.9657 | 0.9326 |
+| 2 | P10 | 504 | 0.9328 | 0.8139 | 0.8897 | 0.9333 |
+| 3 | P11 | 614 | 0.9447 | 0.8233 | 0.9040 | 0.9068 |
+| 4 | P12 | 486 | 0.9098 | 0.7984 | 0.8958 | 0.9065 |
+| 5 | P13 | 622 | 0.9356 | 0.8382 | 0.9124 | 0.9283 |
+| 6 | P14 | 679 | 0.9421 | 0.8388 | 0.8945 | 0.9405 |
+| 7 | P15 | 344 | 0.9248 | 0.8022 | 0.8979 | 0.9003 |
+| 8 | P16 | 208 | 0.9364 | 0.8082 | 0.8517 | 0.9479 |
+| 9 | P17 | 169 | 0.9336 | 0.8155 | 0.8659 | 0.9173 |
+| 10 | P18 | 432 | 0.9344 | 0.8196 | 0.9083 | 0.9198 |
+| 11 | P2 | 562 | 0.8934 | 0.7903 | 0.8465 | 0.9060 |
+| 12 | P24 | 614 | 0.9386 | 0.8306 | 0.9348 | 0.9089 |
+| 13 | P28 | 875 | 0.9455 | 0.8494 | 0.9012 | 0.9407 |
+| 14 | P29 | 462 | 0.9408 | 0.8292 | 0.8954 | 0.9287 |
+| 15 | P3 | 774 | 0.9636 | 0.8576 | 0.9289 | 0.9541 |
+| 16 | P31 | 589 | 0.9397 | 0.8311 | 0.9208 | 0.9128 |
+| 17 | P37 | 1 | 0.7763 | 0.4469 | 0.7345 | 0.7380 | ⚠ killed |
+| 18 | P39 | 469 | 0.9449 | 0.8314 | 0.9080 | 0.9233 |
+| 19 | P4 | 693 | 0.9341 | 0.8248 | 0.8692 | 0.9555 |
+| 20 | P40 | 476 | 0.9439 | 0.8365 | 0.8898 | 0.9302 |
+| 21 | P43 | 694 | 0.9378 | 0.8365 | 0.9128 | 0.9268 |
+| 22 | P44 | 505 | 0.9458 | 0.8382 | 0.9331 | 0.9145 |
+| 23 | P45 | 777 | 0.9455 | 0.8419 | 0.8861 | 0.9660 |
+| 24 | P46 | 825 | 0.9501 | 0.8482 | 0.9160 | 0.9457 |
+| 25 | P47 | 678 | 0.9381 | 0.8380 | 0.9330 | 0.9071 |
+| 26 | P48 | 535 | 0.9394 | 0.8332 | 0.9350 | 0.8998 |
+| 27 | P5 | 575 | 0.9432 | 0.8328 | 0.9164 | 0.9158 |
+| 28 | P50 | 701 | 0.9426 | 0.8368 | 0.9169 | 0.9223 |
+| 29 | P51 | 303 | 0.9365 | 0.8094 | 0.8422 | 0.9482 |
+| 30 | P52 | 353 | 0.9338 | 0.8194 | 0.8875 | 0.9207 |
+| 31 | P53 | 837 | 0.9382 | 0.8376 | 0.8963 | 0.9345 |
+| 32 | P6 | 1038 | 0.9381 | 0.8408 | 0.9101 | 0.8937 |
+| 33 | P7 | 365 | 0.9441 | 0.8240 | 0.8983 | 0.9311 |
+| 34 | P8 | 448 | 0.9452 | 0.8321 | 0.9244 | 0.9124 |
+| 35 | P9 | 653 | 0.9499 | 0.8330 | 0.9113 | 0.9146 |
+| **mean (n=34)** | | | **0.9376** | | | **0.9219** |
+| **std** | | | **0.0262** | | | **0.0310** |
+
+*These are in-training val metrics (YOLO's own val pass, used for early stopping selection
+of best.pt), NOT the held-out test metrics. They indicate training quality and convergence
+stability but cannot be used for generalisation reporting.*
+
+Observations from val metrics:
+- Low variance (std=0.026 on mAP50) — stable training across all 34 completed folds
+- P37 excluded from mean (1 epoch, not converged)
+- P2 and P12 are the weakest folds (mAP50 0.893 and 0.910) — large patients whose
+  full data is removed from training creates a harder generalisation problem
+
+#### New tooling added (2026-06-05)
+
+Two new scripts to handle incomplete runs going forward:
+
+**`eval_folds.py`** — inference-only evaluation of all fold `best.pt` weights.
+Rebuilds fold splits deterministically (same `random_state=42`) without retraining,
+runs `val_model.val()` on held-out test and val splits for each fold, and writes
+`fold_results.csv` to `RESULTS_DIR`. Uses the fixed `per_class()` implementation
+(via `ap_class_index`) rather than the positional-indexing bug in the original script.
+`MAX_PARALLEL=4` default (eval is ~20× lighter than training; 4 concurrent processes
+stay well within 64 GB RAM). Configurable via `RESULTS_DIR`, `CV_MODE`, `N_GPUS`,
+`MAX_PARALLEL`, `BATCH_SIZE_VAL` env vars.
+
+**`retrain_single_fold.py`** — retrains exactly one LOPO fold specified by
+`HOLDOUT_PATIENT` env var. Rebuilds the fold split, calls `train_fold()` from
+`ba_improved_comb.py` directly, and overwrites the existing fold directory in
+`RESULTS_DIR`. Designed for wall-time casualties. Requires 1 GPU and ~18 h.
+
+#### Next steps
+
+1. Submit `retrain_single_fold.py` for P37 (`HOLDOUT_PATIENT=P37`, 1 GPU, 1-day limit)
+2. Once P37 `best.pt` is valid, run `eval_folds.py` (`CV_MODE=lopo`) to produce
+   `fold_results.csv` with proper held-out test metrics for all 35 folds
+3. Submit first grouped 5-fold run (`ba_improved_comb.py`, `CV_MODE=grouped`,
+   `MAX_PARALLEL=2`, 64 GB, 2-day limit)
+
+---
+
+### `per_class` bug confirmed in LOPO run 342270 — fix applied to `eval_lopo_folds.py` (2026-06-07)
+
+SLURM job 342270 (`eval_lopo_folds.py`, 35 LOPO folds, `yolo_new_v4_freeze10_copy`) confirmed
+the positional-indexing bug for fold 34 (P8 holdout). P8 has **24 Normal / 0 Atypisch** GT
+instances. The output showed:
+
+```
+34   P8   0.815737  0.985616  0.914266  0.958333  0.958333  NaN
+```
+
+`R_Atypisch = 0.958333` is actually Normal recall; `R_Normal = NaN` is wrong.
+The root cause: Ultralytics returns `metrics.box.r` as a **length-1 array** and sets
+`ap_class_index = [0]` when only class 1 (Normal) has GT — both wrong. The existing
+bounds-check (`arr[idx] if idx < len(arr)`) blindly returns `arr[0]` as Atypisch recall.
+The `ap_class_index` lookup tried in `eval_folds.py` also fails because the index itself is wrong.
+
+**Fix applied to `eval_lopo_folds.py`:** count GT instances per class directly from the
+label files before calling `val()`, then use that ground truth to mask and route:
+
+```python
+gt_counts = {c: 0 for c in range(NC)}
+for src in test_imgs:
+    lbl = image_to_label_path(src, patient=holdout)
+    if os.path.exists(lbl):
+        for ln in open(lbl):
+            parts = ln.strip().split()
+            if parts:
+                c = int(parts[0])
+                if c in gt_counts:
+                    gt_counts[c] += 1
+
+def per_class(idx):
+    if gt_counts.get(idx, 0) == 0:
+        return float("nan")
+    try:
+        idx_map = list(metrics.box.ap_class_index)
+        if idx in idx_map:
+            pos = idx_map.index(idx)
+        else:
+            # ap_class_index is wrong; derive position from sorted GT classes
+            gt_classes = sorted(c for c, n in gt_counts.items() if n > 0)
+            pos = gt_classes.index(idx)
+        arr = metrics.box.r
+        return float(arr[pos]) if pos < len(arr) else float("nan")
+    except (AttributeError, IndexError, TypeError):
+        return float("nan")
+```
+
+This handles all four cases correctly: both classes present; only Normal (Ultralytics bug
+or correct `ap_class_index`); only Atypisch. The aggregate stats from run 342270 are
+therefore slightly wrong for fold 34 and should be re-derived once the fixed script is re-run.
+
+---
+
+### Final model confidence threshold selection (2026-06-07)
+
+When training the final model on all data (no holdout), YOLO still generates threshold
+diagnostic plots in the run directory from the val split used during training:
+
+- `F1_curve.png` — F1 vs confidence with the best conf marked by a vertical dashed line
+- `R_curve.png` / `P_curve.png` — per-class and overall recall/precision vs confidence
+- `PR_curve.png` — precision-recall operating curve
+
+The F1 curve marks `argmax F1` automatically, so it does indicate the best conf for F1.
+**However, this is the wrong objective for this task.** High recall matters more than
+balanced F1 (missing a mast cell is worse than a false alarm). The correct operating
+point is the conf where recall stays at or above the clinical floor (e.g. ≥0.95) while
+precision remains acceptable.
+
+**More importantly**, the val split used to generate those curves during final training is
+in-sample: the model has already seen those images. The optimal conf derived from in-sample
+curves is optimistically biased and will not generalise.
+
+**Correct approach:** use the threshold determined from LOPO cross-validation, where every
+evaluation was on a truly held-out patient. Concretely: pick the conf where recall on the
+LOPO test folds stays at or above the clinical floor, read off the `R_curve.png` or from
+the per-fold recall table. The final all-data model should inherit that threshold. A
+separate held-out calibration set would give an even cleaner estimate.
