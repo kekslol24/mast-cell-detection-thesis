@@ -99,6 +99,9 @@ if __name__ == "__main__":
             lbl = image_to_label_path(img, patient=patient)
             if not os.path.exists(lbl):
                 continue
+            classes = parse_classes_in_label(lbl)
+            if not classes:
+                continue  # skip empty labels (confirmed BG tiles)
             verified.append(img)
             atyp_count += sum(1 for _ in open(lbl) if _.split() and _.split()[0] == "0")
             norm_count += sum(1 for _ in open(lbl) if _.split() and _.split()[0] == "1")
@@ -188,14 +191,24 @@ if __name__ == "__main__":
     #    Texture leakage into val is acceptable here because LOPO already
     #    supplied the unbiased generalization estimate; this val set only
     #    serves as an early-stopping signal during the final training.
+    #    Patients with only 1 image cannot be stratified — keep them in
+    #    train only so train_test_split does not raise.
     # ------------------------------------------------------------------
     X = np.array([m[0] for m in pos_with_meta])
     y = np.array([m[1] for m in pos_with_meta])
+    unique_pats, pat_counts = np.unique(y, return_counts=True)
+    singleton_mask = np.isin(y, unique_pats[pat_counts < 2])
+    X_single, y_single = X[singleton_mask],  y[singleton_mask]
+    X_multi,  y_multi  = X[~singleton_mask], y[~singleton_mask]
     X_tr, X_va, y_tr, y_va = train_test_split(
-        X, y, test_size=VAL_FRACTION, stratify=y, random_state=42,
+        X_multi, y_multi, test_size=VAL_FRACTION, stratify=y_multi, random_state=42,
     )
+    X_tr = np.concatenate([X_tr, X_single])
+    y_tr = np.concatenate([y_tr, y_single])
     train_pos = list(zip(X_tr.tolist(), y_tr.tolist()))
     val_pos   = list(zip(X_va.tolist(), y_va.tolist()))
+    if len(X_single):
+        print(f"Singleton patients (train-only): {sorted(set(y_single.tolist()))}")
 
     print(f"\nTrain positives: {len(train_pos)} | Val positives: {len(val_pos)} "
           f"({100 * VAL_FRACTION:.0f}% stratified by patient)")
@@ -291,11 +304,28 @@ if __name__ == "__main__":
     last_pt = os.path.join(PROJECT_DIR, "final", "weights", "last.pt")
     print(f"\nBest weights: {best_pt}")
 
+    # Count GT instances by class in the val split so we can map class IDs to
+    # their correct positions in metrics.box.r. YOLO omits classes with zero GT
+    # from that array, so positional indexing (arr[0] = Atypisch, arr[1] = Normal)
+    # is wrong whenever one class has no GT in the split.
+    val_atyp_gt = val_norm_gt = 0
+    for src, patient in val_pos:
+        lbl = image_to_label_path(src, patient=patient)
+        if os.path.exists(lbl):
+            val_atyp_gt += sum(1 for ln in open(lbl) if ln.split() and ln.split()[0] == "0")
+            val_norm_gt += sum(1 for ln in open(lbl) if ln.split() and ln.split()[0] == "1")
+
+    # classes_present lists class IDs in the order YOLO will put them in .box.r
+    classes_present = [c for c, gt in ((0, val_atyp_gt), (1, val_norm_gt)) if gt > 0]
+
     val_model = YOLO(best_pt)
     metrics   = val_model.val(data=yaml_path, split='val', workers=0,
                               device=0, batch=BATCH_SIZE, verbose=False)
 
-    def per_class(idx):
+    def per_class(class_id):
+        if class_id not in classes_present:
+            return float('nan')
+        idx = classes_present.index(class_id)
         try:
             arr = metrics.box.r
             return float(arr[idx]) if idx < len(arr) else float('nan')
