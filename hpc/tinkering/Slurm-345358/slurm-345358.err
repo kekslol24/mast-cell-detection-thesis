@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "/cfs/earth/scratch/vollmflo/BA/hpc/tinkering/ba_tinker_final.py", line 194, in <module>
+    X_tr, X_va, y_tr, y_va = train_test_split(
+                             ~~~~~~~~~~~~~~~~^
+        X, y, test_size=VAL_FRACTION, stratify=y, random_state=42,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/sklearn/utils/_param_validation.py", line 218, in wrapper
+    return func(*args, **kwargs)
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/sklearn/model_selection/_split.py", line 2945, in train_test_split
+    train, test = next(cv.split(X=arrays[0], y=stratify))
+                  ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/sklearn/model_selection/_split.py", line 1928, in split
+    for train, test in self._iter_indices(X, y, groups):
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/sklearn/model_selection/_split.py", line 2346, in _iter_indices
+    raise ValueError(
+    ...<5 lines>...
+    )
+ValueError: The least populated classes in y have only 1 member, which is too few. The minimum number of groups for any class cannot be less than 2. Classes with too few members are: ['P24', 'P28', 'P29', 'P31', 'P39', 'P40', 'P45', 'P50']

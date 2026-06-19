@@ -11,11 +11,7 @@ Usage (from hpc/):
 
 Env overrides:
     HOLDOUT_PATIENT  patient to hold out as test set    (required, e.g. P37)
-<<<<<<< HEAD
     RESULTS_DIR      project dir to write output into   (default: yolo_new_v4_retraain_fold17)
-=======
-    RESULTS_DIR      project dir to write output into   (default: yolo_new_v4_freeze10)
->>>>>>> 15775730774c14df58e151f7b6eb72022f2a6fe9
     N_GPUS           GPUs available                     (default: 2)
 """
 
