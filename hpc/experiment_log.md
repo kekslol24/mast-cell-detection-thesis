@@ -749,7 +749,7 @@ RANDOM_BG_RATIO    = 0      # DoE rejected; kept as a knob for future tests
 | 7    | P7      | 0.827    | 0.968  | 0.953     | 0.909  | 1.000         | 0.818         | 8   / 12            |
 | 8    | P8      | 0.782    | 0.935  | 0.711     | 0.913  | (vacuous)     | 0.826         | **0** / 24          |
 | **mean** |     | **0.718**| **0.844** | **0.764** | **0.840** | —          | —             |                     |
-| **std**  |     | 0.143    | 0.137  | 0.140     | 0.114  |               |               |                     |
+| **std**  |     | 0.137    | 0.137  | 0.138     | 0.122  |               |               |                     |
 
 Per-class recall on rows with insufficient minority-class instances is unreliable: P1 has
 2 Normal cells, P2 has 6, P3 has 4, P4 has 6 — recall on those folds for the Normal class
@@ -2119,3 +2119,66 @@ evaluation was on a truly held-out patient. Concretely: pick the conf where reca
 LOPO test folds stays at or above the clinical floor, read off the `R_curve.png` or from
 the per-fold recall table. The final all-data model should inherit that threshold. A
 separate held-out calibration set would give an even cleaner estimate.
+
+---
+
+### Phase 6 — Final training plan and calibration patient selection (2026-06-19)
+
+#### Calibration patient: P11 (withheld permanently)
+
+P11 is excluded from all training splits and will never appear in any train, val, or
+negative set. It serves as the out-of-sample calibration reference for USZ threshold
+selection.
+
+**Why P11:** 17 Atypisch / 20 Normal annotations across 37 files — near-perfect class
+balance. Every other G5 patient is either single-class dominated (P51: 5A/90N; P10: 5A/20N)
+or too small to produce a stable confidence distribution. The full P5-B grouped CV result
+already demonstrates the model generalises to G5 (G5 fold: Recall=0.896, R_Atypisch=0.873,
+R_Normal=0.918 — above the 5-fold mean), so withholding P11 specifically does not hurt the
+training corpus meaningfully.
+
+**Calibration procedure:** run `inference.py` on P11's *full tile set* (not just the 37
+annotated files) with `conf=0.276` to capture the complete TP/FP confidence distribution.
+The annotated tiles alone only show high-confidence true positives — you need the background
+tiles to see where false positives cluster. Hand the resulting per-detection confidence CSV
+to USZ as a histogram so they can select their own operating threshold.
+
+Note: the previously deployed `conf=0.58` was derived in-sample (model evaluated on images
+it trained on). It is not a valid benchmark. The P11 calibration run will provide the first
+genuinely out-of-sample confidence estimate.
+
+#### G1–G4 ablation run (`ba_g1g4_cv.py`)
+
+To formally prove that G5 data is not load-bearing for the G1–G4 folds, a 4-fold grouped
+CV is run on G1–G4 only (G5 excluded entirely). Script: `hpc/ba_g1g4_cv.py`.
+
+**Comparison:** match each fold result against the corresponding fold from P5-B
+(`yolo_new_v4_freeze10_re_run_CV/fold_results.csv`). If G1–G4 metrics are within noise of
+the P5-B G1–G4 folds, G5 exclusion is confirmed safe. P5-B G1–G4 reference:
+
+| Fold | Group | mAP50 | Recall | R_Atypisch | R_Normal |
+|------|-------|-------|--------|------------|----------|
+| 1 | G1 | 0.766 | 0.746 | 0.904 | 0.588 |
+| 2 | G2 | 0.858 | 0.773 | 0.836 | 0.710 |
+| 3 | G3 | 0.913 | 0.932 | 0.884 | 0.981 |
+| 4 | G4 | 0.918 | 0.919 | 0.928 | 0.909 |
+
+**Ablation results** (SLURM job: `yolo_new_g1g4`, results in `hpc/yolo_new_g1g4/fold_results.csv`):
+
+| Fold | Group | mAP50 P5-B→Abl | Recall P5-B→Abl | R_Atypisch P5-B→Abl | R_Normal P5-B→Abl |
+|------|-------|----------------|-----------------|---------------------|-------------------|
+| 1 | G1 | 0.766→0.809 | 0.746→0.732 | 0.904→0.892 | 0.588→0.571 |
+| 2 | G2 | 0.858→0.855 | 0.773→0.891 | 0.836→0.950 | 0.710→0.833 |
+| 3 | G3 | 0.913→0.896 | 0.932→0.908 | 0.884→0.905 | 0.981→0.911 |
+| 4 | G4 | 0.918→0.896 | 0.919→0.864 | 0.928→0.840 | 0.909→0.888 |
+| **Mean** | | **0.864→0.864** | **0.843→0.849** | **0.888→0.897** | **0.797→0.801** |
+
+**Conclusion:** G5 exclusion confirmed safe. Mean metrics are statistically unchanged (+0.006 Recall, +0.009 R_Atypisch, +0.004 R_Normal). G5 data was not load-bearing for G1–G4. The final deployment model trains on G1–G4 + G5 minus P11 — more data than either CV run — so P11-only exclusion is validated.
+
+#### Final deployment model (`hpc/tinkering/ba_tinker_final.py`)
+
+Trains one model on all 34 annotated patients (P1–P53 minus P11). Production recipe
+identical to P5-B winner: FREEZE=10, DEGREES=5, DFL=1.5, LR0=0.001, CLS=1.0, MOSAIC=0.0,
+FLIPUD=0.5, augment=True, EPOCHS=700, PATIENCE=50, BG_RATIO=0.
+
+Submit via `hpc/tinkering/run_final.sh`. Deliverable: `tinker_final/final/weights/best.pt`.
