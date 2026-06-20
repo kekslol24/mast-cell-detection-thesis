@@ -3,6 +3,7 @@ import glob
 from ultralytics import YOLO
 from zipfile import ZipFile
 import csv
+import matplotlib.pyplot as plt
 
 from patient_dir import PATIENT_IMAGE_DIRS
 
@@ -10,32 +11,47 @@ from patient_dir import PATIENT_IMAGE_DIRS
 # ==========================================
 # KONFIGURATION
 # ==========================================
-MODEL_PATH = "/cfs/earth/scratch/vollmflo/BA/hpc/jobs/Slurm-267591 (train with tuneparas)/yolo_runs_hpc_final/fold_1/weights/best.pt"
+MODEL_PATH = "/cfs/earth/scratch/vollmflo/BA/hpc/tinker_final_holdoutP11/final/weights/best.pt"
 INPUT_DIR = "/cfs/earth/scratch/vollmflo/BA/data/"
-UNZIP_PATH = "/cfs/earth/scratch/vollmflo/BA/data/"
+UNZIP_PATH = "/cfs/earth/scratch/vollmflo/BA/data/new/"
 
 CONFIDENCE_CUT = None       #Confidence cut to get variance distribution
 
-# Set to a patient ID (e.g. "P11") to use that patient's image directory as the
-# test set directly, skipping the ZIP unpack and training-image filter.
+# Set to a patient ID (e.g. "P11") to use that patient as the test set,
+# skipping the original ZIP unpack and training-image filter.
 # Set to None to use the original ZIP-based pipeline.
 TEST_PATIENT = "P11"
 
-# NEU: Pfad zu den Bildern, die ignoriert werden sollen
-IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
+# If TEST_PATIENT is set and the images come as a ZIP, put the path here.
+# The ZIP will be extracted to UNZIP_PATH and inference runs on the extracted folder.
+# Set to None to read directly from PATIENT_IMAGE_DIRS[TEST_PATIENT] instead.
+TEST_PATIENT_ZIP = "/cfs/earth/scratch/vollmflo/BA/data/P11.zip"
 
-OUTPUT_PROJECT = "./mass_inference_results/run_1"
+# NEU: Pfad zu den Bildern, die ignoriert werden sollen
+# IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
+
+OUTPUT_PROJECT = "./mass_inference_results/run_final"
 
 IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff')
 
 def main():
     if TEST_PATIENT is not None:
-        # --- Patient directory mode ---
-        patient_dir = PATIENT_IMAGE_DIRS[TEST_PATIENT]
-        print(f"Verwende Patient {TEST_PATIENT}: {patient_dir}")
+        # --- Patient mode ---
+        if TEST_PATIENT_ZIP is not None:
+            # Unzip the patient ZIP, then read from the extracted folder
+            extract_folder = os.path.join(UNZIP_PATH, os.path.splitext(os.path.basename(TEST_PATIENT_ZIP))[0])
+            print(f"Entpacke {TEST_PATIENT_ZIP} nach {extract_folder} ...")
+            with ZipFile(TEST_PATIENT_ZIP, "r") as myzip:
+                myzip.extractall(UNZIP_PATH)
+            train_subdir = os.path.join(extract_folder, "images", "Train")
+            image_source_dir=train_subdir if os.path.isdir(train_subdir) else extract_folder
+        else:
+            image_source_dir = PATIENT_IMAGE_DIRS[TEST_PATIENT]
+
+        print(f"Verwende Patient {TEST_PATIENT}: {image_source_dir}")
         images_to_process = [
-            os.path.join(patient_dir, f)
-            for f in os.listdir(patient_dir)
+            os.path.join(image_source_dir, f)
+            for f in os.listdir(image_source_dir)
             if f.lower().endswith(IMAGE_EXTS)
         ]
         print(f"Gefunden: {len(images_to_process)} Bilder für Patient {TEST_PATIENT}.")
@@ -144,6 +160,37 @@ def main():
 
     print(f"Fertig! Es wurden {saved_count} von {len(images_to_process)} analysierten Bildern gespeichert (Cut >= {CONFIDENCE_CUT}).")
     print(f"Die Bilder, Labels und die CSV-Datei zur Verteilungsanalyse liegen in: {OUTPUT_PROJECT}")
+
+
+    # Read back the CSV and plot per-class confidence histograms
+    confs_by_class = {}
+    with open(csv_path, newline="") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            cls = int(row["class"])
+            conf = float(row["confidence"])
+            confs_by_class.setdefault(cls, []).append(conf)
+
+    if confs_by_class:
+        class_names = {0: "Atypisch", 1: "Normal"}
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for cls_id, confs in sorted(confs_by_class.items()):
+            label = class_names.get(cls_id, f"Class {cls_id}")
+            ax.hist(confs, bins=50, range=(0, 1), alpha=0.7, label=f"{label} (n={len(confs)})")
+        ax.axvline(0.276, color="red", linestyle="--", linewidth=1, label="conf=0.276")
+        ax.axvline(0.58,  color="orange", linestyle="--", linewidth=1, label="conf=0.58")
+        ax.set_xlabel("Confidence")
+        ax.set_ylabel("Count")
+        ax.set_title(f"Confidence distribution — {TEST_PATIENT or 'ZIP inference'}")
+        ax.legend()
+        hist_path = os.path.join(OUTPUT_PROJECT, "confidence_histogram.png")
+        fig.savefig(hist_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"Histogramm gespeichert: {hist_path}")
+    else:
+        print("Keine Detektionen — kein Histogramm erstellt.")
+
+
 
 if __name__ == "__main__":
     main()

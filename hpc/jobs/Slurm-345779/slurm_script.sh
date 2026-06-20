@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=inference_run
 #SBATCH --mail-type=fail,end
-#SBATCH --time=00-00:05:00
+#SBATCH --time=00-00:45:00
 #SBATCH --partition=earth-4
 #SBATCH --constraint=rhel8
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=8GB
+#SBATCH --mem=16GB
 #SBATCH --gres=gpu:l40s:1
 
 
