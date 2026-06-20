@@ -4,54 +4,71 @@ from ultralytics import YOLO
 from zipfile import ZipFile
 import csv
 
+from patient_dir import PATIENT_IMAGE_DIRS
+
 
 # ==========================================
 # KONFIGURATION
 # ==========================================
-MODEL_PATH = "/cfs/earth/scratch/vollmflo/BA/hpc/jobs/Slurm-267591 (train with tuneparas)/yolo_runs_hpc_final/fold_1/weights/best.pt" 
+MODEL_PATH = "/cfs/earth/scratch/vollmflo/BA/hpc/jobs/Slurm-267591 (train with tuneparas)/yolo_runs_hpc_final/fold_1/weights/best.pt"
 INPUT_DIR = "/cfs/earth/scratch/vollmflo/BA/data/"
 UNZIP_PATH = "/cfs/earth/scratch/vollmflo/BA/data/"
 
 CONFIDENCE_CUT = None       #Confidence cut to get variance distribution
+
+# Set to a patient ID (e.g. "P11") to use that patient's image directory as the
+# test set directly, skipping the ZIP unpack and training-image filter.
+# Set to None to use the original ZIP-based pipeline.
+TEST_PATIENT = "P11"
 
 # NEU: Pfad zu den Bildern, die ignoriert werden sollen
 IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
 
 OUTPUT_PROJECT = "./mass_inference_results/run_1"
 
+IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff')
+
 def main():
-    # 1. ZIP entpacken
-    zip_file_path = os.path.join(INPUT_DIR, "20241217_HAD_12241515.zip")
-    extract_folder = os.path.join(UNZIP_PATH, "20241217_HAD_12241515")
-    
-    print("Entpacke ZIP-Datei...")
-    with ZipFile(zip_file_path, "r") as myzip:
-        myzip.extractall(UNZIP_PATH)
+    if TEST_PATIENT is not None:
+        # --- Patient directory mode ---
+        patient_dir = PATIENT_IMAGE_DIRS[TEST_PATIENT]
+        print(f"Verwende Patient {TEST_PATIENT}: {patient_dir}")
+        images_to_process = [
+            os.path.join(patient_dir, f)
+            for f in os.listdir(patient_dir)
+            if f.lower().endswith(IMAGE_EXTS)
+        ]
+        print(f"Gefunden: {len(images_to_process)} Bilder für Patient {TEST_PATIENT}.")
+    else:
+        # --- Original ZIP pipeline ---
+        # 1. ZIP entpacken
+        zip_file_path = os.path.join(INPUT_DIR, "20241217_HAD_12241515.zip")
+        extract_folder = os.path.join(UNZIP_PATH, "20241217_HAD_12241515")
 
-# 2. Kugelsichere Blacklist erstellen (nur der Dateiname ohne Endung!)
-    # Aus "bild1.JPG" wird einfach "bild1"
-    ignore_stems = set()
-    for f in os.listdir(IGNORE_DIR):
-        stem = os.path.splitext(f)[0]
-        ignore_stems.add(stem)
-        
-    print(f"Gefunden: {len(ignore_stems)} eindeutige Bildnamen im Trainingsordner, die ignoriert werden.")
+        print("Entpacke ZIP-Datei...")
+        with ZipFile(zip_file_path, "r") as myzip:
+            myzip.extractall(UNZIP_PATH)
 
-    # 3. Liste der neuen, zu verarbeitenden Bilder erstellen
-    all_extracted_files = os.listdir(extract_folder)
-    images_to_process = []
-    
-    for filename in all_extracted_files:
-        # Auch hier die Endung abschneiden für den sauberen Vergleich
-        file_stem = os.path.splitext(filename)[0]
-        
-        # Nur Bilder verarbeiten, deren nackter Name NICHT in der Blacklist ist
-        if file_stem not in ignore_stems and filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff')):
-            full_path = os.path.join(extract_folder, filename)
-            images_to_process.append(full_path)
+        # 2. Kugelsichere Blacklist erstellen (nur der Dateiname ohne Endung!)
+        ignore_stems = set()
+        for f in os.listdir(IGNORE_DIR):
+            stem = os.path.splitext(f)[0]
+            ignore_stems.add(stem)
 
-    print(f"Gesamtanzahl im ZIP: {len(all_extracted_files)}")
-    print(f"Übrig für die Inferenz nach Filterung: {len(images_to_process)}")
+        print(f"Gefunden: {len(ignore_stems)} eindeutige Bildnamen im Trainingsordner, die ignoriert werden.")
+
+        # 3. Liste der neuen, zu verarbeitenden Bilder erstellen
+        all_extracted_files = os.listdir(extract_folder)
+        images_to_process = []
+
+        for filename in all_extracted_files:
+            file_stem = os.path.splitext(filename)[0]
+            if file_stem not in ignore_stems and filename.lower().endswith(IMAGE_EXTS):
+                full_path = os.path.join(extract_folder, filename)
+                images_to_process.append(full_path)
+
+        print(f"Gesamtanzahl im ZIP: {len(all_extracted_files)}")
+        print(f"Übrig für die Inferenz nach Filterung: {len(images_to_process)}")
 
     if len(images_to_process) == 0:
         print("Es gibt keine neuen Bilder zum Verarbeiten. Skript wird beendet.")
