@@ -8,7 +8,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128GB
-#SBATCH --gres=gpu:l40s:2
+#SBATCH --gres=gpu:l40s:1
 
 
 # Zeige aktuelles Verzeichnis vor dem Wechsel
