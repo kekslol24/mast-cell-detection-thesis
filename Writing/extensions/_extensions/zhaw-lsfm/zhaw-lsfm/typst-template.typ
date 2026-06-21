@@ -154,7 +154,7 @@
         ]
       }
 
-      #v(1fr)
+      #v(10fr)
       
       #if supervisor != none {
         align(left)[

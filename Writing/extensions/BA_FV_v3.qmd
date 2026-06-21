@@ -5,10 +5,10 @@ institute: "Institute of Computational Life Science"
 keywords: "Deep Learning, Cell Detection, Evaluation Metrics, Digital Lab and Production, Clinical Image Processing"
 lang: en
 confidential: false
-cover-image:
-  src: cover.png
-  max-width: 100%
-  max-height: 7cm
+# cover-image:
+#   src: cover.png
+#   max-width: 100%
+#   max-height: 7cm
 thesis-type: "Bachelor Thesis"
 degree-type: "Bachelors"
 study-year: "2023"
@@ -41,22 +41,22 @@ execute:
 
 ### English Version
 
-<!-- TODO: Write after Results and Discussion are complete. ~200 words.
-     Hit: clinical problem, gap, approach (YOLO11n, 53 patients, grouped CV),
-     key results: P5-B (primary, grouped CV): R_Atypisch=0.885, R_Normal=0.821, mAP50-95=0.748;
-     P5-A (35-fold LOPO, ceiling-inflated): R_Atypisch=0.920, R_Normal=0.941;
-     G3 R_Normal=0.981 best multi-patient fold; desktop app delivered to USZ. -->
+Systemic mastocytosis (SM) is diagnosed in part by a WHO minor criterion requiring at least ≥25% of mast cells in bone marrow aspirates to be morphologically atypical. Manual cell classification is slow, subjective, and error-prone. To our knowledge, no validated automated pipeline exists for the specific task of distinguishing atypical from normal mast cells in alignment with this criterion. This thesis develops and evaluates a deep learning pipeline that detects mast cells in 512×512 bone marrow aspirate tiles and classifies each as atypical (Atypisch) or normal (Normal), reporting the Atypisch fraction directly against the diagnostic threshold.
+A YOLO11n detector was trained on a 53-patient corpus assembled through a bootstrapped, model-assisted annotation loop in which each model generation labelled the next patient batch and its confirmed false positives became the following generation's hard negatives. Patient-held-out cross-validation was applied throughout: a grouped 5-fold protocol across 35 annotated patients served as the primary generalization estimate (mAP50-95 = 0.748, R_Atypisch = 0.885, R_Normal = 0.821; best multi-patient fold R_Normal = 0.981), and a 35-fold leave-one-patient-out run provided an optimistic upper bound (R_Atypisch = 0.920, R_Normal = 0.941). A controlled design-of-experiment showed that corpus expansion improves rare-class recall more than hyperparameter tuning under structural class imbalance.
+The final model is deployed at USZ as MastCellDetector, an offline desktop application that reports the Atypisch fraction against the WHO threshold, accompanied by an out-of-sample confidence calibration reference for clinical threshold selection.
 
 {{< pagebreak >}}
 
 ### German Version
 
-<!-- TODO: German translation of English abstract. -->
+Systemische Mastozytose (SM) wird teilweise über ein WHO-Nebenkriterium diagnostiziert, das fordert, dass mindestens ≥25% der Mastzellen in Knochenmarkaspiraten morphologisch atypisch sind. Die manuelle Zellklassifikation ist langsam, subjektiv und fehleranfällig. Nach unserem Kenntnisstand existiert keine validierte automatisierte Pipeline für die spezifische Aufgabe, atypische von normalen Mastzellen in Übereinstimmung mit diesem Kriterium zu unterscheiden. Diese Arbeit entwickelt und evaluiert eine Deep-Learning-Pipeline, die Mastzellen in 512×512 Knochenmarksaspirat-Kacheln detektiert, jede als atypisch (Atypisch) oder normal (Normal) klassifiziert und den Atypisch-Anteil direkt gegen den diagnostischen Schwellenwert ausgibt.
+Ein YOLO11n-Detektor wurde auf einem 53-Patienten-Korpus trainiert, der durch eine iterative, modellgestützte Annotationsschleife aufgebaut wurde, bei der jede Modellgeneration den nächsten Patientenstapel annotierte und ihre bestätigten Falsch-Positiven zu den Hard-Negatives der folgenden Generation wurden. Patientenbasierte Kreuzvalidierung wurde durchgehend angewandt: ein gruppiertes 5-Fold-Protokoll über 35 annotierte Patienten lieferte das primäre Generalisierungsmass (mAP50-95 = 0.748, R_Atypisch = 0.885, R_Normal = 0.821; bestes Multi-Patienten-Fold R_Normal = 0.981), und ein 35-facher Leave-One-Patient-Out-Lauf lieferte eine optimistische obere Schranke (R_Atypisch = 0.920, R_Normal = 0.941). Ein kontrolliertes Design-of-Experiment zeigte, dass Korpuserweiterung bei struktureller Klassenungleichheit den Recall der seltenen Klasse stärker verbessert als Hyperparameter-Tuning.
+Das finale Modell wird dem USZ als MastCellDetector bereitgestellt, einer offline lauffähigen Desktop-Anwendung, die den Atypisch-Anteil gegen den WHO-Schwellenwert ausgibt und mit einer Out-of-Sample-Konfidenz-Kalibrierung für die klinische Schwellenwertauswahl ausgeliefert wurde.
 
 
 # Acknowledgement {.unnumbered .unlisted}
 
-I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up the project for this thesis and for his valuable support and guidance throughout the writing and compilation process of this thesis. My appreciation also goes to Robin Kosche for showing me around the USZ and introducing me to the subject.
+I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up the project for this thesis and for his valuable support and guidance throughout the writing and compilation process of this thesis. My appreciation also goes to Robin Kosche for showing me around the USZ and introducing me to the subject as well as Prof. Dr. Dr. Stefan Balabanov for allowing this project to take place.
 
 ::: {.content-hidden when-format="html"}
 
@@ -77,13 +77,12 @@ I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up
 - **DoE**: Design of Experiment
 - **FN**: False Negative
 - **FP**: False Positive
-- **GT**: Ground Truth
 - **IoU**: Intersection over Union
 - **LOPO**: Leave-One-Patient-Out
 - **MC**: Mast Cells
 - **mAP**: Mean Average Precision
-- **NMS**: Non-Maximum Suppression
-- **RF-DETR**: Roboflow Detection Transformer
+<!-- - **NMS**: Non-Maximum Suppression -->
+<!-- - **RF-DETR**: Roboflow Detection Transformer -->
 - **SM**: Systemic Mastocytosis
 - **TN**: True Negative
 - **TP**: True Positive
@@ -93,17 +92,87 @@ I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up
 
 # Introduction
 
-<!-- NOTE: Introduction is carried over from BA_FV.qmd unchanged.
-     Paste the full Introduction section here before final compilation. -->
+## Context and Motivation
+Systemic mastocytosis (SM) is a rare clonal hematopoietic neoplasm defined by the pathological expansion and accumulation of neoplastic mast cells (MC) in extracutaneous organs, mostly seen in the bone marrow, but also the spleen, liver, and gastrointestinal tract. The major diagnostic criterion for SM is the presence of multifocal MC clusters in the bone marrow and/or extracutaneous organs, while minor criteria include an elevated serum tryptase level, MC expression of Cluster of Differentiation 2 (CD2), CD25, or CD30, and the presence of activating tyrosine kinase (KIT) mutations @Valent2021. Despite these structured criteria, SM is frequently underdiagnosed in routine clinical practice @TSE2024100316. One of the central reasons for this is that MC, although morphologically distinct, occur only in very small numbers within a given bone marrow aspirate sample, making their manual identification and quantification an exhausting, subjective, and time-consuming task for hematopathologists.
+
+The morphological assessment of MC carries direct diagnostic weight. The abnormal morphology of MC, defined as atypical spindle-shaped cells with hypogranulated cytoplasm and an oval nucleus, represents the first minor SM criterion. At least ≥25% of all MC must exhibit these morphological features in bone marrow smears or sections for this criterion to be fulfilled @Valent2021. This quantitative threshold requires a reliable and reproducible count of both typical and atypical MC within a sample, a task that is very error-prone when performed manually and at scale.
+
+In clinical practice, the integration of clinical signs and symptoms together with bone marrow morphological, immunophenotypic, and molecular results is required to diagnose SM variants @10.1182/bloodadvances.2024012612. However, the morphological step remains the entry point into this diagnostic chain. Standardizing and automating this step through computational means therefore has direct implications for diagnostic accuracy and clinical throughput. The University Hospital Zurich (USZ), which operates as the clinical partner for this thesis, has a concrete need for such a tool that could be embedded in its existing cell classification infrastructure.
+
+## Research Questions
+The goal of this thesis is to develop and evaluate a deep learning-based pipeline for the automated detection and morphological classification of MC in bone marrow aspirate images. From this objective, the following research questions are derived:
+
+1. Which specific performance metrics (e.g., F1-score, Mean Average Precision, or false negative rate) are most critical to ensure the tool's reliability for clinical screening?
+2. Is the developed pipeline capable of identifying mast cells in samples with extremely low cell density ("rare event detection") without generating an unmanageable number of false positives?
+3. Can an AI-based pipeline reliably distinguish between typical and atypical mast cell phenotypes to support the ≥25% diagnostic criterion defined by the WHO 2022 classification? @Valent2021
+
+## Overall Concept
+The overall system was designed as a complete multi-stage pipeline including data acquisition, annotation, preprocessing, hyperparameter tuning, model training, model validation, and clinical deployment. Digital bone marrow aspirate images were collected and annotated in close collaboration with clinical experts at the USZ to produce a labeled training dataset. Initial hyperparameter tuning was applied to ensure optimal starting conditions for training. A stratified k-fold cross-validation strategy was utilized to deliver a robust model evaluation given the limited availability of annotated rare-cell data. A YOLO-family object detection model was selected and fine-tuned for this task. The final pipeline is intended to be accessible either via a user-friendly drag-and-drop interface that automatically presents detection results and a statistical summary of the analyzed sample, meeting the operational requirements set by the USZ or, where feasible, integrated into Cinderella, the cell classification software already in use at the USZ.
+
+## State of the Art
+
+**Deep Learning in Digital Hematology**
+
+The intersection of deep learning and hematological image analysis has produced noteworthy progress over the past years. Traditionally, the detection and classification of blood cells involved manual microscopic examination by pathologists, a process that is labor-intensive, subjective, and error-prone. The increasing range of diagnostic tests has driven demand for automated, high-throughput solutions that are cost-effective, require a rapid turnaround time, and provide reliable results. Convolutional neural networks (CNNs) and, more recently, transformer-based architectures have addressed this demand by learning to identify and categorize morphological features directly from raw pixel data @Choudhary2025.
+
+Among the detection frameworks applied in this domain, the YOLO (You Only Look Once) family of models has proven particularly effective. Studies applying YOLOv10 and YOLOv11 to the detection and classification of red blood cells, white blood cells, and platelets in microscopic images have demonstrated mAP scores of up to 93.8%, underscoring the potential of these architectures in supporting hematological analysis and clinical diagnosis @diagnostics15010022. A feature of YOLO-based pipelines is their ability to perform detection and classification in a single forward pass, hence their name "... Look Once", making them computationally suitable for integration into clinical workflows where inference speed matters. For further information about the mechanisms for YOLO-models see [@PA2_FV].
+
+A meta-analysis of over 400 peer-reviewed studies on deep learning in peripheral blood smear analysis confirmed significant advances in automated diagnostic tools, particularly for disease identification in blood cells, while also identifying critical gaps including the limited exploration of differential white blood cell counting, the underdevelopment of automated morphological analysis, and the absence of standardized evaluation criteria @Margret2025.  
+These gaps are directly relevant to the present thesis, which addresses an underexplored subtype of rare hematological cell analysis.
+
+**Comparable Work in Cell Detection**
+
+A directly relevant contribution in this domain was published by Glüge et al. @GLUGE2024107924 in collaboration with the University Hospital Zurich. The study evaluated four state-of-the-art CNN architectures on a dataset of 171'374 microscopic single-cell images from bone marrow smears of 945 patients, finding that the best pre-trained model achieved a 53.5% improvement in precision and 7.3% improvement in recall compared to training from scratch, and that out-of-domain pre-training yielded features that transferred well to cell classification tasks.
+
+A review by Ghete et al. @https://doi.org/10.1002/hem3.70048 covering AI-based cell classification in bone marrow aspirate smears from 2019 to 2024 provides a systematic overview of the broader field. The review found that performance metrics across published studies are **not directly comparable**, as the majority implemented their own methods on their own datasets, and few were validated on external datasets. This observation directly informed the design choices of the present thesis, which applies stratified cross-validation to ensure statistically robust performance estimates rather than relying on single-split evaluations.
+
+For multi-class white blood cell classification at the subtype level, Diaz et al. @DIAZ20256123 applied a YOLOv11-large model with spatial attention to the simultaneous localization and classification of 13 white blood cell subtypes. The model achieved a mAP50-95 of 77.9% with an overall F1-score of 0.913, with class-wise average precision ranging between 89.3% and 98.2%, confirming reliable recognition even for infrequent cell subtypes. This is particularly instructive for the present work, as the challenge of infrequent subtypes, low absolute count, high inter-class visual similarity, maps directly onto the atypical versus normal MC classification problem.
+
+Finally, Lv et al. @Lv2023 reported on the Morphogo system, a CNN-based platform trained on over 2.8 million bone marrow cell images. Evaluated across 508 cases, the system demonstrated the ability to identify over 25 different cell types, achieving a sensitivity of 80.95%, a specificity of 99.48%, and an overall accuracy of 99.01%. The dataset size required to achieve these results underscores the data scarcity challenge that constrains MC-specific models, a bottleneck that the present thesis addresses through targeted augmentation and cross-validation strategies.
+
+**Mast Cell Detection and the Clinical Gap**
+
+In contrast to blood cell detection, which benefits from large, publicly available datasets, automated MC analysis in bone marrow aspirates remains largely unexplored in the literature. As shown in @fig-cell-distributions, the number of published datasets covering mast cells is substantially smaller compared to other hematopoietic cell lineages, illustrating the significant data scarcity. Deep learning methods including convolutional neural networks, encoder-decoder architectures, and recurrent frameworks have been proposed for the detection and study of MC in the context of mastocytosis, and the spread and development of MC can in principle be studied through microscopic image analysis using AI frameworks @10.1007/978-3-031-27524-1_4. However, validated pipelines specifically targeting morphological classification of normal versus atypical MC in bone marrow aspirates, with direct alignment to WHO diagnostic thresholds, do not yet exist as established clinical tools.
+
+![Publication distribution across cell lineages @https://doi.org/10.1002/hem3.70048](figures/publications.jpg){#fig-cell-distributions width=50%}
+
+This gap is clinically significant. The minor diagnostic criteria for SM include the condition that at least a quarter of the MC in the bone marrow exhibit unusual characteristics, such as spindle-shaped (@fig-sample-cell) or otherwise abnormal morphology @Valent2021. Meeting or failing to meet this threshold has direct consequences for patient classification and treatment decisions. Manual cell counting is variable between observers and across institutions, and given the low absolute number of MC per sample, even small counting errors can shift a patient across a diagnostic boundary. An automated, reproducible, and transparent counting system therefore addresses a concrete unmet clinical need.
+
+![Sample of spindle-shaped cell from dataset](figures/sample_spindel_shape.png){#fig-sample-cell width=50%}
+
+Taken together, the existing literature confirms that YOLO-based architectures are well-suited for cell-level detection in hematological microscopy, with performance in the range of 77-94% mAP achievable on well-represented cell types. However, no published study has specifically addressed the binary morphological classification of MC, atypical versus normal, in alignment with WHO diagnostic thresholds for SM. This thesis targets precisely this gap. It builds upon lessons learned from prior object detection experiments in related image analysis tasks @PA2_FV, and applies cross-validation methodology to ensure that reported performance metrics are generalizable rather than optimistically overfitted to a single data split. The clinical ambition of the project is to provide a deployable tool that can be integrated into an existing hospital software environment which distinguishes it from purely academic explorations and places model reliability, interface usability, and system integration at the center of the evaluation criteria.
 
 {{< pagebreak >}}
 
 # Methodology
 
 ## Biology of Mast Cells and Systemic Mastocytosis
+**Mast Cells: Origin and Function**  
 
-<!-- NOTE: Biology section carried over from BA_FV.qmd unchanged.
-     Paste here before final compilation. -->
+Mast cells are tissue-resident immune cells that play a central role in the body's innate defense system. They arise in the bone marrow, where maturation is controlled by stem cell factor binding to the receptor c-KIT, as well as by cytokines such as interleukin -3, -4, -9, and -10, which promote both differentiation and proliferation. Once mature, they migrate into neighbouring tissues and take up residence particularly in areas exposed to the external environment such as the gastrointestinal tract, respiratory mucosa, skin, and connective tissue surrounding blood and lymphatic vessels @Amin2012.
+
+Structurally, MC contain a nucleus surrounded by hundreds of granules, which serve as storage compartments for chemical mediators. These include histamine, which opens blood vessels and allows fluid and immune cells into tissues; proteases such as tryptase, chymase, and carboxypeptidase, which break down connective tissue to allow for better passage of immune cells; and cytokines and chemokines, which signal immune cells to proliferate, adhere to vessel walls, and move to sites of injury or infection @ClevelandClinicMastCells.
+
+Beyond their well-known role in allergic reactions, MC also contribute to tissue repair and angiogenesis. MC's synthesize, store, and release hundreds of mediators in response to allergic, environmental, neuroimmune, stress, and toxic triggers, with some of these mediators released independently of degranulation, including angiogenic, fibrotic, and neurotoxic molecules @THEOHARIDES201221. This functional spectrum makes them relevant not only in allergy and host defense, but across a wide spectrum of inflammatory and neoplastic conditions.
+
+**Development of Systemic Mastocytosis**  
+
+Systemic mastocytosis arises when MC undergo uncontrolled clonal proliferation driven by a somatic gain-of-function mutation. Around 95% of SM cases originate from a point mutation at codon 816 of the KIT gene, where aspartic acid is replaced by valine, referred to as KIT D816V. This substitution results in ligand-independent, constitutive activation of the KIT tyrosine kinase receptor, leading to unregulated MC proliferation, amplified growth, and increased survival @JH1279.
+
+
+**Disease Subtypes and Progression**
+
+SM is not a single, uniform entity but a spectrum of disease subtypes that differ in clinical behavior and prognosis. The International Consensus Classification defines the following subtypes in increasing order of severity: indolent SM (incorporating bone marrow mastocytosis), smoldering SM, aggressive SM, SM with an associated hematological neoplasm (SM-AHN), and mast cell leukemia (MCL) where as in the WHO 5th Edition, Bone Marrow Mastocytosis is placed on the top and the ranking shifts by +1 @JH1279.
+
+The majority of adult patients present with indolent SM, which is characterized by mediator-related symptoms, frequent skin involvement, and a near-normal life expectancy. The neoplastic MC burden in the bone marrow remains relatively low, and organ dysfunction is absent. Smoldering SM occupies an intermediate position, with a higher MC burden and a greater risk of progression, but without the organ damage that defines advanced disease.
+
+{{< pagebreak >}}
+
+**SM as a Precursor to Other Hematological Neoplasms**  
+
+One of the most clinically consequential features of SM is its capacity to co-occur with or precede other hematological malignancies. Secondary genetic lesions on top of the KIT mutation, or in cooperation with a particular genetic background, are potentially required for the malignant transformation of indolent SM into more severe disease forms @10.1182/blood-2015-07-655100. In SM-AHN, the associated hematological neoplasm, which may include myelodysplastic syndrome, myeloproliferative neoplasm, or acute myeloid leukemia, frequently shares the KIT D816V mutation with the MC compartment, indicating a common clonal origin in a multipotent hematopoietic precursor.
+
+The occurrence of the KIT mutation in bone marrow cell compartments other than MC is associated with progression to more aggressive forms of the disease and poor outcome in indolent SM @Teodosio2012. This involvement therefore serves as an important prognostic indicator, and its detection at the immunophenotypic level during bone marrow assessment has direct implications for patient management.
 
 {{< pagebreak >}}
 
@@ -113,7 +182,7 @@ I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up
 
 The dataset for this study consists of digitized bone marrow aspirate smear images provided by the University Hospital Zurich (USZ). All samples were collected from patients with confirmed or suspected systemic mastocytosis. Image tiles were extracted from whole-slide scans at a fixed resolution of 512x512 pixels, each displaying a sub-section of the whole smear. Two morphological classes were labeled for this study: Atypisch (atypical mast cells) and Normal (normal mast cells), corresponding directly to the cell types relevant to the WHO minor diagnostic criterion for SM.
 
-The corpus grew across four acquisition batches spanning 53 patients. The initial dataset covered a single patient (P1) and served as the pilot for the annotation and training pipeline. A second batch extended the corpus to 15 patients (P1-P15), contributing 1,564 annotated images with 1,288 Atypisch and 391 Normal instances, reflecting a raw class ratio of approximately 3.3:1. A third batch added patients P16 through P53, bringing the full corpus to 53 patients (1,857 annotated images, 1,476 Atypisch, 511 Normal, raw ratio 2.9:1). Because the training data derives almost entirely from confirmed SM patients, Atypisch is the dominant class throughout. At the P1-P8 scale the raw ratio was 14.4:1; by P1-P15 this had dropped to 3.3:1 due to the inclusion of patients P6, P8, and P9, which are rich in Normal annotations.
+The corpus grew across four acquisition batches spanning 53 patients. The initial dataset covered a single patient (P1) and served as the pilot for the annotation and training pipeline. A second batch extended the corpus to 15 patients (P1-P15), contributing 1'564 annotated images with 1'288 Atypisch and 391 Normal instances, reflecting a raw class ratio of approximately 3.3:1. A third batch added patients P16 through P53, bringing the full corpus to 53 patients (1'857 annotated images, 1'476 Atypisch, 511 Normal, raw ratio 2.9:1). Because the training data derives almost entirely from confirmed SM patients, Atypisch is the dominant class throughout. At the P1-P8 scale the raw ratio was 14.4:1; by P1-P15 this had dropped to 3.3:1 due to the inclusion of patients P9 and P15 which are rich in Normal annotations.
 
 ### Data Acquisition and Annotation
 
@@ -157,7 +226,7 @@ The rotation augmentation parameter (degrees) was treated as a tunable hyperpara
 
 YOLO11 (Ultralytics) was selected as the object detection framework. The architecture performs detection and classification in a single forward pass, making it computationally efficient for integration into clinical workflows where inference throughput matters. The Ultralytics Python API provides a consistent interface for training, fine-tuning, evaluation, and inference, and supports checkpoint initialization from custom pretrained weights, which was central to the transfer learning strategy described below. Comparable studies applying YOLO-family models to cell detection in hematological microscopy report mAP50 values in the range of 77-94% on well-represented cell types @diagnostics15010022 @DIAZ20256123, placing the architecture in the performance range expected for this domain.
 
-Among the available YOLO11 model sizes, the nano variant (yolo11n, 2.6M parameters) was selected. The selection was validated experimentally: a test using the large variant (yolo11l, 43M parameters) on the P1-P8 corpus under identical training conditions produced R_Normal=0.695 compared to R_Normal=0.840 for yolo11n. The larger model's classification head, which is randomly re-initialized when training with a different number of output classes than the pretrained checkpoint, has proportionally more free parameters to adapt from scratch. With only 170-220 training images per LOPO (Leave-One-Patient-Out) fold, these parameters tend to overfit to the majority class rather than learn generalizable features for the rare Normal class. The corpus size at this stage was insufficient for a 43M-parameter model; yolo11n was confirmed as the appropriate architecture for the available data.
+Among the available YOLO11 model sizes, the nano variant (yolo11n, 2.6M parameters) was selected. The selection was validated experimentally: a test using the large variant (yolo11l, 25.3M parameters @yolo11_ultralytics) on the P1-P8 corpus under identical training conditions produced R_Normal=0.695 compared to R_Normal=0.840 for yolo11n. The larger model's classification head, which is randomly re-initialized when training with a different number of output classes than the pretrained checkpoint, has proportionally more free parameters to adapt from scratch. With only 170-220 training images per LOPO (Leave-One-Patient-Out) fold, these parameters tend to overfit to the majority class rather than learn generalizable features for the rare Normal class. The corpus size at this stage was insufficient for a 43M-parameter model; yolo11n was confirmed as the appropriate architecture for the available data.
 
 Throughout the project, all training runs started from the generic COCO-pretrained yolo11n.pt checkpoint. The single exception was a set of experiments during Phase 2 in which DL_Modell_FV.pt, a YOLO11n model previously trained on the P1 single-patient dataset (nc=1, one class), was used as the starting point for continued training on the two-class P2 dataset. The reasoning was that domain-specific pretraining might give the model a better starting point for bone marrow aspirate images compared to COCO features. In practice, this approach introduced a structural complication: because DL_Modell_FV.pt was trained with a single output class and the P2 training required two classes (Atypisch and Normal), the Detect head's classification branch (cv3, the final 1x1 convolution layer) had to be discarded and randomly re-initialized. The bounding-box regression branch (cv2) transferred cleanly, but the randomly initialized cv3 layer produced noisy classification gradients in early training epochs. At the default learning rate of lr0=0.01, these gradients were large enough to partially overwrite the pretrained neck features, causing systematic underperformance rather than the expected improvement. The full account of this failure and its resolution is described in the training strategy section. After Phase 2, the project returned to yolo11n.pt as the standard base for all subsequent training.
 
@@ -169,7 +238,7 @@ The training strategy developed across five phases, each responding to specific 
 
 Phase 1 covered a sequence of experiments on the P1 dataset (428 images, single patient, Atypisch class only) using 5-fold stratified cross-validation and the pre-applied albumentations augmentation pipeline described above. The dataset consisted of annotated positive tiles alongside hand-curated negative tiles (confirmed empty regions), all at 512x512 pixels.
 
-The initial runs used yolo11n.pt (COCO pretrained). To test whether a larger model would learn better features for this domain, yolo11l (43M parameters) was then substituted and run in three separate configurations, including extended epoch budgets (200 epochs) and added augmentation. In each case, the large model did not outperform yolo11n on this single-patient dataset, and the project returned to yolo11n for all further Phase 1 work. This result prefigured P3-E; the mechanism is described in §Model Selection and Architecture.
+The initial runs used yolo11n.pt (COCO pretrained). To test whether a larger model would learn better features for this domain, yolo11l was then substituted and run in three separate configurations, including extended epoch budgets (200 epochs) and added augmentation. In each case, the large model did not outperform yolo11n on this single-patient dataset, and the project returned to yolo11n for all further Phase 1 work. This result prefigured P3-E; the mechanism is described in §Model Selection and Architecture.
 
 With yolo11n established as the appropriate architecture, hyperparameter tuning was run using YOLO's built-in model.tune() function across three increasingly intensive rounds: 30 iterations x 50 epochs, 300 iterations x 50 epochs, and finally 300 iterations x 100 epochs. The output of the final tuning round was a best_hyperparameters.yaml file with optimized values including lr0=0.0062, momentum=0.791, mosaic=0.916, and degrees=0.0. A training run applying these tuned hyperparameters completed Phase 1. The per-fold results are reported in the Results section.
 
@@ -201,7 +270,7 @@ The production recipe confirmed by the tinkering matrix was: degrees=5, dfl=1.5,
 
 An automated hyperparameter search using YOLO's built-in model.tune() was run on the production recipe (30 iterations, 50 epochs, patient P4 as holdout, mAP50-95 as fitness). The tuner converged on degrees=0.0 and dfl=2.47, both directions that the tinkering matrix had identified as harmful to R_Normal. The explanation is structural: a single-fold tuner optimizing mAP50-95 on a P4 holdout (an Atypisch-dominant patient) maximizes Atypisch-class performance at the expense of Normal-class generalization. Single-fold automated tuning is blind to cross-patient per-class recall balance. The production recipe from the tinkering matrix was retained.
 
-A model-size comparison (P3-E) substituted yolo11l (43 M parameters) for yolo11n under identical conditions on the P1–P8 corpus and produced R_Normal = 0.695, the lowest value recorded across the entire project (mechanism in §Model Selection and Architecture).
+A model-size comparison (P3-E) substituted yolo11l for yolo11n under identical conditions on the P1–P8 corpus and produced R_Normal = 0.695, the lowest value recorded across the entire project (mechanism in §Model Selection and Architecture).
 
 The production recipe confirmed by Phase 3 was carried forward and applied to train on the full P1-P15 corpus, producing the second model version (DL_Modell_FV_v2.pt) that the annotation partner at USZ used for patients P16-P53.
 
@@ -234,7 +303,7 @@ Model performance was assessed using standard metrics from object detection. Eac
 - **False Positive (FP):** the model predicted a mast cell where the ground truth showed none (a false alarm).
 - **False Negative (FN):** the model failed to detect a mast cell that was present in the ground truth (a missed cell).
 
-From these, the following performance indicators were computed [PA2_FV]:
+From these, the following performance indicators were computed @PA2_FV:
 
 **Precision** measures the proportion of predicted detections that were correct:
 
@@ -250,7 +319,9 @@ $$\text{mAP50} = \frac{1}{N} \sum_{i=1}^{N} AP_{i@50}$$
 
 **mAP50-95** extends mAP50 by computing AP (Average Precision) at ten evenly spaced IoU thresholds from 0.50 to 0.95 (`torch.linspace(0.5, 0.95, 10)`) and averaging the result across thresholds and classes @Jocher_Ultralytics_YOLO_2023. It penalises imprecise bounding box localisation more heavily than mAP50.
 
-Recall is the primary metric for this project. A missed mast cell (false negative) causes the Atypisch fraction to be underestimated, potentially placing a patient below the WHO 25% diagnostic threshold and delaying diagnosis of SM. A false positive is less consequential for two reasons: the clinical workflow includes a manual review step where false alarms can be dismissed, and the diagnostic impact of a false positive depends on how far the true ratio is from the 25% threshold. In a patient with a strongly atypical cell population, a moderate false positive rate does not change the clinical conclusion because the Atypisch fraction remains clearly above the threshold. False positives become clinically relevant primarily in borderline cases where the ratio is close to 25%, and it is precisely in those cases that the manual review step is most likely to be exercised.
+Two confidence-dependent conventions apply throughout the reported results. The mAP metrics integrate over the full confidence range and are threshold-independent by construction. Precision, recall, and the per-class recalls (R_Atypisch, R_Normal) are point estimates and are reported at the confidence value that maximises the mean F1 score across both classes, which is the operating point Ultralytics' val() selects internally [@Jocher_Ultralytics_YOLO_2023]. These point estimates are therefore not the maxima of their respective curves at near-zero confidence, but the values at the F1-optimal threshold; the deployment operating point ultimately used at USZ is set separately from the P11 calibration cohort (@fig-conf_p11).
+
+Recall is the primary metric for this project. A missed mast cell (false negative) causes the Atypisch fraction to be underestimated, potentially placing a patient below the WHO ≥25% diagnostic threshold and delaying diagnosis of SM. A false positive is less consequential, though not negligible: the clinical workflow includes a manual review step where false alarms can be dismissed, and the diagnostic impact of a false positive depends on how far the true ratio is from the ≥25% threshold. In a patient with a strongly atypical cell population, a moderate false positive rate does not change the clinical conclusion because the Atypisch fraction remains clearly above the threshold. False positives become clinically relevant primarily in borderline cases where the ratio is close to ≥25%, and it is precisely in those cases that the manual review step is most likely to be exercised. Because the application computes the displayed ratio before that review, the false-positive rate is still controlled at deployment through the operating threshold rather than treated as free; the mechanism and its quantification are analysed in the Error Analysis.
 
 Two per-class recall metrics are tracked separately throughout the experiments: R_Atypisch (recall for the Atypisch class) and R_Normal (recall for the Normal class). Both are clinically necessary because the WHO criterion depends on the ratio of Atypisch to total detected mast cells. Undercounting Normal cells inflates this ratio, potentially triggering a false-positive SM classification in borderline patients. Tracking both classes independently, rather than reporting a single aggregate recall, is a direct consequence of aligning the evaluation to the diagnostic question rather than to standard object detection benchmarking practice. Published studies in adjacent domains, such as general white blood cell subtype classification, typically optimize for aggregate mAP or F1 across all classes @DIAZ20256123; this thesis treats R_Normal as a primary metric in its own right because the WHO threshold makes the Normal count as diagnostically load-bearing as the Atypisch count. R_Normal received particular experimental attention because Normal is the minority class in the training corpus, consistently exhibiting lower recall and higher cross-fold variability than R_Atypisch.
 
@@ -260,7 +331,7 @@ mAP50 is used as the standard benchmark for run-to-run comparison across the exp
 
 **Gradio Prototype**
 
-An initial web-based interface was developed using Gradio to support early-stage result visualization and model evaluation during development. The prototype provided two functional tabs. The Analysis tab ran batch inference on image directories and displayed tiles with YOLO detection overlays (@fig-gradio-analysis), producing labeled output images. The Research tab supported ground-truth versus prediction comparison (@fig-gradio-research-det, @fig-gradio-research-metrics), applying a lower confidence threshold to maximize recall sensitivity during evaluation. A statistics dashboard (@fig-gradio-stats) aggregated per-class detection counts and displayed the Atypisch fraction relative to the WHO 25% threshold. The Gradio prototype served its purpose as a rapid development tool and was later superseded by the desktop application.
+An initial web-based interface was developed using Gradio to support early-stage result visualization and model evaluation during development. The prototype provided two functional tabs. The Analysis tab ran batch inference on image directories and displayed tiles with YOLO detection overlays (@fig-gradio-analysis), producing labeled output images. The Research tab supported ground-truth versus prediction comparison (@fig-gradio-research-det, @fig-gradio-research-metrics), applying a lower confidence threshold to maximize recall sensitivity during evaluation. A statistics dashboard (@fig-gradio-stats) aggregated per-class detection counts and displayed the Atypisch fraction relative to the WHO ≥25% threshold. The Gradio prototype served its purpose as a rapid development tool and was later superseded by the desktop application.
 
 ![Analysis tab of the Gradio prototype showing uploaded image tiles with YOLO detection overlays.](figures/gradio_upload_visualisierungen_mit_detection.png){#fig-gradio-analysis}
 
@@ -270,7 +341,7 @@ An initial web-based interface was developed using Gradio to support early-stage
 
 ![Research tab metrics output: precision-recall curves and performance plots generated from the ground-truth evaluation run.](figures/gradio_research_metrics_plots.png){#fig-gradio-research-metrics}
 
-![Statistics dashboard of the Gradio prototype showing per-class detection counts and the Atypisch fraction relative to the WHO 25% diagnostic threshold.](figures/gradio_statistik_dashboard.png){#fig-gradio-stats}
+![Statistics dashboard of the Gradio prototype showing per-class detection counts and the Atypisch fraction relative to the WHO ≥25% diagnostic threshold.](figures/gradio_statistik_dashboard.png){#fig-gradio-stats}
 
 :::
 
@@ -290,9 +361,9 @@ An annotation editor is embedded in the gallery. Clicking any thumbnail opens th
 
 ![Annotation editor with interactive bounding boxes; boxes can be added, moved, resized, or deleted directly in the application without external tooling.](figures/desktop_app_add_del_boxes.png){#fig-desktop-editor}
 
-The Statistics tab (@fig-desktop-stats) aggregates per-image detection counts into a patient-level summary that displays the total detected mast cells, the Atypisch fraction as a percentage, and a visual marker relative to the WHO 25% diagnostic threshold. This summary can be exported for clinical documentation or further analysis.
+The Statistics tab (@fig-desktop-stats) aggregates per-image detection counts into a patient-level summary that displays the total detected mast cells, the Atypisch fraction as a percentage, and a visual marker relative to the WHO ≥25% diagnostic threshold. This summary can be exported for clinical documentation or further analysis.
 
-![Statistics tab aggregating per-image detections into a patient-level summary with the Atypisch fraction displayed against the WHO 25% diagnostic threshold.](figures/desktop_app_statistics_summary.png){#fig-desktop-stats}
+![Statistics tab aggregating per-image detections into a patient-level summary with the Atypisch fraction displayed against the WHO ≥25% diagnostic threshold.](figures/desktop_app_statistics_summary.png){#fig-desktop-stats}
 
 ### Implementation in USZ Infrastructure
 
@@ -300,7 +371,7 @@ The primary deliverable of this project is the MastCellDetector desktop applicat
 
 The model shipped with the final version of the desktop application is the P6-A deployment model, trained on the complete P1-P53 corpus minus P11 using the production recipe established across Phases 3 and 4.
 
-The final deployment model (P6-A) was trained on 1,832 images across 34 annotated patients (P1–P53 minus P11), achieving val mAP50-95 = 0.842, Precision = 0.906, Recall = 0.921 at best.pt (early stopping at epoch 657, best epoch 607). Weights: `hpc/tinker_final_holdoutP11/final/weights/best.pt`.
+The final deployment model (P6-A) was trained on 1'832 images across 34 annotated patients (P1–P53 minus P11), achieving val mAP50-95 = 0.842, Precision = 0.906, Recall = 0.921 at best.pt (early stopping at epoch 657, best epoch 607). Weights: `hpc/tinker_final_holdoutP11/final/weights/best.pt`.
 
 The annotation editing and label export functionality in the application also addresses a secondary deliverable: the confirmed false positives and corrected labels produced during clinical use feed directly back into the training pipeline as the next generation of hard-negative examples, continuing the iterative annotation strategy established from Phase 1 onward.
 
@@ -340,9 +411,9 @@ The tinkering matrix (P3-B, 14 of 24 cells completed) identified `degrees=5` rot
 
 The automated hyperparameter tuner (P3-C, 30 iterations × 50 epochs, single P4 holdout, mAP50-95 fitness) converged on `degrees=0.0` and `dfl=2.47`. The production recipe from P3-B was retained.
 
-The model-size comparison (P3-E, yolo11l, 43 M parameters) produced mAP50-95 = 0.745 ± 0.095, precision = 0.778 ± 0.134, recall = 0.785 ± 0.103, and R_Normal = 0.695 ± 0.144, the lowest R_Normal across all runs and 14.5 percentage points below P3-B.
+The model-size comparison (P3-E, yolo11l) produced mAP50-95 = 0.745 ± 0.095, precision = 0.778 ± 0.134, recall = 0.785 ± 0.103, and R_Normal = 0.695 ± 0.144, the lowest R_Normal across all runs and 14.5 percentage points below P3-B.
 
-**Phase 4.** Adding patients P9–P15 (424 new images, 293 new Normal annotations) expanded the corpus to 1,564 images and 15 LOPO folds. P4-A (degrees=0, the production recipe with the rotation variable inadvertently unset) achieved mAP50-95 = 0.793 ± 0.106, precision = 0.851 ± 0.097, recall = 0.904, R_Atypisch = 0.913, and R_Normal = 0.890. The R_Normal gain from corpus expansion (+9.5 pp over P3-A) exceeded the largest single hyperparameter gain observed in Phase 3 (+4.5 pp from `degrees=5` in P3-B).
+**Phase 4.** Adding patients P9–P15 (424 new images, 293 new Normal annotations) expanded the corpus to 1'564 images and 15 LOPO folds. P4-A (degrees=0, the production recipe with the rotation variable inadvertently unset) achieved mAP50-95 = 0.793 ± 0.106, precision = 0.851 ± 0.097, recall = 0.904, R_Atypisch = 0.913, and R_Normal = 0.890. The R_Normal gain from corpus expansion (+9.5 pp over P3-A) exceeded the largest single hyperparameter gain observed in Phase 3 (+4.5 pp from `degrees=5` in P3-B).
 
 P4-B (full production recipe with `degrees=5` explicitly set) produced mAP50-95 = 0.789 ± 0.118, precision = 0.826 ± 0.131, recall = 0.895 ± 0.132, R_Atypisch = 0.900 ± 0.174, and R_Normal = 0.882 ± 0.193. All P4-A vs P4-B deltas were within 1.6 percentage points. The freeze ablation (P4-C, `freeze=0`) produced mAP50-95 = 0.782 ± 0.124, precision = 0.863 ± 0.087, recall = 0.893 ± 0.135, R_Atypisch = 0.896 ± 0.172, and R_Normal = 0.882 ± 0.193, all within 0.4 percentage points of P4-B. P4-B is the primary reported result for the P1–P15 phase, as all training parameters are explicitly set.
 
@@ -352,13 +423,15 @@ P4-B (full production recipe with `degrees=5` explicitly set) produced mAP50-95 
 
 Across 35 folds, post-hoc evaluation reported mAP50-95 = 0.858 ± 0.120, precision = 0.925 ± 0.128, recall = 0.951 ± 0.084, R_Atypisch = 0.920 ± 0.129 (n=20 folds with Atypisch ground truth), and R_Normal = 0.941 ± 0.119 (n=29 folds with Normal ground truth). Of the 35 folds, 19 reported mAP50 at the metric ceiling (0.995), corresponding to patients from the P16–P53 acquisition batch who contributed only one to three annotated images each. On a one-image test set, a single correct detection produces recall = 1.000 regardless of model generalization capacity, inflating the aggregate mean.
 
-**P5-B: Grouped 5-fold CV (primary Phase 5 result).** The 35 annotated patients were partitioned into five fixed groups, each serving as the test holdout exactly once. Every group contains at least one Atypisch-annotated and one Normal-annotated patient; the two largest patients (P1: 428 images, P2: 417 images) each anchor a separate group; test-image counts are balanced across groups (315–443 images per group). All five folds used the confirmed production recipe.
+**P5-B: Grouped 5-fold CV (primary Phase 5 result).** The 35 annotated patients were partitioned into five fixed groups, each serving as the test holdout exactly once. Every group contains at least one Atypisch-annotated and one Normal-annotated patient; the two largest patients (P1: 428 images, P2: 417 images) each anchor a separate group; test-image counts are balanced across groups (315–443 images per group). All five folds used the confirmed production recipe. 
+
+The grouped design was motivated in part by the small-sample sensitivity that makes individual patient holdouts structurally unreliable: a single missed cell in a one- or two-annotation test set shifts recall by 50 to 100 percentage points, as seen across the P5-A ceiling folds (see @sec-fold-patterns). Eight patients contributed exactly one annotated cell each (P24, P28, P29, P31, P39, P40, P45, P50); splitting a single annotation across train and holdout is methodologically incoherent, so these patients were always assigned to the training set across all five folds. Their annotations contribute to training in every fold and do not appear in any test split.
 
 Across five groups, mAP50-95 = 0.748 ± 0.079, precision = 0.864 ± 0.022, recall = 0.853 ± 0.087, R_Atypisch = 0.885 ± 0.035, and R_Normal = 0.821 ± 0.165. Per-group metrics are in @sec-p5b. G3 achieved R_Normal = 0.981, the highest across all multi-patient evaluation folds in the project.
 
 **Phase 6.** A G1–G4 ablation run re-ran four-fold grouped CV on G1–G4 only, with G5 excluded from training, validation, and negative sets. Results against the corresponding P5-B G1–G4 folds: mAP50-95 = 0.738 (P5-B G1–G4: 0.740), Recall = 0.849 (+0.006), R_Atypisch = 0.897 (+0.009), R_Normal = 0.801 (+0.004). All deltas fall within cross-fold noise, confirming that training without G5 is feasible with no substantial performance loss.
 
-This finding raised the question of whether G5 could be withheld entirely as a calibration cohort. That approach was ruled out: to make use of all G5 patients for calibration, inference would need to be run across the full slide set of each G5 patient (roughly 20,000 tiles per patient, approximately 380'000 tiles in total), which is impractical for a single calibration pass. The alternative, withholding all of G5 from training but calibrating on only one of its patients, would discard image information from the remaining G5 patients without benefit. Instead, a single patient was withheld from training: P11, selected because its 17 Atypisch and 20 Normal annotations provide near-equal class balance, the most informative single-patient confidence reference in the corpus. All remaining patients, including the rest of G5, were retained in training. The final deployment model was trained on P1–P53 minus P11 (1,832 images, 1,459 Atypisch, 491 Normal, 3.0:1 ratio) using the production recipe unchanged.
+This finding raised the question of whether G5 could be withheld entirely as a calibration cohort. That approach was ruled out: to make use of all G5 patients for calibration, inference would need to be run across the full slide set of each G5 patient (roughly 20,000 tiles per patient, approximately 380'000 tiles in total), which is impractical for a single calibration pass. The alternative, withholding all of G5 from training but calibrating on only one of its patients, would discard image information from the remaining G5 patients without benefit. Instead, a single patient was withheld from training: P11, selected because its 17 Atypisch and 20 Normal annotations provide near-equal class balance, the most informative single-patient confidence reference in the corpus. All remaining patients, including the rest of G5, were retained in training. The final deployment model was trained on P1–P53 minus P11 (1'832 images, 1'459 Atypisch, 491 Normal, 3.0:1 ratio) using the production recipe unchanged.
 
 
 @tbl-progression summarizes the key milestone runs across all phases. The complete experiment record, including corrupted runs and all 11 DoE grid cells, is maintained in `hpc/experiment_log.md` @Vollmer2026BA. P3-A per-class recall values in @tbl-progression are cross-fold means from the tinkering matrix reference configuration (degrees=0, dfl=1.5, freeze=10, label_smoothing=0.0), which is equivalent to the direct P3-A run; folds where the respective class was absent from the held-out patient are excluded from each per-class mean.
@@ -378,7 +451,7 @@ This finding raised the question of whether G5 could be withheld entirely as a c
 | **P5-B** | **5g-CV** | **0.748 ± 0.079** | **0.864 ± 0.022** | **0.853 ± 0.087** | **0.885 ± 0.035** | **0.821 ± 0.165** |
 | P6-A | val | 0.842 | 0.906 | 0.921 | 0.914 | 0.929 |
 
-: Milestone run progression summary across all experimental phases. All metrics shown as mean ± std across folds except P6-A (single training run, val split only; no held-out test set). Base model is yolo11n throughout except P3-E (yolo11l, 43 M parameters). CV-codes: S = stratified k-fold, L = leave-one-patient-out (LOPO), CV = grouped cross-validation; prefix = fold/group count. *P3-A per-class recall values are cross-fold means from the tinkering matrix reference configuration (degrees=0, dfl=1.5, freeze=10); folds where the respective class was absent from the held-out test set are excluded from each per-class average. {#tbl-progression}
+: Milestone run progression summary across all experimental phases. All metrics shown as mean ± std across folds except P6-A (single training run, val split only; no held-out test set). Base model is yolo11n throughout except P3-E (yolo11l). CV-codes: S = stratified k-fold, L = leave-one-patient-out (LOPO), CV = grouped cross-validation; prefix = fold/group count. *P3-A per-class recall values are cross-fold means from the tinkering matrix reference configuration (degrees=0, dfl=1.5, freeze=10); folds where the respective class was absent from the held-out test set are excluded from each per-class average. {#tbl-progression}
 
 P1-base established the initial proof of concept on a single patient. P2-C identified the learning rate mismatch that suppressed recall in all DL_Modell_FV runs before the fix; P2-H is the Phase 2 reference after the learning rate and freeze correction. P3-A marks the single largest structural improvement in the project. P3-B confirmed the production recipe through the 8-fold tinkering matrix and is the first fully validated configuration (bold). P3-E is a deliberate negative result bounding model-size choices. P4-A documents the corpus expansion gain from P9–P15; P4-B is the primary result for the P1–P15 phase with all recipe parameters explicitly set. P4-C is the freeze ablation. P5-A is the optimistic upper bound at full corpus scale; P5-B is the primary cross-validated generalization result. P6-A is the final deployment model trained on all 35 annotated patients minus P11; its metrics are validation-split values as no held-out test set exists.
 
@@ -390,56 +463,56 @@ P1-base established the initial proof of concept on a single patient. P2-C ident
 
 @tbl-p5a presents the complete 35-fold post-hoc evaluation results for P5-A. Each row corresponds to one annotated patient held out from training entirely; all metrics are evaluated on that patient's images exclusively. Post-hoc evaluation was applied uniformly across all 35 folds because Fold 17 (P37 holdout) was killed by the 48-hour SLURM wall-time limit and retrained independently; running the unified post-hoc pass over all folds ensures a consistent result set without mixed evaluation protocols (see @sec-measurement-notes). Patients are listed in numeric order.
 
-| **Patient** | **GT Atyp** | **GT Norm** | **mAP50-95** | **mAP50** | **Prec.** | **Recall** | **R_Atyp** | **R_Norm** |
+| **Fold / Holdout** | **GT Atyp** | **GT Norm** | **mAP50-95** | **mAP50** | **Prec.** | **Recall** | **R_Atyp** | **R_Norm** |
 |---------|--------|--------|----------|-------|-------|--------|--------|--------|
-| P1 | 482 | 2 | 0.610 | 0.813 | 0.577 | 0.973 | 0.946 | 1.000 |
-| P2 | 449 | 6 | 0.600 | 0.716 | 0.721 | 0.712 | 0.924 | 0.500 |
-| P3 | 60 | 4 | 0.736 | 0.906 | 0.785 | 0.931 | 0.911 | 0.951 |
-| P4 | 122 | 6 | 0.675 | 0.806 | 0.754 | 0.796 | 0.926 | 0.667 |
-| P5 | 3 | 18 | 0.652 | 0.760 | 0.595 | 0.740 | 0.667 | 0.814 |
-| P6 | 0 | 6 | 0.846 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P7 | 8 | 12 | 0.809 | 0.975 | 0.929 | 0.917 | 1.000 | 0.833 |
-| P8 | 0 | 24 | 0.816 | 0.986 | 0.914 | 0.958 | — | 0.958 |
-| P9 | 4 | 195 | 0.600 | 0.622 | 0.635 | 0.722 | 0.500 | 0.944 |
-| P10 | 5 | 20 | 0.909 | 0.991 | 0.987 | 0.906 | 1.000 | 0.812 |
-| P11 | 17 | 20 | 0.863 | 0.964 | 0.968 | 0.887 | 0.941 | 0.832 |
-| P12 | 133 | 0 | 0.832 | 0.984 | 0.962 | 0.952 | 0.952 | — |
-| P13 | 0 | 7 | 0.920 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P14 | 5 | 3 | 0.933 | 0.995 | 0.978 | 1.000 | 1.000 | 1.000 |
-| P15 | 0 | 68 | 0.949 | 0.991 | 0.984 | 0.985 | — | 0.985 |
-| P16 | 22 | 1 | 0.834 | 0.994 | 1.000 | 0.977 | 0.955 | 1.000 |
-| P17 | 69 | 0 | 0.832 | 0.992 | 0.945 | 0.994 | 0.994 | — |
-| P18 | 81 | 1 | 0.948 | 0.993 | 0.934 | 0.946 | 0.893 | 1.000 |
-| P24 | 1 | 0 | 0.796 | 0.995 | 1.000 | 1.000 | 1.000 | — |
-| P28 | 1 | 0 | 0.995 | 0.995 | 1.000 | 1.000 | 1.000 | — |
-| P29 | 1 | 0 | 0.896 | 0.995 | 1.000 | 1.000 | 1.000 | — |
-| P31 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P37 | 0 | 2 | 0.896 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P39 | 0 | 1 | 0.896 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P40 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P43 | 0 | 3 | 0.940 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P44 | 0 | 2 | 0.921 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P45 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P46 | 0 | 4 | 0.967 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 1 / P1 | 482 | 2 | 0.610 | 0.813 | 0.577 | 0.973 | 0.946 | 1.000 |
+| 2 / P10 | 5 | 20 | 0.909 | 0.991 | 0.987 | 0.906 | 1.000 | 0.812 |
+| 3 / P11 | 17 | 20 | 0.863 | 0.964 | 0.968 | 0.887 | 0.941 | 0.832 |
+| 4 / P12 | 133 | 0 | 0.832 | 0.984 | 0.962 | 0.952 | 0.952 | — |
+| 5 / P13 | 0 | 7 | 0.920 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 6 / P14 | 5 | 3 | 0.933 | 0.995 | 0.978 | 1.000 | 1.000 | 1.000 |
+| 7 / P15 | 0 | 68 | 0.949 | 0.991 | 0.984 | 0.985 | — | 0.985 |
+| 8 / P16 | 22 | 1 | 0.834 | 0.994 | 1.000 | 0.977 | 0.955 | 1.000 |
+| 9 / P17 | 69 | 0 | 0.832 | 0.992 | 0.945 | 0.994 | 0.994 | — |
+| 10 / P18 | 81 | 1 | 0.948 | 0.993 | 0.934 | 0.946 | 0.893 | 1.000 |
+| 11 / P2 | 449 | 6 | 0.600 | 0.716 | 0.721 | 0.712 | 0.924 | 0.500 |
+| 12 / P24 | 1 | 0 | 0.796 | 0.995 | 1.000 | 1.000 | 1.000 | — |
+| 13 / P28 | 1 | 0 | 0.995 | 0.995 | 1.000 | 1.000 | 1.000 | — |
+| 14 / P29 | 1 | 0 | 0.896 | 0.995 | 1.000 | 1.000 | 1.000 | — |
+| 15 / P3 | 60 | 4 | 0.736 | 0.906 | 0.785 | 0.931 | 0.911 | 0.951 |
+| 16 / P31 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 17 / P37 | 0 | 2 | 0.896 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 18 / P39 | 0 | 1 | 0.896 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 19 / P4 | 122 | 6 | 0.675 | 0.806 | 0.754 | 0.796 | 0.926 | 0.667 |
+| 20 / P40 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 21 / P43 | 0 | 3 | 0.940 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 22 / P44 | 0 | 2 | 0.921 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 23 / P45 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 24 / P46 | 0 | 4 | 0.967 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 25 / P47 | 0 | 3 | 0.918 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 26 / P48 | 7 | 0 | 0.857 | 0.995 | 1.000 | 1.000 | 1.000 | — |
+| 27 / P5 | 3 | 18 | 0.652 | 0.760 | 0.595 | 0.740 | 0.667 | 0.814 |
+| 28 / P50 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 29 / P51 | 5 | 90 | 0.700 | 0.765 | 0.740 | 0.900 | 0.800 | 1.000 |
 
-: P5-A per-fold test results (35-fold LOPO post-hoc evaluation, full P1–P53 annotated corpus). GT Atyp / GT Norm = ground-truth cell instance counts in the held-out test split. "—" indicates the class was absent from that test split and is excluded from the per-class mean. R_Atyp mean over n=20 folds; R_Norm mean over n=29 folds. {#tbl-p5a tbl-colwidths="[12,10,10,13,11,10,10,12,12]" align="cKnnnnnnn"}
+: P5-A per-fold test results (35-fold LOPO post-hoc evaluation, full P1–P53 annotated corpus). Patient / Holdout = sequential fold index / held-out dataset patient. GT Atyp / GT Norm = ground-truth cell instance counts in the held-out test split. "—" indicates the class was absent from that test split and is excluded from the per-class mean. R_Atyp mean over n=20 folds; R_Norm mean over n=29 folds. {#tbl-p5a tbl-colwidths="[14,10,10,12,11,10,10,11,12]" align="cKnnnnnnn"}
 
 {{< pagebreak >}}
 
-| **Patient** | **GT Atyp** | **GT Norm** | **mAP50-95** | **mAP50** | **Prec.** | **Recall** | **R_Atyp** | **R_Norm** |
+| **Patient / Holdout** | **GT Atyp** | **GT Norm** | **mAP50-95** | **mAP50** | **Prec.** | **Recall** | **R_Atyp** | **R_Norm** |
 |:-------:|:------:|:------:|:--------:|:-----:|:-----:|:------:|:------:|:------:|
-| P47 | 0 | 3 | 0.918 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P48 | 7 | 0 | 0.857 | 0.995 | 1.000 | 1.000 | 1.000 | — |
-| P50 | 0 | 1 | 0.995 | 0.995 | 1.000 | 1.000 | — | 1.000 |
-| P51 | 5 | 90 | 0.700 | 0.765 | 0.740 | 0.900 | 0.800 | 1.000 |
-| P52 | 1 | 4 | 0.945 | 0.995 | 0.971 | 1.000 | 1.000 | 1.000 |
-| P53 | 0 | 5 | 0.952 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 30 / P52 | 1 | 4 | 0.945 | 0.995 | 0.971 | 1.000 | 1.000 | 1.000 |
+| 31 / P53 | 0 | 5 | 0.952 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 32 / P6 | 0 | 6 | 0.846 | 0.995 | 1.000 | 1.000 | — | 1.000 |
+| 33 / P7 | 8 | 12 | 0.809 | 0.975 | 0.929 | 0.917 | 1.000 | 0.833 |
+| 34 / P8 | 0 | 24 | 0.816 | 0.986 | 0.914 | 0.958 | — | 0.958 |
+| 35 / P9 | 4 | 195 | 0.600 | 0.622 | 0.635 | 0.722 | 0.500 | 0.944 |
 | **Mean** | | | **0.858** | **0.948** | **0.925** | **0.951** | **0.920** (n=20) | **0.941** (n=29) |
-: &nbsp; {tbl-colwidths="[12,10,10,13,11,10,10,12,12]" align="cKnnnnnnn"}
+: &nbsp; {tbl-colwidths="[14,10,10,12,11,10,10,11,12]" align="cKnnnnnnn"}
 
 P1 R_Normal = 1.000 based on 2 Normal ground-truth instances and is not a stable estimate. P12 has 133 Atypisch and 0 Normal ground-truth instances; R_Normal is absent from its test set.
 
-Nineteen folds reported mAP50 at the ceiling value of 0.995. The majority are patients from the P16–P53 acquisition batch who contributed one to three annotated images each; P6, P13, and P14 also reach the ceiling for the same structural reason. On a one or two-image test set a single correct detection drives recall and mAP50 to their respective maxima regardless of model generalization capacity. These folds confirm that the model produces no catastrophic failures on any individual patient from the expanded corpus, but they carry no cross-patient generalization signal. The five patients with mAP50 below 0.820 (P2, P4, P5, P9, P51) represent the meaningful lower tail of the performance distribution at full corpus scale; their per-fold patterns are examined in @sec-fold-patterns.
+Nineteen folds reported mAP50 at the ceiling value of 0.995 (folds 5, 6, 12–14, 16–18, 20–26, 28, 30–32). The majority hold out patients from the P16–P53 acquisition batch who contributed one to three annotated images each; folds 5, 6, and 32 (holdouts P13, P14, and P6) also reach the ceiling for the same structural reason. On a one or two-image test set, detecting the single annotated cell forces recall to its maximum independent of model quality. mAP50 reaching the 0.995 ceiling on the same fold is a weaker but real statement: it requires that the model produced no false positive with a confidence higher than the true detection on that image, since any such high-confidence false alarm would depress precision early in the PR curve and lower the integrated AP. The ceiling therefore confirms that the model suppressed high-confidence background artefacts on that specific image, but a single-image fold still carries no cross-patient generalization signal. These folds confirm that the model produces no catastrophic failures on any individual patient from the expanded corpus. The six folds with mAP50 below 0.820 (folds 1, 11, 19, 27, 29, and 35; holdouts P1, P2, P4, P5, P51, and P9) represent the meaningful lower tail of the performance distribution at full corpus scale; their per-fold patterns are examined in @sec-fold-patterns.
 
 ### Per-Group Breakdown (P5-B) {#sec-p5b}
 
@@ -454,7 +527,7 @@ Nineteen folds reported mAP50 at the ceiling value of 0.995. The majority are pa
 | G3 | P9, P12, P53 | 1315 | 231 | 323 | 137 | 200 | 0.813 | 0.913 | 0.882 | 0.932 | 0.884 | 0.981 |
 | G4 | P3, P6, P15–P18, P48 | 1322 | 232 | 315 | 239 | 80 | 0.821 | 0.918 | 0.892 | 0.919 | 0.928 | 0.909 |
 | G5 | P4, P5, P7, P10–P11, P14, P24, P28–P29, P39–P40, P43–P47, P50–P52 | 1289 | 228 | 352 | 169 | 189 | 0.777 | 0.905 | 0.854 | 0.896 | 0.873 | 0.918 |
-| **Mean <br> ± std** |  |  |  |  |  |  | **0.748 ± 0.079** | **0.872 ± 0.064** | **0.864 ± 0.023** | **0.853 ± 0.087** | **0.885 ± 0.035** | **0.821 ± 0.165** |
+| **Mean <br> ± std** |  |  |  |  |  |  | **0.748 ± 0.079** | **0.872 ± 0.064** | **0.864 ± 0.022** | **0.853 ± 0.087** | **0.885 ± 0.035** | **0.821 ± 0.165** |
 
 : P5-B grouped 5-fold CV split composition and test results (35 annotated patients, P1–P53 corpus). Train = annotated (positive) images; each fold additionally receives 3,773-4,595 negative tiles. Atyp/Norm = ground-truth label counts in the test split. All five groups have both classes present. {#tbl-p5b tbl-colwidths="[6,18,5,5,5,5,5,10,10,10,10,11,11]" align="cclcccccccccc"}
 
@@ -465,15 +538,15 @@ Nineteen folds reported mAP50 at the ceiling value of 0.995. The majority are pa
 
 Training convergence for P5-B is shown in @fig-training-curves for a representative fold (Fold 3, G3 holdout: P9, P12, P53; mAP50 = 0.913, recall = 0.932). The training and validation loss curves converge within approximately 150 epochs on the majority of folds, with YOLO's early-stopping criterion (patience = 50) triggering at the validation mAP50 plateau.
 
-<!-- TODO: Copy hpc/yolo_new_v4_freeze10_re_run_CV/fold_3_G3/results.png to Writing/extensions/figures/p5b_results_fold3_g3.png -->
 
 ![Training convergence for P5-B Fold 3 (G3 holdout: P9, P12, P53). Panels from top left: box loss, classification loss, and distribution focal loss for training and validation splits; precision, recall, mAP50, and mAP50-95 across epochs.](figures/p5b_results_fold3_g3.png){#fig-training-curves}
 
-The normalized confusion matrix for the same fold is shown in @fig-confusion-matrix. Row normalization is applied because the Atypisch and Normal test-set sizes differ, making raw counts incomparable across classes; row-normalized values represent the fraction of each ground-truth class assigned to each predicted class. The main diagonal records 0.96 for Atypisch and 0.88 for Normal, indicating the fraction of each class correctly detected. Cross-class misclassifications between Atypisch and Normal are negligible at 0.01. The dominant off-diagonal entry is 0.91 in the background-to-Atypisch cell, reflecting the proportion of background tiles assigned to the Atypisch class.
+The normalized confusion matrix for the same fold is shown in @fig-confusion-matrix-norm. Row normalization is applied because the Atypisch and Normal test-set sizes differ, making raw counts incomparable across classes; row-normalized values represent the fraction of each ground-truth class assigned to each predicted class. The main diagonal records 0.96 for Atypisch and 0.88 for Normal, indicating the fraction of each class correctly detected. Cross-class misclassifications between Atypisch and Normal are negligible at 0.01. The dominant off-diagonal entry is 0.91 in the background-to-Atypisch cell, reflecting the proportion of background tiles assigned to the Atypisch class. The raw numbers are visible in @fig-confusion-matrix.
 
-<!-- TODO: Copy hpc/yolo_new_v4_freeze10_re_run_CV/fold_3_G3/confusion_matrix_normalized.png to Writing/extensions/figures/p5b_confusion_matrix_fold3_g3.png -->
 
-![Normalized confusion matrix for P5-B Fold 3 (G3 holdout: P9, P12, P53). Rows are ground-truth classes; columns are predicted classes. Values are row-normalized fractions. The main diagonal entries are 0.96 (Atypisch) and 0.88 (Normal); cross-class error is 0.01; background-to-Atypisch is 0.91.](figures/p5b_confusion_matrix_fold3_g3_normalized.png){#fig-confusion-matrix}
+![Normalized confusion matrix for P5-B Fold 3 (G3 holdout: P9, P12, P53). Rows are predicted classes; columns are ground-truth classes. Values are row-normalized fractions. The main diagonal entries are 0.96 (Atypisch) and 0.88 (Normal); cross-class error is 0.01; background-to-Atypisch is 0.91.](figures/p5b_confusion_matrix_fold3_g3_normalized.png){#fig-confusion-matrix-norm width=90%}
+
+![Confusion matrix for P5-B raw numbers.](figures/p5b_confusion_matrix_fold3_g3.png){#fig-confusion-matrix width=90%}
 
 
 ### Phase 5–6 Validation Comparison
@@ -484,8 +557,8 @@ The normalized confusion matrix for the same fold is shown in @fig-confusion-mat
 ```{python}
 #| label: fig-p5b-recall
 #| fig-cap: "P5-B per-group recall by class. Bars show R_Atypisch (blue) and R_Normal (orange) for each held-out patient group. Dashed horizontal lines mark the cross-fold means (R_Atypisch = 0.885, R_Normal = 0.821)."
-#| fig-width: 6
-#| fig-height: 3.5
+#| fig-width: 1
+#| fig-height: 1.5
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -518,8 +591,8 @@ plt.show()
 ```{python}
 #| label: fig-p5p6-comparison
 #| fig-cap: "Performance comparison across P5-A (35-fold LOPO, test), P5-B (5-group CV, test), and P6-A (final model, val). Error bars show ±1 std across folds, clipped at 1.0. P6-A is a single training run with no held-out test set."
-#| fig-width: 8
-#| fig-height: 4
+#| fig-width: 1
+#| fig-height: 1.5
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -577,8 +650,8 @@ plt.show()
 ```{python}
 #| label: fig-p5a-vs-p5b
 #| fig-cap: "Metric comparison between P5-A (35-fold LOPO) and P5-B (grouped 5-fold CV). Error bars represent ±1 standard deviation across folds. R_Atyp and R_Norm for P5-A are computed over the 20 and 29 folds respectively where the class was present in the test set."
-#| fig-width: 7
-#| fig-height: 3.5
+#| fig-width: 1
+#| fig-height: 0.5
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -624,20 +697,28 @@ plt.show()
 
 ### Final Model Training Visualization
 
-Training convergence for the P6-A deployment model is shown in @fig-p6a-results. The model trained on 1,832 images (P1–P53 minus P11) and converged at epoch 607 (early stopping, patience=50).
+Training convergence for the P6-A deployment model is shown in @fig-p6a-results. The model trained on 1'832 images (P1–P53 minus P11) and converged at epoch 607 (early stopping, patience=50).
 
 ![Training curves for the P6-A final deployment model. Panels show box loss, classification loss, and DFL loss for training and validation splits; precision, recall, mAP50, and mAP50-95 across epochs.](figures/p6a_results.png){#fig-p6a-results}
 
-The normalized confusion matrix at best.pt is shown in @fig-p6a-confusion. Evaluated on the validation split (15% of training data).
+The normalized confusion matrix at best.pt is shown in @fig-p6a-confusion-norm. Evaluated on the validation split (15% of training data). The raw numbers are visible in @fig-p6a-confusion.
 
-![Normalized confusion matrix for P6-A (best.pt, evaluated on the val split). Rows are ground-truth classes; columns are predicted classes.](figures/p6a_confusion_matrix_normalized.png){#fig-p6a-confusion}
+
+![Normalized confusion matrix for P6-A (best.pt, evaluated on the val split). Rows are predicted classes; columns are ground-truth classes.](figures/p6a_confusion_matrix_normalized.png){#fig-p6a-confusion-norm width=90%}
+
+![Confusion matrix for P6-A raw numbers.](figures/p6aconfusion_matrix.png){#fig-p6a-confusion width=90%}
+
 
 
 ## Real World Usage
 
 ### Confidence Threshold Calibration
 
-The final deployment model (P6-A) was subsequently applied to the complete P11 tile set. The resulting confidence distribution is shown in @fig-conf_p11.
+The final deployment model (P6-A) was applied out of sample to the complete P11 tile set, and the resulting confidence distribution is shown in @fig-conf_p11. P11 was selected for this role because the near-equal class balance of 17 Atypisch and 20 Normal annotations makes it the most informative single-patient calibration reference available without retraining; any other annotated patient would have contributed to P6-A's training set and would produce in-sample confidence scores. The histogram is delivered to USZ so the haematologist can select an operating threshold against the clinic's own recall and review-burden tradeoff, rather than inheriting a single hard-coded engineering value.
+
+P11 is, however, an insufficient calibration cohort for placing that threshold with statistical confidence. With only 37 annotated cells across approximately 12'000 tiles, the model produces a small number of high-confidence true-positive detections against a large bulk of low-confidence background artefacts. The histogram does exhibit the expected bimodal structure, a broad low-confidence cluster from background and a narrower high-confidence peak from true detections, but the true-positive peak rests on too few detections for the separation point to be located reliably. A threshold drawn from this distribution is directionally informative but not a precise operating recommendation.
+
+The practical constraint behind this limitation is data scarcity. P1 (482 Atypisch, 2 Normal) and P2 (449 Atypisch, 6 Normal) each carry roughly twenty-five times the annotated cell count of P11. Withholding either from the 35-patient training corpus specifically for calibration would have removed the two largest single contributors to Atypisch-class coverage from training, and that tradeoff was not acceptable at this corpus size. P11's modest annotation count made the scarcity cost acceptable; its class balance was a secondary benefit.
 
 ![Confidence distribution of the final deployment model (P6-A) across the complete P11 tile set (~12'000 tiles; 17 Atypisch and 20 Normal annotated).](figures/confidence_histogram_no_axv.png){#fig-conf_p11}
 
@@ -647,13 +728,13 @@ The final deployment model (P6-A) was subsequently applied to the complete P11 t
 
 ## Interpretation of Results
 
-To our knowledge, this is the first deep learning pipeline for the specific diagnostic task of distinguishing atypical from normal mast cells in bone marrow aspirates, validated under patient-held-out cross-validation and aligned to the WHO 25% minor criterion for systemic mastocytosis. The systematic review by Ghete et al. [@https://doi.org/10.1002/hem3.70048] of AI-based bone marrow cell classification from 2019 to 2024 documents work on broad cell-type classification but none targeting the Atypisch-versus-Normal mast cell distinction that the WHO ratio depends on, and few studies validating on patient-held-out splits at all. The work is also delivered, not just measured: the MastCellDetector desktop application [@Vollmer2026MastCellDetector] runs the final model offline at USZ and reports the Atypisch fraction directly against the 25% threshold, turning the pipeline into a tool that participates in the diagnostic decision rather than a benchmark number.
+To our knowledge, this is the first deep learning pipeline for the specific diagnostic task of distinguishing atypical from normal mast cells in bone marrow aspirates, validated under patient-held-out cross-validation and aligned to the WHO ≥25% minor criterion for systemic mastocytosis. The systematic review by Ghete et al. [@https://doi.org/10.1002/hem3.70048] of AI-based bone marrow cell classification from 2019 to 2024 documents work on broad cell-type classification but none targeting the Atypisch-versus-Normal mast cell distinction that the WHO ratio depends on, and few studies validating on patient-held-out splits at all. The work is also delivered, not just measured: the MastCellDetector desktop application [@Vollmer2026MastCellDetector] runs the final model offline at USZ and reports the Atypisch fraction directly against the ≥25% threshold, turning the pipeline into a tool that participates in the diagnostic decision rather than a benchmark number.
 
 The primary generalization estimate is the P5-B grouped 5-fold cross-validation: mAP50-95 = 0.748, precision = 0.864, recall = 0.853, R_Atypisch = 0.885, and R_Normal = 0.821 across 35 annotated patients, with no image from a held-out patient ever appearing in training within its fold. These are conservative, deployment-relevant numbers: the cross-fold standard deviation reflects genuine inter-patient biological variability rather than random-split noise, and the test groups (315 to 443 images each) are large enough to absorb individual missed detections without catastrophic recall swings. The 35-fold LOPO run (P5-A: R_Atypisch = 0.920, R_Normal = 0.941) is reported as an optimistic upper bound only. Its per-class means are inflated by 19 folds at the mAP50 ceiling of 0.995, where a single-image test set guarantees perfect recall once its one annotated cell is detected, independent of any generalization capacity. P5-B is the number a clinician should trust; P5-A bounds the best case.
 
-The final deployment model (P6-A), trained on all 34 annotated patients minus P11, achieves R_Atypisch = 0.914 and R_Normal = 0.929 on its validation split, consistent with the P5-B grouped-CV estimate and confirming that the production recipe generalizes cleanly to the expanded training set. These are in-sample validation metrics, not held-out test results, but their alignment with P5-B is reassuring evidence against overfitting at deployment scale.
+The final deployment model (P6-A), trained on all 35 annotated patients minus P11, achieves R_Atypisch = 0.914 and R_Normal = 0.929 on its validation split, consistent with the P5-B grouped-CV estimate and confirming that the production recipe generalizes cleanly to the expanded training set. These are in-sample validation metrics, not held-out test results, but their alignment with P5-B is reassuring evidence against overfitting at deployment scale.
 
-R_Normal is the load-bearing metric for this task, because undercounting Normal cells inflates the Atypisch fraction and can push a borderline patient across the 25% threshold. The single largest improvement in R_Normal at any point in the project came from corpus expansion, specifically the addition of patient P9 with its 195 Normal annotations, and it exceeded the gain from any individual hyperparameter change. This is not an incidental observation. The Phase 2 design-of-experiment grid varied false-positive oversampling and background-tile ratio across the full composition space of a fixed corpus and found no statistically distinguishable difference: the spread across all configurations was smaller than the cross-fold standard deviation within any single run. The controlled conclusion is that when class imbalance is structural rather than accidental, that is, when the minority class is rare because the data is sampled from disease-positive patients in whom that morphology is genuinely uncommon, reweighting and resampling the existing data cannot substitute for collecting more biologically diverse patients. For rare-event medical imaging this is a transferable lesson: corpus expansion, not hyperparameter tuning, is the primary lever for rare-class recall under structural imbalance. The trajectory bears this out, with R_Normal reaching 0.981 on the best multi-patient fold (G3) once the corpus had acquired sufficient Normal-class coverage.
+R_Normal is the load-bearing metric for this task, because undercounting Normal cells inflates the Atypisch fraction and can push a borderline patient across the ≥25% threshold. The single largest improvement in R_Normal at any point in the project came from corpus expansion, specifically the addition of patient P9 with its 195 Normal annotations, and it exceeded the gain from any individual hyperparameter change. This is not an incidental observation. The Phase 2 design-of-experiment grid varied false-positive oversampling and background-tile ratio across the full composition space of a fixed corpus and found no statistically distinguishable difference: the spread across all configurations was smaller than the cross-fold standard deviation within any single run. The controlled conclusion is that when class imbalance is structural rather than accidental, that is, when the minority class is rare because the data is sampled from disease-positive patients in whom that morphology is genuinely uncommon, reweighting and resampling the existing data cannot substitute for collecting more biologically diverse patients. For rare-event medical imaging this is a transferable lesson: corpus expansion, not hyperparameter tuning, is the primary lever for rare-class recall under structural imbalance. The trajectory bears this out, with R_Normal reaching 0.981 on the best multi-patient fold (G3) once the corpus had acquired sufficient Normal-class coverage.
 
 The automated hyperparameter tuner (P3-C) reinforces this point from a different angle. YOLO's built-in tuner, run for 30 iterations on a single Atypisch-dominant holdout patient (P4), converged on degrees=0.0 and dfl=2.47, both parameters that the cross-validated tinkering matrix had identified as harmful to R_Normal. The tuner behaved rationally given its objective, mAP50-95 on a P4 holdout, but that objective rewards Atypisch-class performance at the expense of Normal-class generalization. This finding generalizes: for rare-class tasks where class imbalance is structural, standard automated hyperparameter search requires multi-patient cross-validation to prevent the dominant class from steering the search. Single-fold tuning is blind to the recall balance that the diagnostic criterion depends on. The production recipe retained from the tinkering matrix was not a conservative choice; it was the only choice that a cross-validated evaluation could identify as correct.
 
@@ -661,7 +742,7 @@ A second methodological contribution is the bootstrapped, model-assisted annotat
 
 Finally, the threshold question is handled honestly. Rather than shipping a single hard-coded confidence value, the project withheld patient P11 from all training as a near-balanced calibration cohort, ran the final model over its full tile set out of sample, and delivered the resulting confidence histogram to USZ so the hospital can choose its own operating point against its own recall and review-burden tradeoff. A deployed tool that hands the institution an out-of-sample calibration reference, rather than an in-sample number, is the appropriate form for a clinical decision that is ultimately the haematologist's to make.
 
-The metric range across the P5-B groups is wide but structured, and each extreme is explained by corpus composition rather than model instability. G1's mAP50 of 0.766 is depressed by the long-standing P1 Normal fragility (P1's old Pos_neg annotation regime and only 10 Normal test instances in the group), not by a Phase 5 regression. G2's recall of 0.773 reflects that P2 and P8 are the two most Atypisch-dominant patients in the corpus, so the G2 test set is unusually sensitive to any single missed Atypisch cell. G3, G4, and G5 each exceed 0.89 recall, converging with the P4-B LOPO mean of 0.895 on the earlier 15-patient corpus. That convergence is itself a result: training on the expanded 30-patient set maintained performance while adding 20 new patients to the evaluation scope, with no distributional drift relative to the P1 to P15 results. **absatz stimmt noch nicht ganz**
+G3, G4, and G5 each achieve recall above 0.89, consistent with the P4-B 15-patient LOPO mean of 0.895. This stability confirms that expanding from 15 to 35 patients did not introduce distributional drift: the model trained on the broader corpus generalizes at least as well on the earlier patient cohort as the Phase 4 model did.
 
 The grouped CV design is not equivalent to LOPO, but it preserves the property that matters: no image from a holdout patient appears in its fold's training set. It was also the tractable choice. Five folds cost roughly 36 hours at MAX_PARALLEL = 2, fitting the 96-hour HPC allocation that made a full 35-fold LOPO impractical to run as the primary protocol. Grouped patient CV is therefore the deployable approximation of LOPO at this corpus scale.
 
@@ -681,29 +762,31 @@ A per-class recall extraction issue affected all LOPO runs through Phase 4. The 
 
 For the P5-A post-hoc evaluation, the bug was fixed by examining per-patient ground-truth label files before calling `val()`: the label-derived GT class counts provided a reliable class-index lookup independent of Ultralytics' internal `ap_class_index` field. This fix allowed the 35-fold P5-A results to be extracted correctly without per-fold manual inspection; folds where only one class had ground-truth instances were routed to the appropriate class slot by GT count rather than by position. The aggregate metrics mAP50 and overall Recall are computed internally by Ultralytics and are unaffected by this issue in all phases.
 
-**RQ1** asked which performance metrics are most critical for clinical reliability. The answer is per-class recall tracked independently for both morphological classes. A false negative, a missed mast cell, biases the Atypisch fraction at the diagnostic decision boundary; R_Normal is the harder of the two because Normal is the minority class in the training corpus. mAP50 serves as the run-to-run comparison summary. F1-score is not used as a primary metric because it treats false positives and false negatives symmetrically, whereas this task is explicitly asymmetric: false positives are recoverable at the manual review step, while false negatives silently distort the WHO ratio. Precision is monitored but secondary for the same reason.
+- **RQ1** asked which performance metrics are most critical for clinical reliability. The answer is per-class recall tracked independently for both morphological classes. A false negative, a missed mast cell, biases the Atypisch fraction at the diagnostic decision boundary; R_Normal is the harder of the two because Normal is the minority class in the training corpus. mAP50 serves as the run-to-run comparison summary. F1-score is not used as a primary metric because it treats false positives and false negatives symmetrically, whereas this task is explicitly asymmetric: false positives are recoverable at the manual review step, while false negatives silently distort the WHO ratio. Precision is monitored but secondary for the same reason.
 
-**RQ2** asked whether the pipeline achieves rare-event detection without unmanageable false positives. It does, with the caveat that operating threshold selection is left to the clinic. Mast cells are present in only a small fraction of tiles in a full slide scan (~20'000 tiles per patient), and the confirmed-false-positive hard-negative training loop suppresses the most common error modes across annotation generations. The conservative P5-B estimate achieves R_Normal = 0.821 at a false-positive rate that is manageable within the MastCellDetector review workflow: the representative G3 confusion matrix records main-diagonal entries of 0.96 (Atypisch) and 0.88 (Normal) with cross-class error at 0.01. The out-of-sample confidence histogram from patient P11 shows a bimodal distribution separating the false-positive bulk from the true-positive peak, giving the hospital a principled basis for threshold selection without inheriting a single hard-coded engineering value.
+- **RQ2** asked whether the pipeline achieves rare-event detection without generating an unmanageable number of false positives. The evidence supports a qualified yes, conditional on the operating threshold. Mast cells occupy only a small fraction of the tiles in a full slide scan (~20'000 tiles per patient), and the confirmed-false-positive hard-negative loop suppresses the most common background error modes across successive annotation generations. Under the conservative P5-B estimate the rare cells are detected reliably (R_Atypisch = 0.885, R_Normal = 0.821), and on the representative G3 fold the confusion matrix records main-diagonal recall of 0.96 (Atypisch) and 0.88 (Normal) with cross-class confusion at 0.01, so the residual error is dominated by background false alarms rather than Atypisch-versus-Normal mix-ups. That false-alarm load is not a fixed property of the model but a function of the confidence threshold: the matrix is computed at the Ultralytics default of conf = 0.25 @Jocher_Ultralytics_YOLO_2023, while the out-of-sample P11 histogram (@fig-conf_p11) separates the low-confidence background bulk from the high-confidence true-positive peak, so raising the threshold trades a small amount of recall for a large reduction in surviving false positives. The figure that would settle RQ2 outright is not yet available: the absolute error between the predicted Atypisch fraction and the ground-truth fraction at a fixed operating point, measured on a dedicated calibration cohort larger than the 37 annotated cells of P11. The defensible answer is therefore that the pipeline detects rare events reliably and keeps false positives recoverable within the MastCellDetector review workflow, while the precise false-positive rate at the deployed threshold remains to be quantified on a larger calibration set, a deployment-evaluation step identified in @sec-future.
 
-**RQ3** asked whether the pipeline reliably distinguishes typical from atypical mast cell phenotypes to support the WHO >25% criterion. Yes. Under patient-held-out cross-validation the pipeline achieves R_Atypisch = 0.885 and R_Normal = 0.821 (P5-B, conservative estimate); the final deployment model reports R_Atypisch = 0.914 and R_Normal = 0.929 on its validation split (P6-A). Both classes that enter the Atypisch-to-total ratio are counted with reliable recall, which is the necessary condition for computing a trustworthy fraction. The MastCellDetector application directly operationalizes the answer: its Statistics tab aggregates per-tile detections into a patient-level Atypisch fraction and displays it against the 25% threshold, mapping the pipeline's output onto the diagnostic question without further manual computation.
+- **RQ3** asked whether the pipeline reliably distinguishes typical from atypical mast cell phenotypes to support the WHO ≥25% criterion. Yes. Under patient-held-out cross-validation the pipeline achieves R_Atypisch = 0.885 and R_Normal = 0.821 (P5-B, conservative estimate); the final deployment model reports R_Atypisch = 0.914 and R_Normal = 0.929 on its validation split (P6-A). Both classes that enter the Atypisch-to-total ratio are counted with reliable recall, which is the necessary condition for computing a trustworthy fraction. The MastCellDetector application directly operationalizes the answer: its Statistics tab aggregates per-tile detections into a patient-level Atypisch fraction and displays it against the ≥25% threshold, mapping the pipeline's output onto the diagnostic question without further manual computation.
 
 ## Clinical Relevance
 
-The clinical value of this pipeline follows directly from the diagnostic question it is aligned to. The WHO minor criterion for SM is met when at least 25% of mast cells in the aspirate are atypical @Valent2021, so the quantity that matters is a ratio of two counts, not a single detection score. The pipeline is built around that ratio: it counts Atypisch and Normal cells separately and reports the Atypisch fraction against the threshold.
+The clinical value of this pipeline follows directly from the diagnostic question it is aligned to. The WHO minor criterion for SM is met when at least ≥25% of mast cells in the aspirate are atypical @Valent2021, so the quantity that matters is a ratio of two counts, not a single detection score. The pipeline is built around that ratio: it counts Atypisch and Normal cells separately and reports the Atypisch fraction against the threshold.
 
-This is why the error asymmetry is treated the way it is. A false negative, a missed mast cell, biases the ratio and can move a borderline patient across the 25% line and delay an SM diagnosis, whereas a false positive is recoverable at the manual review step and only matters near the threshold. The evaluation therefore prioritizes recall, and Normal-class recall in particular, because undercounting Normal cells inflates the Atypisch fraction toward a false-positive classification. Optimizing for aggregate mAP, as adjacent white-blood-cell studies typically do [@DIAZ20256123], would obscure exactly the per-class behaviour the diagnosis depends on.
+This is why the error asymmetry is treated the way it is. A false negative, a missed mast cell, biases the ratio and can move a borderline patient across the ≥25% line and delay an SM diagnosis, whereas a false positive is recoverable at the manual review step and only matters near the threshold. The evaluation therefore prioritizes recall, and Normal-class recall in particular, because undercounting Normal cells inflates the Atypisch fraction toward a false-positive classification. Optimizing for aggregate mAP, as adjacent white-blood-cell studies typically do @DIAZ20256123, would obscure exactly the per-class behaviour the diagnosis depends on.
 
-The bridge from model to clinic is the MastCellDetector desktop application [@Vollmer2026MastCellDetector]. It runs entirely offline, which satisfies the network restrictions on hospital clinical workstations; it streams label files to disk during inference so a long run is recoverable; and it lets the haematologist filter tens of thousands of tiles down to the cases that need review (with detections, low confidence, single-class) instead of scrolling through a whole slide. Its Statistics tab produces the patient-level Atypisch fraction against the 25% threshold as an exportable summary for clinical documentation. The annotation editor closes the loop: corrections made during clinical use are written back as label files and confirmed negatives, feeding the next training generation. Rather than asking the clinic to trust a fixed threshold, the project delivered an out-of-sample confidence calibration from the withheld patient P11 so USZ sets its own operating point. The intended role is assistive: the tool does the counting and surfaces the candidates, and the haematologist makes the diagnosis.
+The bridge from model to clinic is the MastCellDetector desktop application [@Vollmer2026MastCellDetector]. It runs entirely offline, which satisfies the network restrictions on hospital clinical workstations; it streams label files to disk during inference so a long run is recoverable; and it lets the haematologist filter tens of thousands of tiles down to the cases that need review (with detections, low confidence, single-class) instead of scrolling through a whole slide. Its Statistics tab produces the patient-level Atypisch fraction against the ≥25% threshold as an exportable summary for clinical documentation. The annotation editor closes the loop: corrections made during clinical use are written back as label files and confirmed negatives, feeding the next training generation. Rather than asking the clinic to trust a fixed threshold, the project delivered an out-of-sample confidence calibration from the withheld patient P11 so USZ sets its own operating point. The intended role is assistive: the tool does the counting and surfaces the candidates, and the haematologist makes the diagnosis.
 
 ## Error Analysis
 
-The pipeline's errors cluster into four understood modes, none of which is a general detection failure.
+The pipeline's errors cluster into five understood modes, none of which is a general detection failure.
 
 **Minority-class small-sample fragility.** The largest visible errors are concentrated in folds where the held-out patient contributes only a handful of minority-class cells. In P5-A, P9 (4 Atypisch against 195 Normal) records R_Atypisch = 0.500 because two missed cells out of four move the metric by 50 points, and P2 (6 Normal) records R_Normal = 0.500 on three missed cells. These are properties of the test set, not of the model: each patient's majority class is detected reliably on the same fold (P9 R_Normal = 0.944, P2 R_Atypisch = 0.924). Such folds are informative as lower bounds, not as point estimates, and are handled in the reported means by restricting per-class averages to folds with enough minority-class instances.
 
 **The P1 annotation-regime outlier.** P1 was annotated under the original Pos_neg directory structure before the CVAT-assisted workflow, and its holdout fold was the weakest in Phase 3 and Phase 4 (mAP50 = 0.584 under the 14-patient training set). The expanded corpus partly compensated for this distribution mismatch (P1 mAP50 recovered to 0.813 under the 34-patient P5-A training set), but the annotation-regime difference remains a known source of error and is the main driver of G1's depressed Normal recall in P5-B.
 
 **The per-class recall measurement bug.** A positional-indexing error in the per-class extraction utility misreported R_Normal for single-class holdout folds (notably P13) through Phase 4; it is a measurement artefact, not a model error, and is documented in full in @sec-measurement-notes. Affected folds are excluded from per-class means, and the underlying detections are correct.
+
+**False-positive propagation into the displayed ratio.** Because the application reports the Atypisch fraction against the ≥25% threshold before the manual review step, the false-positive rate is not purely cosmetic: it feeds the numerator and denominator that the screen value is computed from. The error is also asymmetric. In the G3 confusion matrix (@fig-confusion-matrix), the true-background column is split 0.91 to predicted-Atypisch and 0.09 to predicted-Normal, so a false positive arising from background tissue is labelled Atypisch about nine times out of ten. Each such artefact therefore inflates the numerator of the ratio more than the denominator, biasing the displayed fraction upward rather than leaving it unchanged. The magnitude of this effect is governed entirely by the operating confidence threshold, and it is the reason the threshold is not left at a default value. That confusion matrix is computed at Ultralytics' validation default of conf = 0.25; at a deployment threshold chosen from the P11 calibration cohort, where the out-of-sample histogram (@fig-conf_p11) separates the low-confidence false-positive bulk from the true-positive peak, the surviving false-positive count over a (in this case) ~12'000-tile slide is far smaller. The displayed fraction is thus an operating-point-dependent screening value subject to the haematologist's review, not a final ratio, and the residual false alarms that clear the threshold are exactly what the filtered review workflow is designed to surface. The direct metric for this risk is the absolute error between the model's predicted Atypisch fraction and the ground-truth fraction at the chosen operating point; reporting it on a dedicated calibration cohort is the cleanest way to quantify clinical usability and is identified as a deployment-evaluation step in @sec-future.
 
 **Out-of-distribution generalization.** The most important limitation is structural: the training corpus is drawn almost entirely from confirmed or suspected SM patients, so the model has learned the mast-cell morphology distribution of an SM-enriched population. Its behaviour on aspirates from patients with unrelated haematological conditions, or from healthy controls, is out of distribution and not characterized by this work. The reported metrics describe performance within the SM diagnostic workflow they were built for, and should not be read as evidence of general bone-marrow cell-classification performance.
 
@@ -713,15 +796,19 @@ The pipeline's errors cluster into four understood modes, none of which is a gen
 
 ## Summary of Key Findings
 
-This thesis delivers, to our knowledge, the first patient-held-out-validated deep learning pipeline for distinguishing atypical from normal mast cells in bone marrow aspirates and aligning the result to the WHO 25% minor criterion for systemic mastocytosis. A YOLO11n detector trained on a 53-patient corpus (35 with annotated cells) generalizes across patients under grouped cross-validation at mAP50-95 = 0.748, R_Atypisch = 0.885, and R_Normal = 0.821, reaching R_Normal = 0.981 on the strongest multi-patient fold, with a 35-fold LOPO run bounding the optimistic case at R_Atypisch = 0.920 and R_Normal = 0.941. Three findings carry beyond the numbers. First, a bootstrapped model-assisted annotation loop, in which each model generation labels the next batch and its confirmed false positives become the next generation's hard negatives, made a 53-patient rare-cell corpus feasible within a single thesis. Second, a controlled design-of-experiment result showed that under structural class imbalance, corpus expansion improves rare-class recall more than any hyperparameter change, a transferable lesson for rare-event medical imaging. Third, the work ships a usable artefact: the MastCellDetector desktop application runs the model offline at USZ, reports the Atypisch fraction against the 25% threshold, and was accompanied by an out-of-sample confidence calibration so the hospital sets its own operating point.
+This thesis delivers the first patient-held-out-validated deep learning pipeline for distinguishing atypical from normal mast cells in bone marrow aspirates and aligning the result to the WHO ≥25% minor criterion for systemic mastocytosis. A YOLO11n detector trained on a 53-patient corpus (35 with annotated cells) generalizes across patients under grouped cross-validation at mAP50-95 = 0.748, R_Atypisch = 0.885, and R_Normal = 0.821, reaching R_Normal = 0.981 on the strongest multi-patient fold, with a 35-fold LOPO run bounding the optimistic case at R_Atypisch = 0.920 and R_Normal = 0.941. Three findings carry beyond the numbers. First, a bootstrapped model-assisted annotation loop, in which each model generation labels the next batch and its confirmed false positives become the next generation's hard negatives, made a 53-patient rare-cell corpus feasible within a single thesis. Second, a controlled design-of-experiment result showed that under structural class imbalance, corpus expansion improves rare-class recall more than any hyperparameter change, a transferable lesson for rare-event medical imaging. Third, the work ships a usable artefact: the MastCellDetector desktop application runs the model offline at USZ, reports the Atypisch fraction against the ≥25% threshold, and was accompanied by an out-of-sample confidence calibration so the hospital sets its own operating point.
 
 ## Limitations and Challenges
 
-The corpus is drawn almost entirely from SM-enriched patients, so performance on non-SM or healthy aspirates is out of distribution and uncharacterized. The minority Normal class remains the harder direction, and per-class recall on small single-patient folds is dominated by sampling noise rather than model behaviour, which is why the conservative grouped-CV estimate, not the ceiling-inflated LOPO mean, is treated as primary. No second-institution external validation set was available, so LOPO and grouped patient CV are the strongest generalization estimates obtainable from a single site. The per-class recall measurement bug, although corrected for in the reported means, affected single-class folds during development. Finally, the operating confidence threshold is deliberately left to the clinic: the delivered calibration is a single near-balanced patient (P11), and a larger dedicated calibration set would tighten it.
+The corpus is drawn almost entirely from SM-enriched patients, so performance on non-SM or healthy aspirates is out of distribution and uncharacterized. The minority Normal class remains the harder direction, and per-class recall on small single-patient folds is dominated by sampling noise rather than model behaviour, which is why the conservative grouped-CV estimate, not the ceiling-inflated LOPO mean, is treated as primary. 
 
-## Future Research Directions
+A further limitation follows from the annotation method itself. Ground truth was produced through a bootstrapped, model-assisted CVAT loop in which each model generation proposed bounding boxes that the annotator then accepted, corrected, or rejected. This procedure is effective at removing false positives, since proposed boxes are reviewed explicitly, but it offers no equivalent mechanism for recovering false negatives: a genuine mast cell that the model failed to propose is one the annotator was also less likely to add, a form of automation bias documented in computer-assisted reading. The ground-truth corpus is therefore mildly enriched for cells the detector family already finds, and the reported recall is strictly recall against this model-assisted ground truth rather than against an independent exhaustive re-read. The first patient was annotated by hand without model assistance, which bounds but does not eliminate the effect. An independent, unassisted re-annotation of a subset would quantify the residual gap and is the appropriate validation of this assumption. 
 
-Several directions follow naturally. The full annotated corpus can now train a final model under the P5-A protocol at expanded scale, and the cls weighting and freeze depth, fixed early when each fold trained on roughly 200 images, are worth re-ablating now that folds train on over 1,000 positives. A dedicated, class-balanced held-out calibration set, larger than the single P11 patient, would give the hospital a cleaner out-of-sample threshold than a single patient can. The clearest validity step is external validation on aspirates from a second institution, which would test the SM-enriched training distribution against genuinely independent staining and scanning. On the deployment side, integration into Cinderella, the cell-classification software already in use at USZ, becomes worthwhile once the institutional security and change-management timeline permits, turning the standalone tool into part of the routine scan-to-inference-to-evaluation pipeline.
+No second-institution external validation set was available, so LOPO and grouped patient CV are the strongest generalization estimates obtainable from a single site. The per-class recall measurement bug, although corrected for in the reported means, affected single-class folds during development. Finally, the operating confidence threshold is deliberately left to the clinic: the delivered calibration is a single near-balanced patient (P11), and a larger dedicated calibration set would tighten it.
+
+## Future Research Directions {#sec-future}
+
+Several directions follow naturally. The full annotated corpus can now train a final model under the P5-A protocol at expanded scale, and the cls weighting and freeze depth, fixed early when each fold trained on roughly 200 images, are worth re-ablating now that folds train on over 1'000 positives. A dedicated, class-balanced held-out calibration set, larger than the single P11 patient, would give the hospital a cleaner out-of-sample threshold than one patient can support; reporting the absolute error between the predicted and ground-truth Atypisch fraction on that cohort would add the first direct measure of clinical screening accuracy. The clearest validity step is external validation on aspirates from a second institution, which would test the SM-enriched training distribution against genuinely independent staining and scanning. On the deployment side, integration into Cinderella, the cell-classification software already in use at USZ, becomes worthwhile once the institutional security and change-management timeline permits, turning the standalone tool into part of the routine scan-to-inference-to-evaluation pipeline.
 
 {{< pagebreak >}}
 
@@ -739,9 +826,9 @@ No core scientific content, model selection decisions, hyperparameter choices, o
 
 ::: {.content-hidden when-format="html"}
 
-[9] Gemini 2.5 Pro. (n.d.). Google Gemini. Retrieved October 1, 2025, from <https://gemini.google.com/app>
+[22] Gemini 2.5 Pro. (n.d.). Google Gemini. Retrieved October 1, 2025, from <https://gemini.google.com/app>
 
-[10] DeepL Translate: The world's most accurate translator. (n.d.). <https://www.deepl.com/>
+[23] DeepL Translate: The world's most accurate translator. (n.d.). <https://www.deepl.com/>
 
 
 # Lists
@@ -756,5 +843,3 @@ No core scientific content, model selection decisions, hyperparameter choices, o
 {{< list-of-tables >}}
 
 :::
-
-# Attachments

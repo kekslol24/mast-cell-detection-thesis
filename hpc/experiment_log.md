@@ -2182,3 +2182,30 @@ identical to P5-B winner: FREEZE=10, DEGREES=5, DFL=1.5, LR0=0.001, CLS=1.0, MOS
 FLIPUD=0.5, augment=True, EPOCHS=700, PATIENCE=50, BG_RATIO=0.
 
 Submit via `hpc/tinkering/run_final.sh`. Deliverable: `tinker_final/final/weights/best.pt`.
+
+**Results** (SLURM job: `345358`, script: `hpc/tinkering/ba_tinker_final.py`, output: `hpc/tinkering/Slurm-345358/`):
+
+Training corpus: 1,832 annotated images (P1–P53 minus P11): 1,459 Atypisch, 491 Normal, raw ratio 3.0:1. FP negatives: 3,881 tiles.
+
+Early stopping triggered at epoch 657 (best epoch: 607). Val metrics at best.pt:
+
+| Metric | Value |
+|--------|-------|
+| mAP50-95 | 0.842 |
+| mAP50 | 0.941 |
+| Precision | 0.906 |
+| Recall | 0.921 |
+
+No held-out test set (trained on all 34 annotated patients minus P11 calibration holdout). Validation split is 15% of training data drawn from annotated patients only.
+
+**Conclusion:** Final deployment model converged stably. Val metrics are consistent with or above P5-B grouped CV (mAP50-95 0.748, Recall 0.853). Best weights saved to `hpc/tinker_final_holdoutP11/final/weights/best.pt`.
+
+---
+
+#### P11 calibration inference (`hpc/inference.py`)
+
+**SLURM job:** 345424 (`hpc/tinkering/Slurm-345424/`)
+
+Applied final deployment model (best.pt from `tinker_final_holdoutP11/final/weights/`) to the complete P11 tile set (~20,000 tiles including unannotated background). Confidence histogram output (no-axv variant): `hpc/mass_inference_results/run_final/confidence_histogram_no_axv.png`.
+
+The histogram is sparse in the mid-confidence range due to P11's limited annotated cell count (37 images, 17 Atypisch, 20 Normal within ~20,000 tiles). The distribution shows a low-confidence bulk (false positive candidates) and a high-confidence peak (true positive detections). Histogram delivered to USZ for clinical threshold selection.

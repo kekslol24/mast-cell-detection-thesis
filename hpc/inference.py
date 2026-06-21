@@ -110,7 +110,7 @@ def main():
     # Inferenz starten - WICHTIG: source ist nun das Textfile!
     results = model.predict(
         source=source_txt_path, 
-        conf=0.276,
+        # conf=0.276,
         iou=0.45,
         imgsz=512,
         batch=32,       
