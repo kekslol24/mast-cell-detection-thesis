@@ -401,21 +401,21 @@ The following training hyperparameters are referenced throughout this section:
 #show table: set table(stroke: 0.5pt)
 ```
 
-Performance metrics for Phase 3 and Phase 4 runs are reported from the evaluation calculation at the end of each training run which are computed from every single LOPO training / validation fold. Phase 1 and Phase 2 results derive from held-out validation folds under 5-fold stratified cross-validation and are not directly comparable to Phase 3–4 LOPO estimates, for the reasons described in the [Model Testing](#model-testing) section. All values quoted in this section refer to cross-fold means unless stated otherwise.
+Performance metrics for Phase 3 and Phase 4 are reported from the end-of-run evaluation of each LOPO fold, computed on the held-out patient that served as that fold's test set. Phase 1 and Phase 2 results derive from the held-out test partition of each fold under 5-fold stratified cross-validation and are not directly comparable to the Phase 3–4 LOPO estimates, for the reasons described in [Model Testing](#model-testing): the stratified folds partition at the image level, whereas LOPO partitions at the patient level. All values quoted in this section refer to cross-fold means unless stated otherwise.
 
-**Phase 1.** The P1-baseline achieved validation mAP50 = 0.800 ± 0.129, mAP50-95 = 0.649 ± 0.131, precision = 0.768 ± 0.117, and recall = 0.719 ± 0.178. Cross-fold variance was high: Fold 1 reached mAP50-95 = 0.805 while Fold 5 collapsed at epoch 29 (recall = 0.432). No per-class breakdown was available as P1 contained only Atypisch annotations.
+**Phase 1.** On the held-out test partitions, the P1-baseline reached mAP50-95 = 0.543 ± 0.046, precision = 0.770 ± 0.042, and recall = 0.810 ± 0.031 across the five stratified folds. The cross-fold spread was moderate: Fold 1 was strongest at mAP50-95 = 0.580 and Fold 2 weakest at 0.476, a range narrow enough that no single split dominates the mean. No per-class breakdown is available, as the first hand-annotated version of the Phase 1 corpus contained only Atypisch cells; the two Normal annotations later present in P1 were added during model-assisted re-annotation and were not yet in the data at this stage.
 
-**Phase 2.** The 3×4 factorial DoE grid (11 cells, FP oversampling ∈ {1×, 2×, 3×} crossed with background ratio ∈ {0, 1, 2, 3}) found no statistically distinguishable difference across compositions: cell-level mAP50-95 variation was smaller than the within-cell cross-fold standard deviation. Background tiles decreased performance at every FP oversampling level. The fp=1, bgr=0 configuration (P2-H) was the grid winner at every metric, achieving mAP50 = 0.604 ± 0.194, mAP50-95 = 0.494 ± 0.166, precision = 0.934 ± 0.057, and recall = 0.537 ± 0.210.
+**Phase 2.** The 3×4 factorial DoE grid (11 cells, FP oversampling ∈ {1×, 2×, 3×} crossed with background ratio ∈ {0, 1, 2, 3}) found no statistically distinguishable difference across compositions: cell-level mAP50-95 variation was smaller than the within-cell cross-fold standard deviation. Background tiles decreased performance at every FP oversampling level. The fp=1, bgr=0 configuration (P2-H) was the grid winner at every metric, achieving mAP50 = 0.604 ± 0.202, mAP50-95 = 0.494 ± 0.166, precision = 0.934 ± 0.057, and recall = 0.537 ± 0.210.
 
-**Phase 3.** The structural pivot to 8-fold LOPO on 8 patients with on-the-fly per-epoch augmentation produced the largest single performance step in the project. P3-A achieved mAP50 = 0.844 ± 0.137, mAP50-95 = 0.718 ± 0.137, precision = 0.764 ± 0.138, and recall = 0.840 ± 0.122, a 30.3 percentage point improvement in recall over P2-H (0.537). The cross-fold standard deviation dropped from 0.166 to 0.137 despite the harder evaluation protocol.
+**Phase 3.** The structural pivot to 8-fold LOPO on 8 patients with on-the-fly per-epoch augmentation produced the largest single performance step in the project. P3-A achieved mAP50 = 0.844 ± 0.147, mAP50-95 = 0.718 ± 0.137, precision = 0.764 ± 0.138, and recall = 0.840 ± 0.122, a 30.3 percentage point improvement in recall over P2-H (0.537) as well as R_Atypisch = 0.884 ± 0.170 and R_Normal = 0.795 ± 0.164. The cross-fold standard deviation dropped from 0.166 to 0.137 despite the harder evaluation protocol.
 
-The tinkering matrix (P3-B, 14 of 24 cells completed) identified `degrees=5` rotation augmentation as the dominant training-time lever. The winning configuration (`degrees=5, dfl=1.5, freeze=10, label_smoothing=0.0`) achieved mAP50 = 0.864, mAP50-95 = 0.741 ± 0.122, precision = 0.812 ± 0.153, recall = 0.866 ± 0.131, R_Atypisch = 0.892 ± 0.173, and R_Normal = 0.840 ± 0.176. `dfl=2.0` consistently regressed R_Normal relative to `dfl=1.5` across all degree and freeze combinations; `freeze=0` underperformed `freeze=10` in every recall-relevant slice; label smoothing was empirically inert (bit-identical fold metrics at `ls=0.0` and `ls=0.1`). These findings defined the production recipe (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0`) adopted for all subsequent phases.
+The tinkering matrix (P3-B, 14 of 24 cells completed) identified `degrees=5` rotation augmentation as the dominant training-time lever. The winning configuration (`degrees=5, dfl=1.5, freeze=10, label_smoothing=0.0`) achieved mAP50 = 0.864 ± 0.134, mAP50-95 = 0.741 ± 0.122, precision = 0.812 ± 0.153, recall = 0.866 ± 0.131, R_Atypisch = 0.892 ± 0.173, and R_Normal = 0.840 ± 0.176. `dfl=2.0` consistently regressed R_Normal relative to `dfl=1.5` across all degree and freeze combinations; `freeze=0` underperformed `freeze=10` in every recall-relevant slice; label smoothing was empirically inert (bit-identical fold metrics at `ls=0.0` and `ls=0.1`). These findings defined the production recipe (`degrees=5, dfl=1.5, freeze=10, lr0=0.001, cls=1.0`) adopted for all subsequent phases.
 
 The automated hyperparameter tuner (P3-C, 30 iterations × 50 epochs, single P4 holdout, mAP50-95 fitness) converged on `degrees=0.0` and `dfl=2.47`. The production recipe from P3-B was retained.
 
-The model-size comparison (P3-E, yolo11l) produced mAP50 = 0.855 ± 0.103, mAP50-95 = 0.745 ± 0.095, precision = 0.778 ± 0.134, recall = 0.785 ± 0.103, R_Atypisch = 0.875 ± 0.170 and R_Normal = 0.695 ± 0.144, the lowest R_Normal across all runs and 14.5 percentage points below P3-B.
+The model-size comparison (P3-E, yolo11l) produced mAP50 = 0.855 ± 0.103, mAP50-95 = 0.745 ± 0.095, precision = 0.778 ± 0.134, recall = 0.785 ± 0.103, R_Atypisch = 0.875 ± 0.169 and R_Normal = 0.695 ± 0.144, the lowest R_Normal across all runs and 14.5 percentage points below P3-B.
 
-**Phase 4.** Adding patients P9–P15 (424 new images, 293 new Normal annotations) expanded the corpus to 1'564 images and 15 LOPO folds. P4-A (degrees=0, the production recipe with the rotation variable inadvertently unset) achieved mAP50 = 0.903 ± 0.100, mAP50-95 = 0.793 ± 0.106, precision = 0.851 ± 0.097, recall = 0.904 ± 0.120, R_Atypisch = 0.913 ± 0.110, and R_Normal = 0.890 ± 0.194. The R_Normal gain from corpus expansion (+9.5 pp over P3-A) exceeded the largest single hyperparameter gain observed in Phase 3 (+4.5 pp from `degrees=5` in P3-B).
+**Phase 4.** Adding patients P9–P15 (449 new images, 313 new Normal annotations) expanded the corpus to 1'552 images and 15 LOPO folds. P4-A (degrees=0, the production recipe with the rotation variable inadvertently unset) achieved mAP50 = 0.903 ± 0.109, mAP50-95 = 0.793 ± 0.106, precision = 0.851 ± 0.097, recall = 0.904 ± 0.120, R_Atypisch = 0.913 ± 0.110, and R_Normal = 0.890 ± 0.194. The R_Normal gain from corpus expansion (+9.5 pp over P3-A) exceeded the largest single hyperparameter gain observed in Phase 3 (+4.5 pp from `degrees=5` in P3-B).
 
 P4-B (full production recipe with `degrees=5` explicitly set) produced mAP50 = 0.887 ± 0.120, mAP50-95 = 0.789 ± 0.118, precision = 0.826 ± 0.131, recall = 0.895 ± 0.132, R_Atypisch = 0.900 ± 0.174, and R_Normal = 0.882 ± 0.193. All P4-A vs P4-B deltas were within 1.6 percentage points. The freeze ablation (P4-C, `freeze=0`) produced mAP50 = 0.883 ± 0.123, mAP50-95 = 0.782 ± 0.124, precision = 0.863 ± 0.087, recall = 0.893 ± 0.135, R_Atypisch = 0.896 ± 0.172, and R_Normal = 0.882 ± 0.193, all within 0.4 percentage points of P4-B. P4-B is the primary reported result for the P1–P15 phase, as all training parameters are explicitly set.
 
@@ -423,7 +423,7 @@ P4-B (full production recipe with `degrees=5` explicitly set) produced mAP50 = 0
 
 **P5-A: 35-fold LOPO (optimistic upper bound).** The production recipe was applied across all 35 annotated patients. Of the 35 folds, 34 completed within the 48-hour SLURM allocation; Fold 17 (P37 holdout) was retrained independently and evaluated in a post-hoc inference pass (see [Measurement Notes](#measurement-notes)).
 
-Across 35 folds, post-hoc evaluation reported mAP50 = 0.948 ± 0.098, mAP50-95 = 0.858 ± 0.120, precision = 0.925 ± 0.128, recall = 0.951 ± 0.084, R_Atypisch = 0.920 ± 0.129 (n=20 folds with Atypisch ground truth), and R_Normal = 0.941 ± 0.119 (n=29 folds with Normal ground truth). Of the 35 folds, 19 reported mAP50 at the metric ceiling (0.995), corresponding to patients from the P16–P53 acquisition batch who contributed only one to three annotated images each. On a one-image test set, a single correct detection produces recall = 1.000 regardless of model generalization capacity, inflating the aggregate mean.
+Across 35 folds, post-hoc evaluation reported mAP50 = 0.948 ± 0.146, mAP50-95 = 0.858 ± 0.120, precision = 0.925 ± 0.128, recall = 0.951 ± 0.084, R_Atypisch = 0.920 ± 0.129 (n=20 folds with Atypisch ground truth), and R_Normal = 0.941 ± 0.119 (n=29 folds with Normal ground truth). Of the 35 folds, 19 reported mAP50 at the metric ceiling (0.995), corresponding to patients from the P16–P53 acquisition batch who contributed only one to three annotated images each. On a one-image test set, a single correct detection produces recall = 1.000 regardless of model generalization capacity, inflating the aggregate mean.
 
 **P5-B: Grouped 5-fold CV (primary Phase 5 result).** The 35 annotated patients were partitioned into five fixed groups, each serving as the test holdout exactly once. Every group contains at least one Atypisch-annotated and one Normal-annotated patient; the two largest patients (P1: 428 images, P2: 417 images) each anchor a separate group; test-image counts are balanced across groups (315–443 images per group). All five folds used the confirmed production recipe. 
 
@@ -431,16 +431,16 @@ The grouped design was motivated in part by the small-sample sensitivity that ma
 
 Across five groups, mAP50 = 0.872 ± 0.064, mAP50-95 = 0.748 ± 0.079, precision = 0.864 ± 0.022, recall = 0.853 ± 0.087, R_Atypisch = 0.885 ± 0.035, and R_Normal = 0.821 ± 0.165. Per-group metrics are in [Per Group Breakdown](#per-group-breakdown-p5-b). G3 achieved R_Normal = 0.981, the highest across all multi-patient evaluation folds in the project.
 
-**Phase 6.** A G1–G4 ablation run re-ran four-fold grouped CV on G1–G4 only, with G5 excluded from training, validation, and negative sets. Results against the corresponding P5-B G1–G4 folds: mAP50-95 = 0.738 (P5-B G1–G4: 0.740), Recall = 0.849 (+0.006), R_Atypisch = 0.897 (+0.009), R_Normal = 0.801 (+0.004). All deltas fall within cross-fold noise, confirming that training without G5 is feasible with no substantial performance loss.
+**Additional Phase (P6-A)** A G1–G4 ablation run re-ran four-fold grouped CV on G1–G4 only, with G5 excluded from training, validation, and negative sets. Results are compared against the G1–G4 subset of P5-B (folds 1–4 only, excluding the G5 fold to keep the comparison matched): mAP50 = 0.864 ± 0.041 (+0.000), mAP50-95 = 0.738 ± 0.056 (-0.002), precision = 0.831 ± 0.039 (-0.035), recall = 0.849 ± 0.080 (+0.006), R_Atypisch = 0.897 ± 0.045 (+0.009), R_Normal = 0.801 ± 0.156 (+0.004). Every delta falls within the cross-fold spread; the largest movement, a 0.035 drop in precision, sits inside the ±0.039 fold standard deviation, while detection recall and both per-class recalls are marginally higher. Training without G5 is therefore feasible with no substantial net performance loss.
 
-This finding raised the question of whether G5 could be withheld entirely as a calibration cohort. That approach was ruled out: to make use of all G5 patients for calibration, inference would need to be run across the full slide set of each G5 patient (roughly 20'000 tiles per patient, approximately 380'000 tiles in total), which is impractical for a single calibration pass. The alternative, withholding all of G5 from training but calibrating on only one of its patients, would discard image information from the remaining G5 patients without benefit. Instead, a single patient was withheld from training: P11, selected because its 17 Atypisch and 20 Normal annotations provide near-equal class balance, the most informative single-patient confidence reference in the corpus. All remaining patients, including the rest of G5, were retained in training. The final deployment model was trained on P1–P53 minus P11 (1'832 images, 1'459 Atypisch, 491 Normal, 3.0:1 ratio) using the production recipe unchanged.
+This finding raised the question of whether G5 could be withheld entirely as a calibration cohort. That approach was ruled out: to make use of all G5 patients for calibration, inference would need to be run across the full slide set of each G5 patient (roughly 20'000 tiles per patient, approximately 380'000 tiles in total), which is impractical for a single calibration pass. The alternative, withholding all of G5 from training but calibrating on only one of its patients, would discard image information from the remaining G5 patients without benefit. Instead, a single patient was withheld from training: P11, selected because its 17 Atypisch and 20 Normal annotations provide near-equal class balance, the most informative single-patient confidence reference in the corpus. All remaining patients, including the rest of G5, were retained in training. The final deployment model (P6-A in @tbl-progression) was trained on P1–P53 minus P11 (1'832 images, 1'459 Atypisch, 491 Normal, 3.0:1 ratio) using the production recipe unchanged.
 
 
 @tbl-progression summarizes the key milestone runs across all phases. The complete experiment record, including corrupted runs and all 11 DoE grid cells, is maintained in `hpc/experiment_log.md` @Vollmer2026BA. P3-A per-class recall values in @tbl-progression are cross-fold means from the tinkering matrix reference configuration (degrees=0, dfl=1.5, freeze=10, label_smoothing=0.0), which is equivalent to the direct P3-A run; folds where the respective class was absent from the held-out patient are excluded from each per-class mean.
 
 | **Run** | **CV** | **mAP50-95** | **Prec.** | **Recall** | **R_Atyp** | **R_Norm** |
 |-----|-------|----------|-------|--------|--------|--------|
-| P1-base | 5f-S | 0.649 ± 0.131 | 0.768 ± 0.117 | 0.719 ± 0.178 | — | — |
+| P1-base | 5f-S | 0.543 ± 0.046 | 0.770 ± 0.042 | 0.810 ± 0.031 | — | — |
 | P2-C | 5f-S | 0.344 ± 0.031 | 0.880 ± 0.017 | 0.397 ± 0.022 | — | — |
 | P2-H | 5f-S | 0.494 ± 0.166 | 0.934 ± 0.057 | 0.537 ± 0.210 | — | — |
 | P3-A | 8f-L | 0.718 ± 0.137 | 0.764 ± 0.138 | 0.840 ± 0.122 | 0.884 ± 0.170* | 0.795 ± 0.164* |
@@ -531,7 +531,7 @@ Nineteen folds reported mAP50 at the ceiling value of 0.995 (folds 5, 6, 12–14
 | G5 | P4, P5, P7, P10–P11, P14, P24, P28–P29, P39–P40, P43–P47, P50–P52 | 1289 | 228 | 352 | 169 | 189 | 0.777 | 0.905 | 0.854 | 0.896 | 0.873 | 0.918 |
 | **Mean <br> ± std** |  |  |  |  |  |  | **0.748 ± 0.079** | **0.872 ± 0.064** | **0.864 ± 0.022** | **0.853 ± 0.087** | **0.885 ± 0.035** | **0.821 ± 0.165** |
 
-: P5-B grouped 5-fold CV split composition and test results (35 annotated patients, P1–P53 corpus). Train = annotated (positive) images; each fold additionally receives 3,773-4,595 negative tiles. Atyp/Norm = ground-truth label counts in the test split. All five groups have both classes present. {#tbl-p5b tbl-colwidths="[6,18,5,5,5,5,5,10,10,10,10,11,11]" align="cclcccccccccc"}
+: P5-B grouped 5-fold CV split composition and test results (35 annotated patients, P1–P53 corpus). Train = annotated (positive) images; each fold additionally receives 3'773-4'595 negative tiles. Atyp/Norm = ground-truth label counts in the test split. All five groups have both classes present. {#tbl-p5b tbl-colwidths="[6,18,5,5,5,5,5,10,10,10,10,11,11]" align="cclcccccccccc"}
 
 :::
 
@@ -596,12 +596,25 @@ plt.show()
 ```{python}
 #| label: fig-p5a-vs-p5b
 #| fig-cap: "Metric comparison between P5-A (35-fold LOPO) and P5-B (grouped 5-fold CV). Error bars represent ±1 standard deviation across folds. R_Atyp and R_Norm for P5-A are computed over the 20 and 29 folds respectively where the class was present in the test set."
-#| fig-width: 1
-#| fig-height: 0.5
+#| fig-width: 8
+#| fig-height: 4.5
+#| out-width: "100%"
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+plt.rcParams.update({
+    "font.size": 12, "axes.titlesize": 15, "axes.labelsize": 14,
+    "xtick.labelsize": 13, "ytick.labelsize": 12, "legend.fontsize": 12,
+})
+
+def label_means(ax, centers, means, errs_up, fontsize=12):
+    # mean printed above the error-bar cap, vertical so it never runs off the edge
+    for cx, m, eu in zip(centers, means, errs_up):
+        ax.text(cx, m + eu + 0.02, f"{m:.3f}",
+                ha="left", va="bottom", rotation=45,
+                fontsize=fontsize, color="black", rotation_mode="anchor")
 
 p5a_df = pd.read_csv("../../hpc/yolo_new_v4_freeze10_copy/fold_results_eval.csv")
 p5b_df = pd.read_csv("../../hpc/yolo_new_v4_freeze10_re_run_CV/fold_results.csv")
@@ -625,37 +638,33 @@ metrics = ["mAP50-95", "mAP50", "Prec.", "Recall", "R_Atyp", "R_Norm"]
 x = np.arange(len(metrics))
 w = 0.35
 
-fig, ax = plt.subplots(figsize=(7, 3.5))
-ax.bar(x - w/2, p5a_mean, w, yerr=yerr_clipped(p5a_mean, p5a_std), capsize=4,
+fig, ax = plt.subplots(figsize=(8, 4.5))
+a_up = np.minimum(p5a_std, 1.0 - p5a_mean)
+b_up = np.minimum(p5b_std, 1.0 - p5b_mean)
+ax.bar(x - w/2, p5a_mean, w, yerr=[p5a_std, a_up], capsize=4,
        label="P5-A (LOPO, n=35)", color="#4C72B0", error_kw={"elinewidth": 1.2})
-ax.bar(x + w/2, p5b_mean, w, yerr=yerr_clipped(p5b_mean, p5b_std), capsize=4,
+ax.bar(x + w/2, p5b_mean, w, yerr=[p5b_std, b_up], capsize=4,
        label="P5-B (Grouped CV, n=5)", color="#DD8452", error_kw={"elinewidth": 1.2})
-for i in range(len(metrics)):
-    ax.text(x[i] - w/2, p5a_mean[i] - 0.02,
-            f"{p5a_mean[i]:.3f}\n±{p5a_std[i]:.3f}",
-            ha='center', va='top', fontsize=7, color='white', fontweight='bold')
-    ax.text(x[i] + w/2, p5b_mean[i] - 0.02,
-            f"{p5b_mean[i]:.3f}\n±{p5b_std[i]:.3f}",
-            ha='center', va='top', fontsize=7, color='white', fontweight='bold')
-ax.set_xticks(x)
-ax.set_xticklabels(metrics)
-ax.set_ylim(0, 1.15)
+label_means(ax, x - w/2, p5a_mean, a_up)
+label_means(ax, x + w/2, p5b_mean, b_up)
+ax.set_xticks(x); ax.set_xticklabels(metrics)
+ax.set_ylim(0, 1.35)
 ax.set_ylabel("Score")
 ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.8)
-ax.legend(fontsize=8)
-plt.tight_layout()
-plt.show()
+ax.legend(loc="lower right")
+plt.tight_layout(); plt.show()
 ```
 
 
 
-@fig-p5p6-comparison shows mAP50-95, Precision, and Recall for P5-A (35-fold LOPO, test split), P5-B (5-group CV, test split), and P6-A (final deployment model, validation split). P6-A has no held-out test set as it was trained on all annotated patients minus P11.
+@fig-p5p6-comparison shows mAP50-95, Precision, and Recall for P5-A (35-fold LOPO, test split, n_atypisch=20, n_normal=29), P5-B (5-group CV, test split), and P6-A (final deployment model, validation split). P6-A has no held-out test set as it was trained on all annotated patients minus P11.
 
 ```{python}
 #| label: fig-p5p6-comparison
-#| fig-cap: "Performance comparison across P5-A (35-fold LOPO, test), P5-B (5-group CV, test), and P6-A (final model, val). Error bars show std across folds, clipped at 1.0. P6-A is a single training run with no held-out test set."
-#| fig-width: 1
-#| fig-height: 1.5
+#| fig-cap: "Performance comparison across P5-A , P5-B, and P6-A. Error bars show std across folds, clipped at 1.0."
+#| fig-width: 8
+#| fig-height: 4.5
+#| out-width: "100%"
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -665,52 +674,47 @@ p5a_df = pd.read_csv("../../hpc/yolo_new_v4_freeze10_copy/fold_results_eval.csv"
 p5b_df = pd.read_csv("../../hpc/yolo_new_v4_freeze10_re_run_CV/fold_results.csv")
 
 # mAP50, mAP50-95, Precision, Recall — match the metrics list order below
-cols = ["Test_mAP50", "Test_mAP50-95", "Test_Precision", "Test_Recall"]
+cols = ["Test_mAP50", "Test_mAP50-95", "Test_Precision", "Test_Recall", "Test_Recall_Atypisch", "Test_Recall_Normal"]
 
 p5a_vals = np.array([p5a_df[c].mean() for c in cols])
 p5a_errs = np.array([p5a_df[c].std()  for c in cols])
 p5b_vals = np.array([p5b_df[c].mean() for c in cols])
 p5b_errs = np.array([p5b_df[c].std()  for c in cols])
 
-metrics = ["mAP50", "mAP50-95", "Precision", "Recall"]
+metrics = ["mAP50", "mAP50-95", "Precision", "Recall", "Recall_Atypisch", "Recall_Normal"]
 
 means = {
     "P5-A (35f-LOPO)":   p5a_vals,
     "P5-B (5-group CV)":  p5b_vals,
-    "P6-A (final, val)":  np.array([0.941, 0.842, 0.906, 0.921]),
+    "P6-A (final, val)":  np.array([0.941, 0.842, 0.906, 0.921, 0.914, 0.929]),
 }
 stds = {
     "P5-A (35f-LOPO)":   p5a_errs,
     "P5-B (5-group CV)":  p5b_errs,
-    "P6-A (final, val)":  np.array([0, 0, 0, 0]),
+    "P6-A (final, val)":  np.array([0, 0, 0, 0, 0, 0]),
 }
 colors = ["#4C72B0", "#DD8452", "#55A868"]
 
 x = np.arange(len(metrics))
 w = 0.25
 
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(8, 4.5))
+w = 0.27
 for i, (label, color) in enumerate(zip(means.keys(), colors)):
-    m = means[label]
-    s = stds[label]
-    # clip upper error so bar + err never exceeds 1.0
-    err_up = [min(si, 1.0 - vi) for vi, si in zip(m, s)]
-    ax.bar(x + (i - 1) * w, m, w,
-           label=label, color=color, alpha=0.85,
+    m = means[label]; s = stds[label]
+    err_up = np.minimum(s, 1.0 - np.asarray(m))
+    centers = x + (i - 1) * w
+    ax.bar(centers, m, w, label=label, color=color, alpha=0.85,
            yerr=[s, err_up], capsize=4, error_kw={"linewidth": 1})
-    for j in range(len(metrics)):
-        txt = f"{m[j]:.3f}\n±{s[j]:.3f}" if s[j] > 0 else f"{m[j]:.3f}"
-        ax.text(x[j] + (i - 1) * w, m[j] - 0.02, txt,
-                ha='center', va='top', fontsize=7, color='white', fontweight='bold')
-
+    label_means(ax, centers, m, err_up)
 ax.set_xticks(x)
-ax.set_xticklabels(metrics)
-ax.set_ylim(0.5, 1.08)
+ax.set_xticklabels(["mAP50", "mAP50-95", "Precision", "Recall", "R_Atyp", "R_Norm"])
+ax.set_ylim(0, 1.35)
 ax.set_ylabel("Score")
 ax.set_title("P5-A / P5-B / P6-A Metric Comparison")
-ax.legend(loc="lower right", fontsize=9, framealpha=0.9)
-plt.tight_layout()
-plt.show()
+ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.8)
+ax.legend(loc="lower right")
+plt.tight_layout(); plt.show()
 ```
 
 
