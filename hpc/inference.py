@@ -28,6 +28,9 @@ TEST_PATIENT = "P11"
 TEST_PATIENT_ZIP = "/cfs/earth/scratch/vollmflo/BA/data/P11.zip"
 
 # NEU: Pfad zu den Bildern, die ignoriert werden sollen
+IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
+
+# NEU: Pfad zu den Bildern, die ignoriert werden sollen
 # IGNORE_DIR = "/cfs/earth/scratch/vollmflo/BA/data/Pos_neg 12241515/images/Train/"
 
 OUTPUT_PROJECT = "./mass_inference_results/run_final"

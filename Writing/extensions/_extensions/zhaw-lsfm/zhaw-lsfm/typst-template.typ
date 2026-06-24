@@ -226,7 +226,7 @@
               let year = date-str.split("-").at(0)
               year
             }). ] else [(n.d.). ]
-            #emph[#title#if subtitle != none [: #subtitle]]. 
+            #emph[#title#if subtitle != none [: #subtitle]]
             #if institut != none {
               if lang == "en" [
                 Zurich University of Applied Sciences, Department Life Sciences and Facility Management, #institut.
