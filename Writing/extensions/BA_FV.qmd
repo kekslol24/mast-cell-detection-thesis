@@ -1,0 +1,236 @@
+---
+title: |
+  Automated Detection and Morphological Classification of Mast Cells in Bone Marrow Aspirates Using Deep Learning
+institute: "Institue of Computational Life Science"
+keywords: "Deep Learning, Cell Detection, Evaluation Metrics, Digital Lab and Production, Clinical Image Processing"
+lang: en
+confidential: false
+cover-image:
+  src: cover.png
+  max-width: 100%
+  max-height: 7cm
+thesis-type: "Bachelor Thesis"
+degree-type: "Bachelors"
+study-year: "2023"
+submission-date: "2026-07-02"
+study-direction: "Applied Digital Life Science"
+supervisor:
+  - title: "Dr."
+    name: "Stefan Glüge"
+    affiliation: "ZHAW Life Sciences und Facility Management, Wädenswil"
+cross-corrector:
+  - title: "Prof. Dr."
+    name: "Robert Vorburger"
+    affiliation: "ZHAW Life Sciences und Facility Management, Wädenswil"  
+bibliography: references.bib
+link-citations: true
+csl: ieee.csl
+author: 
+  - Florian Vollmer
+format: 
+  zhaw-lsfm-typst: default
+  html: default
+execute:
+  echo: False
+---
+
+# Abstract {.unnumbered .unlisted}
+
+### English Version
+
+
+
+{{< pagebreak >}}
+
+### German Version
+
+
+# Acknowledgement {.unnumbered .unlisted}
+
+I would like to express my sincere gratitude to Dr. Stefan Glüge for setting up the project for this thesis and for his valuable support and guidance throughout the writing and compilation process of this thesis. My appreciation also goes to Robin Kosche for showing me around the USZ and introducing me to the subject.
+
+::: {.content-hidden when-format="html"}
+
+# Table of Contents {.unnumbered .unlisted}
+
+{{< table-of-contents >}}
+
+:::
+
+# List of Abbreviations {.unnumbered}
+
+- **AI**: Aritficial Intelligence
+- **AP**: Average Precision
+- **CNN**: Convolutional Neural Network
+- **COCO**: Common Objects in Context
+- **CV**: Cross Validation
+- **FN**: False Negative
+- **FP**: False Positive
+- **IoU**: Intersection over Union
+- **MC**: Mast Cells
+- **mAP**: Mean Average Precision
+- **RF-DETR**: Roboflow Detection Transformer
+- **TN**: True Negative
+- **TP**: True Positive
+- **YOLO**: You Only Look Once
+
+# Introduction
+
+## Context and Motivation
+Systemic mastocytosis (SM) is a rare clonal hematopoietic neoplasm defined by the pathological expansion and accumulation of neoplastic mast cells (MC) in extracutaneous organs, mostly seen in the bone marrow, but also the spleen, liver, and gastrointestinal tract. The major diagnostic criterion for SM is the presence of multifocal MC clusters in the bone marrow and/or extracutaneous organs, while minor criteria include an elevated serum tryptase level, MC expression of Cluster of Differentiation 2 (CD2), CD25, or CD30, and the presence of activating tyrosine kinase (KIT) mutations @Valent2021. Despite these structured criteria, SM is frequently underdiagnosed in routine clinical practice @TSE2024100316. One of the central reasons for this is that MC, although morphologically distinct, occur only in very small numbers within a given bone marrow aspirate sample, making their manual identification and quantification an exhausting, subjective, and time-consuming task for hematopathologists.
+
+The morphological assessment of MC carries direct diagnostic weight. The abnormal morphology of MC, defined as atypical spindle-shaped cells with hypogranulated cytoplasm and an oval nucleus, represents the first minor SM criterion. At least 25% of all MC must exhibit these morphological features in bone marrow smears or sections for this criterion to be fulfilled @Valent2021. This quantitative threshold requires a reliable and reproducible count of both typical and atypical MC within a sample, a task that is very error-prone when performed manually and at scale.
+
+In clinical practice, the integration of clinical signs and symptoms together with bone marrow morphological, immunophenotypic, and molecular results is required to diagnose SM variants @10.1182/bloodadvances.2024012612. However, the morphological step remains the entry point into this diagnostic chain. Standardizing and automating this step through computational means therefore has direct implications for diagnostic accuracy and clinical throughput. The University Hospital Zurich (USZ), which operates as the clinical partner for this thesis, has a concrete need for such a tool that could be embedded in its existing cell classification infrastructure.
+
+## Research Questions
+The goal of this thesis is to develop and evaluate a deep learning-based pipeline for the automated detection and morphological classification of mast MC in bone marrow aspirate images. From this objective, the following research questions are derived:
+
+1. Which specific performance metrics (e.g., F1-score, Mean Average Precision, or false negative rate) are most critical to ensure the tool's reliability for clinical screening?
+2. Is the developed pipeline capable of identifying mast cells in samples with extremely low cell density ("rare event detection") without generating an unmanageable number of false positives?
+3. Can an AI-based pipeline reliably distinguish between typical and atypical mast cell phenotypes to support the >25% diagnostic criterion defined by the WHO 2022 classification? @Valent2021
+
+## Overall Concept
+The overall system was designed as a complete multi-stage pipeline including data acquisition, annotation, preprocessing, hyperparameter tuning, model training, model validation, and clinical deployment. Digital bone marrow aspirate images were collected and annotated in close collaboration with clinical experts at the USZ to produce a labeled training dataset. Initial hyperparameter tuning was applied to ensure optimal starting conditions for training. A stratified k-fold cross-validation strategy was utilized to deliver a robust model evaluation given the limited availability of annotated rare-cell data. A YOLO-family object detection model was selected and fine-tuned for this task. The final pipeline is intended to be accessible either via a user-friendly drag-and-drop interface that automatically presents detection results and a statistical summary of the analyzed sample, meeting the operational requirements set by the USZ or, where feasible, integrated into Cinderella, the cell classification software already in use at the USZ.
+
+## State of the Art
+**Deep Learning in Digital Hematology**
+
+The intersection of deep learning and hematological image analysis has produced noteworthy progress over the past years. Traditionally, the detection and classification of blood cells involved manual microscopic examination by pathologists, a process that is labor-intensive, subjective, and error-prone. The increasing range of diagnostic tests has driven demand for automated, high-throughput solutions that are cost-effective, require a rapid turnaround time, and provide reliable results. Convolutional neural networks (CNNs) and, more recently, transformer-based architectures have addressed this demand by learning to identify and categorize morphological features directly from raw pixel data @Choudhary2025.
+
+Among the detection frameworks applied in this domain, the YOLO (You Only Look Once) family of models has proven particularly effective. Studies applying YOLOv10 and YOLOv11 to the detection and classification of red blood cells, white blood cells, and platelets in microscopic images have demonstrated mAP scores of up to 93.8%, underscoring the potential of these architectures in supporting hematological analysis and clinical diagnosis @diagnostics15010022. A feature of YOLO-based pipelines is their ability to perform detection and classification in a single forward pass, hence their name "... Look Once", making them computationally suitable for integration into clinical workflows where inference speed matters. For further information about the mechanisms for YOLO-models see [@PA2_FV].
+
+A meta-analysis of over 400 peer-reviewed studies on deep learning in peripheral blood smear analysis confirmed significant advances in automated diagnostic tools, particularly for disease identification in blood cells, while also identifying critical gaps including the limited exploration of differential white blood cell counting, the underdevelopment of automated morphological analysis, and the absence of standardized evaluation criteria @Margret2025.  
+These gaps are directly relevant to the present thesis, which addresses an underexplored subtype of rare hematological cell analysis.
+
+**Comparable Work in Cell Detection**
+
+A directly relevant contribution in this domain was published by Glüge et al. @GLUGE2024107924 in collaboration with the University Hospital Zurich. The study evaluated four state-of-the-art CNN architectures on a dataset of 171'374 microscopic single-cell images from bone marrow smears of 945 patients, finding that the best pre-trained model achieved a 53.5% improvement in precision and 7.3% improvement in recall compared to training from scratch, and that out-of-domain pre-training yielded features that transferred well to cell classification tasks.
+
+A review by Ghete et al. @https://doi.org/10.1002/hem3.70048 covering AI-based cell classification in bone marrow aspirate smears from 2019 to 2024 provides a systematic overview of the broader field. The review found that performance metrics across published studies are **not directly comparable**, as the majority implemented their own methods on their own datasets, and few were validated on external datasets. This observation directly informed the design choices of the present thesis, which applies stratified cross-validation to ensure statistically robust performance estimates rather than relying on single-split evaluations.
+
+For multi-class white blood cell classification at the subtype level, Diaz et al. @DIAZ20256123 applied a YOLOv11-large model with spatial attention to the simultaneous localization and classification of 13 white blood cell subtypes. The model achieved a mAP50-95 of 77.9% with an overall F1-score of 0.913, with class-wise average precision ranging between 89.3% and 98.2%, confirming reliable recognition even for infrequent cell subtypes. This is particularly instructive for the present work, as the challenge of infrequent subtypes, low absolute count, high inter-class visual similarity, maps directly onto the atypical versus normal MC classification problem.
+
+Finally, Lv et al. @Lv2023 reported on the Morphogo system, a CNN-based platform trained on over 2.8 million bone marrow cell images. Evaluated across 508 cases, the system demonstrated the ability to identify over 25 different cell types, achieving a sensitivity of 80.95%, a specificity of 99.48%, and an overall accuracy of 99.01%. The dataset size required to achieve these results underscores the data scarcity challenge that constrains MC-specific models, a bottleneck that the present thesis addresses through targeted augmentation and cross-validation strategies.
+
+**Mast Cell Detection and the Clinical Gap**
+
+In contrast to blood cell detection, which benefits from large, publicly available datasets, automated MC analysis in bone marrow aspirates remains largely unexplored in the literature. As shown in @fig-cell-distributions, the number of published datasets covering mast cells is substantially smaller compared to other hematopoietic cell lineages, illustrating the significant data scarcity. Deep learning methods including convolutional neural networks, encoder-decoder architectures, and recurrent frameworks have been proposed for the detection and study of MC in the context of mastocytosis, and the spread and development of MC can in principle be studied through microscopic image analysis using AI frameworks @10.1007/978-3-031-27524-1_4. However, validated pipelines specifically targeting morphological classification of normal versus atypical MC in bone marrow aspirates, with direct alignment to WHO diagnostic thresholds, do not yet exist as established clinical tools.
+
+![Publication distribution across cell lineages @https://doi.org/10.1002/hem3.70048](figures/publications.jpg){#fig-cell-distributions width=50%}
+
+This gap is clinically significant. The minor diagnostic criteria for SM include the condition that at least a quarter of the MC in the bone marrow exhibit unusual characteristics, such as spindle-shaped (@fig-sample-cell) or otherwise abnormal morphology @Valent2021. Meeting or failing to meet this threshold has direct consequences for patient classification and treatment decisions. Manual cell counting is variable between observers and across institutions, and given the low absolute number of MC per sample, even small counting errors can shift a patient across a diagnostic boundary. An automated, reproducible, and transparent counting system therefore addresses a concrete unmet clinical need.
+
+![Sample of spindel shaped cell from dataset](figures/sample_spindel_shape.png){#fig-sample-cell width=50%}
+
+Taken together, the existing literature confirms that YOLO-based architectures are well-suited for cell-level detection in hematological microscopy, with performance in the range of 77-94% mAP achievable on well-represented cell types. However, no published study has specifically addressed the binary morphological classification of MC, atypical versus normal, in alignment with WHO diagnostic thresholds for SM. This thesis targets precisely this gap. It builds upon lessons learned from prior object detection experiments in related image analysis tasks @PA2_FV, and applies cross-validation methodology to ensure that reported performance metrics are generalizable rather than optimistically overfitted to a single data split. The clinical ambition of the project is to provide a deployable tool that can be integrated into an existing hospital software environment which distinguishes it from purely academic explorations and places model reliability, interface usability, and system integration at the center of the evaluation criteria.
+
+# Methodology
+
+## Biology of Mast Cells and Systemic Mastocytosis
+**Mast Cells: Origin and Function**  
+
+Mast cells are tissue-resident immune cells that play a central role in the body's innate defense system. They arise in the bone marrow, where maturation is controlled by stem cell factor binding to the receptor c-KIT, as well as by cytokines such as interleukin -3, -4, -9, and -10, which promote both differentiation and proliferation. Once mature, they migrate into neighbouring tissues and take up residence particularly in areas exposed to the external environment such as the gastrointestinal tract, respiratory mucosa, skin, and connective tissue surrounding blood and lymphatic vessels @Amin2012.
+
+Structurally, MC contain a nucleus surrounded by hundreds of granules, which serve as storage compartments for chemical mediators. These include histamine, which opens blood vessels and allows fluid and immune cells into tissues; proteases such as tryptase, chymase, and carboxypeptidase, which break down connective tissue to allow for better passage of immune cells; and cytokines and chemokines, which signal immune cells to proliferate, adhere to vessel walls, and move to sites of injury or infection @ClevelandClinicMastCells.
+
+Beyond their well-known role in allergic reactions, MC also contribute to tissue repair and angiogenesis. MC's synthesize, store, and release hundreds of mediators in response to allergic, environmental, neuroimmune, stress, and toxic triggers, with some of these mediators released independently of degranulation, including angiogenic, fibrotic, and neurotoxic molecules @THEOHARIDES201221. This functional spectrum makes them relevant not only in allergy and host defense, but across a wide spectrum of inflammatory and neoplastic conditions.
+
+**Development of Systemic Mastocytosis**  
+
+Systemic mastocytosis arises when MC undergo uncontrolled clonal proliferation driven by a somatic gain-of-function mutation. Around 95% of SM cases originate from a point mutation at codon 816 of the KIT gene, where aspartic acid is replaced by valine, referred to as KIT D816V. This substitution results in ligand-independent, constitutive activation of the KIT tyrosine kinase receptor, leading to unregulated MC proliferation, amplified growth, and increased survival @JH1279.
+
+
+**Disease Subtypes and Progression**
+
+SM is not a single, uniform entity but a spectrum of disease subtypes that differ in clinical behavior and prognosis. The International Consensus Classification defines the following subtypes in increasing order of severity: indolent SM (incorporating bone marrow mastocytosis), smoldering SM, aggressive SM, SM with an associated hematological neoplasm (SM-AHN), and mast cell leukemia (MCL) where as in the WHO 5th Edition, Bone Marrow Mastocytosis is placed on the top and the ranking shifts by +1 @JH1279.
+
+The majority of adult patients present with indolent SM, which is characterized by mediator-related symptoms, frequent skin involvement, and a near-normal life expectancy. The neoplastic MC burden in the bone marrow remains relatively low, and organ dysfunction is absent. Smoldering SM occupies an intermediate position, with a higher MC burden and a greater risk of progression, but without the organ damage that defines advanced disease.
+
+{{< pagebreak >}}
+
+**SM as a Precursor to Other Hematological Neoplasms**  
+
+One of the most clinically consequential features of SM is its capacity to co-occur with or precede other hematological malignancies. Secondary genetic lesions on top of the KIT mutation, or in cooperation with a particular genetic background, are potentially required for the malignant transformation of indolent SM into more severe disease forms @10.1182/blood-2015-07-655100. In SM-AHN, the associated hematological neoplasm, which may include myelodysplastic syndrome, myeloproliferative neoplasm, or acute myeloid leukemia, frequently shares the KIT D816V mutation with the MC compartment, indicating a common clonal origin in a multipotent hematopoietic precursor.
+
+The occurrence of the KIT mutation in bone marrow cell compartments other than MC is associated with progression to more aggressive forms of the disease and poor outcome in indolent SM @Teodosio2012. This involvement therefore serves as an important prognostic indicator, and its detection at the immunophenotypic level during bone marrow assessment has direct implications for patient management.
+
+
+
+## Technical
+
+Mit dem Datensatz des ersten Patienten wurde zuerst ohne augmentierung und mit dem nano modell gearbeitet, danach wurde augmentiert und mit nano danach wurden einige augmentierungen entfernt und es wurde auf das large modelll umgestiegen, das large modell schien keine gute performance zu leisten da es zu wenig daten hatte, deshalb blieb man beim nano, es wurde auch noch mit den epochen herumgespielt und anschliessend ein hyperparameter tuning durchgeführt, dies erzielte einige bessere ergebnisse die auch auf dem test datensatz validiert wurden. Bei dem ersten Patienten wurde noch ein inferenz run auf alle bilder minus den trainings daten gemacht. Dort hatte Stefan angemerkt, man solle doch den Spread anschauen um zu entscheiden wo man einen cut machen kann, damit die FP mit niedriger CONF weg gestrichen werden können. Beim 2. Patienten wurden mehrere versuche gemacht um zu evaluieren welche die besten resultate erzielen zu erst wurde nano modell mit 1 facher augmentierung der FP gemacht, danach nano mit 3 fach danach mein erstes modell mit einfacher aug dann mein modell mit 3 facher augmentierung. Das beste resultat wurde dann noch mit den gesuchten besten hyperparametern angewendet.
+
+### General Data Information
+The dataset for this study consists of bone marrow aspirate smears provided by the USZ. Although these samples were originally curated for the manual morphological differentiation between typical and atypical MC, they have been made available for this thesis to serve as the foundation for training and validating the deep learning models.
+
+### Data Acquisition & Annotation
+
+### Data Preprocessing
+
+### Model Selection & Architecture
+
+### Model Training & Finetuning Strategy
+
+### Model Testing
+
+### Evaluation Metrics
+
+### UI-Creation
+
+### Implementation in USZ Infrastructure
+
+# Results
+
+## Model Results and Statistical Evaluation
+## Quantitative  and Qualitative Evaluation
+## Evaluation Visualization
+## Real World Usage
+### Tests With Unseen Data
+
+
+# Discussion
+## Interpretation of Results
+## Clinical Relevance
+## Error Analysis
+
+# Conclusion
+## Summary of Key Findings
+## Limitations and Challenges
+## Future Research Directions
+
+
+# Declaration on AI Assistance
+The author declares that the empirical research, data analysis, experimental design, and quantitative results presented in this thesis were generated independently and strictly remain the intellectual property of the author.  
+
+Artificial intelligence (AI) assistance was utilized solely for the purpose of language refinement, stylistic editing, and optimization of academic reading flow. Specifically, the AI model (Gemini 2.5 Pro & Claude Sonnet 4.5) were employed to translate text, correct grammar, and restructure sentences into the required third-person past tense and formal academic style.  
+
+No core scientific content, model selection decisions, hyperparameter choices, or interpretation of results were delegated to or generated by the AI model.
+
+# References {#sec-refs}
+
+{{< references >}}
+
+::: {.content-hidden when-format="html"}
+
+[9] Gemini 2.5 Pro. (n.d.). Google Gemini. Retrieved October 1, 2025, from <https://gemini.google.com/app>
+
+[10] DeepL Translate: The world’s most accurate translator. (n.d.). <https://www.deepl.com/>
+
+
+
+# Lists
+
+## List of Figures {.unnumbered}
+
+{{< list-of-figures >}}
+Cover Picture[[9]](https://gemini.google.com/app)
+
+
+## List of Tables {.unnumbered}
+
+{{< list-of-tables >}}
+
+:::
+
+# Attachments

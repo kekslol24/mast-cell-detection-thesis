@@ -1,2 +1,13 @@
 *.jpg
+*.jpeg
 *.txt
+*.zip
+.gradio/
+CLAUDE.md
+.claude/
+desktop_app/
+graphify*/
+hpc/jobs/Slurm-339036/slurm-339036.out
+ultralytics/
+hpc/runs/*
+.gitignore

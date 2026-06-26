@@ -1,0 +1,12 @@
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/cfs/earth/scratch/vollmflo/BA/ba_testrun_augment.py:32: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  A.ShiftScaleRotate(rotate_limit=15, p=0.3, border_mode=cv.BORDER_CONSTANT, value=0),
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/cfs/earth/scratch/vollmflo/BA/ba_testrun_augment.py:32: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  A.ShiftScaleRotate(rotate_limit=15, p=0.3, border_mode=cv.BORDER_CONSTANT, value=0),
+/cfs/earth/scratch/vollmflo/.conda/envs/ultralytics/lib/python3.13/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/cfs/earth/scratch/vollmflo/BA/ba_testrun_augment.py:32: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  A.ShiftScaleRotate(rotate_limit=15, p=0.3, border_mode=cv.BORDER_CONSTANT, value=0),

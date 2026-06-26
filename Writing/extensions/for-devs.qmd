@@ -1,0 +1,48 @@
+
+
+# Developer Information
+
+This repository serves three purposes simultaneously:
+
+1. **Quarto Extension** (`_extensions/`) - The actual extension students will install
+2. **Template Scaffolding** (`template.qmd`) - Example document that students will automatically receive if they install the extension
+3. **Information Website** (`_quarto.yml`, `index.qmd`, `manual.qmd`, `getting-started.qmd`) - Documentation site including:
+   - Usage instructions
+   - Demo of rendered template (from `template.qmd`)
+   - ZHAW requirements specification (`zhaw-requirements.qmd`)
+
+## Quarto Extension / Template Scaffolding
+
+To make changes to the extension / template scaffolding, change the relevant files (template.qmd for the scaffolding, `_extensions/` for the extension). Then, git add / commit / push the changes if you are a repo owner or make a pull request if you are not. 
+
+Students will use the template with the following command:
+
+
+```{.bash}
+quarto use template zhaw-lsfm/quarto-thesis
+```
+
+This will:
+
+1. Install the extension
+2. Provide the students with `template.qmd` (which is renamed to the parent directory name)
+3. Provide the students with *all* files in the repo which are *not mentioned in `.quartoignore`*. Most files in the repo *are not relevant to the student*, so most files are listed in quarto ignore. Currently, `.quartoignore` includes:
+
+```{r}
+#| echo: false
+
+readLines(".quartoignore") |> cat(sep = "\n")
+```
+
+
+
+## Information Website
+
+To contribute information to the website:
+
+1. Change the relevant files (e.g. `_quarto.yml`, `index.qmd`, `manual.qmd`, `getting-started.qmd`) and add / commit / push the changes. This will only update the git repo
+2. To update the *hosted* website, run `quarto publish`
+
+
+The website is published at: <https://zhaw-lsfm.github.io/quarto-thesis>
+
