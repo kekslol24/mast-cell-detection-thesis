@@ -11,3 +11,5 @@ hpc/jobs/Slurm-339036/slurm-339036.out
 ultralytics/
 hpc/runs/*
 .gitignore
+BA\Writing\SPEC.md
+BA\CLAUDE.md
