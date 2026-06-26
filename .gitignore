@@ -1,6 +1,6 @@
 *.jpg
 *.jpeg
-*.txt
+# *.txt
 *.zip
 .gradio/
 CLAUDE.md
