@@ -20,4 +20,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python eval_lopo_folds.py
+python python_files/eval_lopo_folds.py

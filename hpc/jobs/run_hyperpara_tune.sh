@@ -24,4 +24,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python hyperpara_tune.py
+python python_files/hyperpara_tune.py

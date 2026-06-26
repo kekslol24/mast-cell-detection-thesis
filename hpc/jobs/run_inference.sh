@@ -24,4 +24,4 @@ echo "Genutztes Python: $(which python)"
 cd ..
 echo "Neues Verzeichnis: $(pwd)"
 
-python inference.py
+python python_files/inference.py

@@ -31,6 +31,6 @@ export N_GPUS=2
 export MAX_PARALLEL=2
 
 
-python ba_g1g4_cv.py
+python python_files/ba_g1g4_cv.py
 
 # SLURM_JOB_NAME="yolo_new_v4_freeze10_copy" python eval_lopo_folds.py
