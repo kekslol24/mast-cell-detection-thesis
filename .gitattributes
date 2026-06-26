@@ -1,4 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+git lfs track "*.out"
+git lfs track "*.zip"
 *.out filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
