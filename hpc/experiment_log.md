@@ -199,6 +199,10 @@ Config B is the correct way to use augmentation. Mosaic must be disabled (`mosai
 | **mean** | | **0.800** | **0.649** | **0.768** | **0.719** |
 | **std**  | | **0.129** | **0.131** | | |
 
+
+### Test results
+*See: slurm-312161.out*
+
 ### Conclusion
 Proof of concept succeeds. Fold 1 achieves excellent results (mAP50=0.952), but the 5-fold mean is
 dragged down by high fold-to-fold variance (std=0.129). Fold 5 converges at epoch 29 with very low
@@ -216,7 +220,7 @@ Script: `ba_improved_P2.py` throughout.
 ---
 
 ### Run P2-A — YOLO11n Baseline on P2 (base settings)
-**SLURM:** `Slurm-319399 (train p2 base nano)`
+**SLURM:** `Slurm-319399 `
 
 #### Setup
 - Base model: `yolo11n.pt` (COCO pretrained)
@@ -242,7 +246,7 @@ yolo11n.pt weights on this specialised domain is unstable. Using domain-specific
 ---
 
 ### Run P2-B — YOLO11n Baseline on P2 (modified settings)
-**SLURM:** `Slurm-319400 (train p2 mod nano)`
+**SLURM:** `Slurm-319400 `
 
 #### Setup
 - Base model: `yolo11n.pt`
@@ -268,7 +272,7 @@ the setting modifications. Domain-specific starting weights are needed.
 ---
 
 ### Run P2-C — DL_Modell_FV Fine-Tuning (base settings)
-**SLURM:** `Slurm-319401 (train p2 base dl_fv)`
+**SLURM:** `Slurm-319401`
 
 #### Setup
 - Base model: `DL_Modell_FV.pt` (domain-specific pretrained weights)
@@ -296,7 +300,7 @@ knowledge gets partially overwritten, leaving it conservative and biased toward 
 ---
 
 ### Run P2-D — DL_Modell_FV Fine-Tuning (modified settings)
-**SLURM:** `Slurm-319416 (train p2 mod dl_fv)`
+**SLURM:** `Slurm-319416`
 
 #### Setup
 - Base model: `DL_Modell_FV.pt`
@@ -323,7 +327,7 @@ showing the fold-to-fold instability has not been resolved.
 ---
 
 ### Run P2-E — DL_Modell_FV + YOLO Tuner Hyperparameters (FAILED)
-**SLURM:** `Slurm-319536 (train p2 base dl_fv hyperpara)`
+**SLURM:** `Slurm-319536`
 
 #### Setup
 - Base model: `DL_Modell_FV.pt`
@@ -355,7 +359,7 @@ checkpoint, they overwrite learned features before any adaptation can occur. The
 ---
 
 ### Run P2-F — DL_Modell_FV + Modified Hyperparameters + Tuner Config
-**SLURM:** `Slurm-319538 (train p2 mod dl_fv hyperpara)`
+**SLURM:** `Slurm-319538`
 
 #### Setup
 - Base model: `DL_Modell_FV.pt`
@@ -420,7 +424,7 @@ the primary bottleneck.
 ---
 
 ### Run P2-H — Lower LR + Backbone Freeze, No Background
-**SLURM:** 320698 (`train_p2_fp1_bgr0_new`)  
+**SLURM:** 320698  
 **Status:** complete
 
 #### Setup

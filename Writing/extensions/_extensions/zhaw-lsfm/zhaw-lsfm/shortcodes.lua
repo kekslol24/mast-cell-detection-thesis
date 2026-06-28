@@ -14,11 +14,11 @@ return {
   
   ['table-of-contents'] = function(args, kwargs, meta)
     -- Generate typst code for table of contents with depth awareness
-    local toc_depth = 2 -- default depth to match ZHAW requirements
+    local toc_depth = 3 -- default depth to match ZHAW requirements
     
     -- Check if toc-depth is specified in metadata
     if meta["toc-depth"] then
-      toc_depth = tonumber(pandoc.utils.stringify(meta["toc-depth"])) or 2
+      toc_depth = tonumber(pandoc.utils.stringify(meta["toc-depth"])) or 3
     end
     
     local typst_code = '#outline(title: none, depth: ' .. toc_depth .. ')'

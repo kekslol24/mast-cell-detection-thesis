@@ -334,5 +334,12 @@
 
 #set table(
   inset: 6pt,
-  stroke: none
+  stroke: (x, y) => if y == 0 { (bottom: 0.6pt) },
+  fill: (_, row) => if row == 0 {
+    rgb("#d9d9d9")
+  } else if calc.odd(row) {
+    white
+  } else {
+    rgb("#f2f2f2")
+  },
 )
