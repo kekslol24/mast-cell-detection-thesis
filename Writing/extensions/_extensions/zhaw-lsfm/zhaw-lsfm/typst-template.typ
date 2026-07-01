@@ -16,6 +16,7 @@
   authors: none,
   date: none,
   institut: none,
+  institute: none,
   keywords: none,
   confidential: false,
   thesis-type: none,
@@ -24,7 +25,7 @@
   submission-date: none,
   study-direction: none,
   supervisor: none,
-  cross-corrector: none,
+  co-examiner: none,
   cover-image: none,
   abstract: none,
   abstract-title: none,
@@ -173,14 +174,14 @@
 
       #v(1fr)
 
-      #if cross-corrector != none {
+      #if co-examiner != none {
         align(left)[
           #if lang == "en" [
-            *Cross Corrector:* \
+            *Co-Examiner:* \
           ] else [
             *Zweitkorrektur:* \
           ]
-          #for corrector in cross-corrector [
+          #for corrector in co-examiner [
             #if corrector.title != none [#corrector.title] #corrector.name \
             #corrector.affiliation \
             \
@@ -190,7 +191,7 @@
     ]
   }
 
-  // Imprint page (second page)
+// Imprint page (second page)
   if title != none or authors != none {
     page(numbering: none)[
       #v(1fr)
@@ -205,7 +206,32 @@
       
       #v(2em)
       
-      // Citation section
+      // 1. Institute section
+      #if institute != none {
+        align(left)[
+          #if lang == "en" [
+            *Institute:* \
+            #institute
+          ] else [
+            *Institut:* \
+            #institute
+          ]
+        ]
+        v(2em)
+      } else if institut != none {
+        align(left)[
+          #if lang == "en" [
+            *Institute:* \
+            #institut
+          ] else [
+            *Institut:* \
+            #institut
+          ]
+        ]
+        v(2em)
+      }
+      
+      // 2. Citation section
       #if authors != none and title != none {
         align(left)[
           #if lang == "en" [
@@ -217,30 +243,14 @@
         
         align(left)[
           #text(size: 10pt)[
-            #for author in authors [
-              #author.name
-              #if author != authors.last() [, ]
-            ]
-            #if date != none [(#date). ] else if submission-date != none [(#{
-              let date-str = repr(submission-date).trim("[").trim("]")
-              let year = date-str.split("-").at(0)
-              year
-            }). ] else [(n.d.). ]
-            #emph[#title#if subtitle != none [: #subtitle]]
-            #if institut != none {
-              if lang == "en" [
-                Zurich University of Applied Sciences, Department Life Sciences and Facility Management, #institut.
-              ] else [
-                Zürcher Hochschule für Angewandte Wissenschaften, Departement Life Sciences und Facility Management, #institut.
-              ]
-            }
+            #authors.map(author => author.name).join(", ")#if date != none [ (#date).] else if submission-date != none [ (#{let date-str = repr(submission-date).trim("[").trim("]"); date-str.split("-").at(0)}).] else [ (n.d.).] _#title#if subtitle != none [: #subtitle]_#if institute != none [, #institute.]
           ]
         ]
         
         v(2em)
       }
       
-      // Keywords
+      // 3. Keywords
       #if keywords != none {
         align(left)[
           #if lang == "en" [
@@ -249,44 +259,7 @@
             *Schlagworte:* #keywords
           ]
         ]
-        v(2em)
       }
-      
-      // Institute
-      #if institut != none {
-        align(left)[
-          #if lang == "en" [
-            #institut \
-            Department Life Sciences and Facility Management \
-            Zurich University of Applied Sciences
-          ] else [
-            #institut \
-            Departement Life Sciences und Facility Management \
-            Zürcher Hochschule für Angewandte Wissenschaften
-          ]
-        ]
-      }
-    ]
-  }
-
-  if abstract != none {
-    block(inset: 2em)[
-    #text(weight: "semibold")[#abstract-title] #h(1em) #abstract
-    ]
-  }
-
-  if toc {
-    let title = if toc_title == none {
-      auto
-    } else {
-      toc_title
-    }
-    block(above: 0em, below: 2em)[
-    #outline(
-      title: toc_title,
-      depth: toc_depth,
-      indent: toc_indent
-    );
     ]
   }
 

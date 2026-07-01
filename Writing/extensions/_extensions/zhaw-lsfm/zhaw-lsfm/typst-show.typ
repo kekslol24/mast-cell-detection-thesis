@@ -31,9 +31,9 @@ $endfor$
   ), // Hier wird die authors-Liste korrekt geschlossen
 $endif$
 
-$if(cross-corrector)$
-  cross-corrector: (
-$for(cross-corrector)$
+$if(co-examiner)$
+  co-examiner: (
+$for(co-examiner)$
     (
       name: [$it.name$],
       title: [$it.title$],
