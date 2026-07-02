@@ -7,6 +7,8 @@ Automated detection and morphological classification of mast cells (Atypical / N
 **Supervisor:** Dr. Stefan Glüge, Cross-corrector: Prof. Dr. Robert Vorburger  
 **Submission:** 2026-07-02
 
+[**MastCellDetector**](https://github.com/kekslol24/MastCellDetector) is the tool produced within this thesis
+
 ## What this repo is
 
 This is the full project repository for a bachelor thesis that builds a deep learning pipeline to help clinicians count atypical vs. normal mast cells in bone marrow aspirate microscopy images. A WHO criterion for systemic mastocytosis requires >=25% atypical mast cells, which is currently assessed by laborious manual counting.
