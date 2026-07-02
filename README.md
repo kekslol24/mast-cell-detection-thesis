@@ -7,6 +7,9 @@ Automated detection and morphological classification of mast cells (Atypical / N
 **Supervisor:** Dr. Stefan Glüge, Cross-corrector: Prof. Dr. Robert Vorburger  
 **Submission:** 2026-07-02
 
+Thesis paper can be found here: [Automated Detection and Morphological Classifica￾tion of Mast Cells in Bone Marrow Aspirates Using 
+Deep Learning](https://github.com/kekslol24/mast-cell-detection-thesis/blob/main/Writing/extensions/Bachelor_Thesis_FV.pdf)
+
 [**MastCellDetector**](https://github.com/kekslol24/MastCellDetector) is the tool produced within this thesis.
 
 ## What this repo is
