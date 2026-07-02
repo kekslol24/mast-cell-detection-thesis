@@ -7,7 +7,7 @@ Automated detection and morphological classification of mast cells (Atypical / N
 **Supervisor:** Dr. Stefan Glüge, Cross-corrector: Prof. Dr. Robert Vorburger  
 **Submission:** 2026-07-02
 
-[**MastCellDetector**](https://github.com/kekslol24/MastCellDetector) is the tool produced within this thesis
+[**MastCellDetector**](https://github.com/kekslol24/MastCellDetector) is the tool produced within this thesis.
 
 ## What this repo is
 
