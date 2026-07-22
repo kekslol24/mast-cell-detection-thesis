@@ -13,3 +13,4 @@ hpc/runs/*
 .gitignore
 BA\Writing\SPEC.md
 BA\CLAUDE.md
+*.pt
